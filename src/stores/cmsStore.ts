@@ -32,12 +32,41 @@ export const useCmsStore = create<CmsState>((set, get) => ({
         if (snap.exists()) {
           newContent[col] = snap.data();
         } else {
-          // Defaults if missing
-          const defaultData = {
-            title: `Default ${col} Title`,
-            subtitle: `Default ${col} Subtitle`
+          // Institutional defaults if document is uninitialized
+          const institutionalDefaults: Record<string, any> = {
+            landingPage: {
+              badgeText: "Quantitative Research & Wealth Management",
+              title: "Institutional Factor Models for Systematic Alpha",
+              subtitle: "SEBI Registered Research Analyst advisory engineered for high-net-worth portfolios."
+            },
+            welcomePage: {
+              title: "Advisory Mandate Initialized",
+              subtitle: "Welcome to Arth Research. Proceed to configure your initial portfolio holdings."
+            },
+            plansPage: {
+              title: "Institutional Advisory Mandates",
+              subtitle: "Select the quantitative factor strategy engineered for your capital scale and risk tolerance."
+            },
+            investmentEntryPage: {
+              badgeText: "Strategy Model Basket",
+              title: "Configure Initial Executed Holdings",
+              subtitle: "Register your executed stock entries and average buy prices for analyst desk verification."
+            },
+            loginPage: {
+              title: "Access Your Wealth Engine",
+              subtitle: "Institutional quantitative portfolio analytics and automated research signals."
+            },
+            dashboardPage: {
+              welcomeText: "Institutional Terminal Access • Risk Parity Quant Engine",
+              marketStatus: "MARKET ACTIVE",
+              chartTitle: "Equity Curve & NAV Trajectory"
+            }
           };
-          await setDoc(docRef, defaultData);
+          const defaultData = institutionalDefaults[col] || {
+            title: "Arth Research Institutional Portal",
+            subtitle: "Systematic quantitative research and algorithmic advisory."
+          };
+          await setDoc(docRef, defaultData, { merge: true });
           newContent[col] = defaultData;
         }
       }

@@ -281,13 +281,13 @@ export default function InvestmentEntryPage() {
               <div className="mb-5 pb-4 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <span className="text-[10px] font-mono uppercase tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
-                    {siteContent?.investmentEntryPage?.badgeText || "Strategy Model Basket"}
+                    {siteContent?.investmentEntryPage?.badgeText && !siteContent.investmentEntryPage.badgeText.startsWith('Default ') ? siteContent.investmentEntryPage.badgeText : "Strategy Model Basket"}
                   </span>
                   <h1 className="text-lg sm:text-xl font-semibold tracking-tight text-foreground mt-2">
-                    {siteContent?.investmentEntryPage?.title || "Configure Initial Executed Holdings"}
+                    {siteContent?.investmentEntryPage?.title && !siteContent.investmentEntryPage.title.startsWith('Default ') && !siteContent.investmentEntryPage.title.includes('investmentEntryPage') ? siteContent.investmentEntryPage.title : "Configure Initial Executed Holdings"}
                   </h1>
                   <p className="text-xs text-muted-foreground font-mono mt-0.5">
-                    {siteContent?.investmentEntryPage?.subtitle || `Enter the executed quantities and average purchase prices for your ${activePlan?.name || 'mandate'}.`}
+                    {siteContent?.investmentEntryPage?.subtitle && !siteContent.investmentEntryPage.subtitle.startsWith('Default ') && !siteContent.investmentEntryPage.subtitle.includes('investmentEntryPage') ? siteContent.investmentEntryPage.subtitle : `Enter the executed quantities and average purchase prices for your ${activePlan?.name || 'mandate'}.`}
                   </p>
                 </div>
                 

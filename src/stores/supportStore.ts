@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { supportRepository } from '../repositories/supportRepository';
+import { useAuthStore } from './authStore';
 import type { SupportTicket } from '../types/models';
 
 interface SupportState {
@@ -13,10 +15,18 @@ export const useSupportStore = create<SupportState>((set) => ({
   isLoading: false,
 
   fetchTickets: async () => {
-    // Mock for now until repository is fully wired up
-    set({ isLoading: true });
-    setTimeout(() => {
+    const user = useAuthStore.getState().user;
+    if (!user) {
       set({ tickets: [], isLoading: false });
-    }, 500);
+      return;
+    }
+    set({ isLoading: true });
+    try {
+      const userTickets = await supportRepository.getUserTickets(user.uid);
+      set({ tickets: userTickets as unknown as SupportTicket[], isLoading: false });
+    } catch (error) {
+      console.error("Failed to fetch user support tickets:", error);
+      set({ tickets: [], isLoading: false });
+    }
   }
 }));
