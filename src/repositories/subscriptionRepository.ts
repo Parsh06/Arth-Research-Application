@@ -120,7 +120,9 @@ export const subscriptionRepository = {
             await emailService.sendSubscriptionExpiredEmail(userEmail, {
               userName,
               planName: sub.planName || 'Institutional Advisory Mandate',
+              expiredDateFormatted: formattedExpiredDate,
               expirationDate: formattedExpiredDate,
+              renewalUrl: `${window?.location?.origin || 'https://arthresearch.com'}/plans`,
               reactivateUrl: `${window?.location?.origin || 'https://arthresearch.com'}/plans`
             });
             results.expiredSent++;

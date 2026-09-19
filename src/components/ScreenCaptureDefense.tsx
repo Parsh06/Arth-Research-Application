@@ -5,16 +5,9 @@ import { useAuthStore } from '../stores/authStore';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
 // Pages that must strictly be protected from screenshots & screen capture
+// Note: Investment Entry (/setup-portfolio) and Client Portfolio (/portfolio) are explicitly permitted for user screenshots
 const PROTECTED_ROUTE_PREFIXES = [
   '/checkout',
-  '/setup-portfolio',
-  '/portfolio',
-  '/portfolio-pending',
-  '/portfolio-rejected',
-  '/dashboard',
-  '/watchlist',
-  '/signals',
-  '/history',
   '/admin'
 ];
 

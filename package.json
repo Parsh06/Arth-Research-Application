@@ -7,7 +7,11 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "pwsh -ExecutionPolicy Bypass -File ./deploy.ps1",
+    "deploy:frontend": "pwsh -ExecutionPolicy Bypass -File ./deploy.ps1 -Target frontend",
+    "deploy:backend": "pwsh -ExecutionPolicy Bypass -File ./deploy.ps1 -Target backend",
+    "deploy:both": "pwsh -ExecutionPolicy Bypass -File ./deploy.ps1 -Target both"
   },
   "dependencies": {
     "@emailjs/browser": "^4.4.1",

@@ -19,8 +19,6 @@ const LoginPage = lazy(() => import('./pages/LoginPage'));
 const CheckoutPage = lazy(() => import('./pages/CheckoutPage'));
 const WelcomePage = lazy(() => import('./pages/WelcomePage'));
 const InvestmentEntryPage = lazy(() => import('./pages/InvestmentEntryPage'));
-const PortfolioPendingPage = lazy(() => import('./pages/PortfolioPendingPage'));
-const PortfolioRejectedPage = lazy(() => import('./pages/PortfolioRejectedPage'));
 const AccessRevokedPage = lazy(() => import('./pages/AccessRevokedPage'));
 const ApprovalPendingPage = lazy(() => import('./pages/ApprovalPendingPage'));
 const HistoryPage = lazy(() => import('./pages/HistoryPage'));
@@ -69,31 +67,22 @@ function App() {
               <Route element={<AuthGuard requireAuth={true} />}>
                 <Route path="/setup-portfolio" element={<InvestmentEntryPage />} />
                 <Route path="/portfolio/entry" element={<InvestmentEntryPage />} />
-                <Route path="/portfolio-pending" element={<PortfolioPendingPage />} />
-                <Route path="/portfolio-rejected" element={<PortfolioRejectedPage />} />
+                <Route path="/portfolio-pending" element={<Navigate to="/portfolio" replace />} />
+                <Route path="/portfolio-rejected" element={<Navigate to="/portfolio" replace />} />
                 <Route path="/access-revoked" element={<AccessRevokedPage />} />
-              </Route>
-
-              {/* Protected User Routes (Requires Active Subscription) */}
-              <Route element={<AuthGuard requireAuth />}>
                 <Route path="/pending-approval" element={<ApprovalPendingPage />} />
               </Route>
 
               {/* User Dashboard Routes */}
               <Route element={<UserLayout />}>
-                {/* Requires Subscription */}
-                <Route element={<AuthGuard requireAuth requireSubscription />}>
+                <Route element={<AuthGuard requireAuth />}>
+                  <Route path="/dashboard" element={<DashboardPage />} />
                   <Route path="/portfolio" element={<PortfolioPage />} />
+                  <Route path="/watchlist" element={<WatchlistPage />} />
+                  <Route path="/signals" element={<Navigate to="/watchlist" replace />} />
                   <Route path="/history" element={<HistoryPage />} />
                   <Route path="/reports" element={<Navigate to="/history" replace />} />
                   <Route path="/notifications" element={<NotificationsPage />} />
-                </Route>
-                
-                {/* Requires Login only */}
-                <Route element={<AuthGuard requireAuth />}>
-                  <Route path="/dashboard" element={<DashboardPage />} />
-                  <Route path="/signals" element={<Navigate to="/dashboard" replace />} />
-                  <Route path="/watchlist" element={<WatchlistPage />} />
                   <Route path="/support" element={<SupportPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
                   <Route path="/settings" element={<Navigate to="/profile" replace />} />

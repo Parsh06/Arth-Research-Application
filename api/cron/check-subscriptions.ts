@@ -15,33 +15,79 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Authorization check (from cron-job.org Bearer token or ?secret= query param)
   const authHeader = (req.headers['authorization'] as string) || '';
   const querySecret = (req.query.secret as string) || '';
-  const providedSecret = querySecret || authHeader.replace('Bearer ', '').trim();
+  const providedRaw = querySecret || authHeader.replace(/^Bearer\s+/i, '').trim();
+  
+  let providedDecoded = providedRaw;
+  try {
+    providedDecoded = decodeURIComponent(providedRaw);
+  } catch {
+    // Keep raw if decoding fails
+  }
+
   const configuredSecret = process.env.CRON_SECRET || '';
 
-  if (configuredSecret && providedSecret !== configuredSecret) {
-    res.status(401).json({ error: 'Unauthorized cron request. Invalid CRON_SECRET token.' });
+  if (
+    configuredSecret && 
+    providedRaw !== configuredSecret && 
+    providedDecoded !== configuredSecret
+  ) {
+    res.status(401).json({ 
+      success: false, 
+      error: 'Unauthorized cron request. Invalid CRON_SECRET token.' 
+    });
     return;
   }
 
   try {
     const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'researchapplication-3085c';
+    const now = Date.now();
 
     console.log(`[CRON WEBHOOK] Executing subscription lifecycle check for Firestore project: ${projectId}...`);
 
     const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/subscriptions`;
     const firestoreRes = await fetch(url);
+    
     let docs: any[] = [];
     if (firestoreRes.ok) {
       const data: any = await firestoreRes.json();
       docs = data.documents || [];
     }
 
+    let activeCount = 0;
+    let expiredCount = 0;
+    let warningCount = 0;
+
+    docs.forEach(doc => {
+      const fields = doc.fields || {};
+      const status = fields.status?.stringValue || 'inactive';
+      const expiresAt = fields.expiresAt?.integerValue 
+        ? parseInt(fields.expiresAt.integerValue, 10) 
+        : (fields.expiresAt?.timestampValue ? new Date(fields.expiresAt.timestampValue).getTime() : 0);
+
+      if (status === 'active' || status === 'ACTIVE') {
+        if (expiresAt > 0 && expiresAt < now) {
+          expiredCount++;
+        } else if (expiresAt > 0 && expiresAt - now <= 7 * 24 * 60 * 60 * 1000) {
+          warningCount++;
+          activeCount++;
+        } else {
+          activeCount++;
+        }
+      }
+    });
+
     res.status(200).json({
       success: true,
       timestamp: new Date().toISOString(),
+      cadence: '15_MINUTES_ACTIVE',
       subscriptionsScanned: docs.length,
+      metrics: {
+        activeMandates: activeCount,
+        warningCandidates: warningCount,
+        expiredMandates: expiredCount
+      },
       status: 'CRON_EVALUATED',
-      message: `Automated lifecycle scan complete. Evaluated ${docs.length} active subscription mandates.`
+      message: `Automated lifecycle scan complete. Evaluated ${docs.length} subscription mandate(s). Next evaluation in 15 minutes.`
     });
   } catch (cronErr: any) {
     console.error('[CRON WEBHOOK ERROR]', cronErr);

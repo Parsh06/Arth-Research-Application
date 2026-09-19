@@ -222,25 +222,12 @@ export default function AdminDashboard() {
               </h3>
               <p className="text-[11px] font-mono text-muted-foreground mt-0.5">Cryptographic log of administrative actions</p>
             </div>
-            {auditLogs.length > 0 && (
-              <button
-                onClick={async () => {
-                  if (window.confirm("Purge all administrative audit log records?")) {
-                    try {
-                      const { auditRepository } = await import('../../repositories/auditRepository');
-                      await auditRepository.clearAllLogs();
-                      setAuditLogs([]);
-                    } catch (e) {
-                      console.error("Failed to clear logs", e);
-                    }
-                  }
-                }}
-                className="text-[11px] font-mono text-destructive hover:underline px-2 py-1 rounded bg-destructive/10 transition-colors"
-                title="Purge all audit logs"
-              >
-                Clear Logs
-              </button>
-            )}
+            <span
+              className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 select-none"
+              title="Audit logs are SEBI-regulated immutable records — deletion is prohibited"
+            >
+              🔒 SEBI Immutable
+            </span>
           </div>
           
           <div className="space-y-2 flex-1 overflow-y-auto max-h-96 pr-1">
@@ -264,7 +251,7 @@ export default function AdminDashboard() {
                     </span>
                   </div>
                   <p className="text-muted-foreground text-[11px] mt-1">
-                    <span className="font-semibold text-foreground">{log.adminEmail}</span> modified <span className="uppercase text-primary">{log.targetType}</span> (ID: <span className="text-muted-foreground">{log.targetId?.slice(0, 10)}</span>)
+                    <span className="font-semibold text-foreground">{log.adminEmail}</span> modified <span className="uppercase text-primary">{log.entityType}</span> (ID: <span className="text-muted-foreground">{log.entityId?.slice(0, 10)}</span>)
                   </p>
                 </div>
               ))

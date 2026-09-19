@@ -1,5 +1,11 @@
 {
   "version": 2,
+  "crons": [
+    {
+      "path": "/api/cron/check-subscriptions",
+      "schedule": "30 3 * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/api/(.*)",

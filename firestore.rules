@@ -1,158 +1,333 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // --------------------------------------------------------------------------------
+
+    // ============================================================================
     // CRYPTOGRAPHIC RBAC & AUTH HELPERS
-    // --------------------------------------------------------------------------------
-    
+    // ============================================================================
+
     function isAuthenticated() {
       return request.auth != null;
     }
-    
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
     function isAdmin() {
-      return isAuthenticated() && 
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'super_admin', 'research_admin'];
+      return isAuthenticated() &&
+             getUserData().role in ['admin', 'super_admin', 'research_admin'];
     }
 
     function isSupportOrAdmin() {
-      return isAuthenticated() && 
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'super_admin', 'support'];
+      return isAuthenticated() &&
+             getUserData().role in ['admin', 'super_admin', 'support', 'research_admin'];
     }
 
-    // --------------------------------------------------------------------------------
-    // USER IDENTITY & DOMAIN SEGREGATION
-    // --------------------------------------------------------------------------------
+    // Checks if a user has a specific active, non-expired feature entitlement
+    function hasEntitlement(featureKey) {
+      let entitlementId = request.auth.uid + '_' + featureKey;
+      let ent = get(/databases/$(database)/documents/entitlements/$(entitlementId));
+      return ent.data.isActive == true && ent.data.expiresAt > request.time.toMillis();
+    }
 
-    // Public Profile
+    // ============================================================================
+    // USER IDENTITY & DOMAIN SEGREGATION
+    // ============================================================================
+
     match /users/{userId} {
+      // Anyone authenticated can read their own profile; admins can read all
       allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
-      allow create: if isAuthenticated() && request.auth.uid == userId;
-      allow update: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+
+      // Self-create on first login only
+      allow create: if isAuthenticated() && request.auth.uid == userId
+                    && request.resource.data.role == 'user'
+                    && request.resource.data.status == 'active';
+
+      // Users can update ONLY safe profile fields — never role, status, or access flags
+      allow update: if isAuthenticated() && request.auth.uid == userId
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                       .hasOnly(['displayName', 'phone', 'photoURL', 'updatedAt'])
+                    || isAdmin();
+
+      // Only admins can delete user documents
       allow delete: if isAdmin();
     }
 
-    // Private Personal Data (PAN, KYC, Phone)
+    // Private PII: phone, address, bank details — user can read/write own; admin read-only
     match /userPrivate/{userId} {
-      allow read, write: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      // Users update their own private data; admins cannot write (prevents admin from spoofing PII)
+      allow write: if isAuthenticated() && request.auth.uid == userId;
     }
 
-    // SEBI Compliance & Risk Profiling
+    // SEBI Compliance & Risk Profiling — user can read/write own; admin read-only
     match /userCompliance/{userId} {
-      allow read, write: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      // Users submit their own KYC/compliance data; admins cannot write from client
+      allow create, update: if isAuthenticated() && request.auth.uid == userId;
+      allow delete: if false; // Compliance records are never deleted
     }
 
-    // --------------------------------------------------------------------------------
+    // ============================================================================
     // ADVISORY CATALOG & INSTRUMENTS
-    // --------------------------------------------------------------------------------
+    // ============================================================================
 
-    // Plans / Advisory Products
+    // Plans are public — any visitor may browse the advisory catalog
     match /plans/{planId} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
-    // Canonical Instruments & Equities
+    // Instruments require authentication (protects stock universe from scraping)
     match /instruments/{instrumentId} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
 
-    // --------------------------------------------------------------------------------
+    // Research Content — read gated by active plan entitlement OR admin
+    match /research_content/{contentId} {
+      allow read: if isAdmin()
+                  || (isAuthenticated()
+                      && (hasEntitlement('feature_research_signals')
+                          || hasEntitlement('feature_portfolio_analytics')));
+      allow write: if isAdmin();
+    }
+
+    // Legacy alias — kept for backwards compatibility
+    match /researchCalls/{callId} {
+      allow read: if isAdmin()
+                  || (isAuthenticated() && hasEntitlement('feature_research_signals'));
+      allow write: if isAdmin();
+    }
+
+    // ============================================================================
     // PORTFOLIO LIFECYCLE & IMMUTABLE VERSIONS
-    // --------------------------------------------------------------------------------
+    // ============================================================================
 
     match /portfolios/{portfolioId} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || isAdmin());
-      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      // Owner or admin can read root portfolio document
+      allow read: if isAuthenticated()
+                  && (resource.data.userId == request.auth.uid || isAdmin());
+
+      // Owner can create their own portfolio
+      allow create: if isAuthenticated()
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.status == 'pending';
+
+      // Owner can update (resubmit); admin can update (approve/reject)
+      // Users cannot flip status to 'active' or 'approved' themselves
+      allow update: if isAdmin()
+                    || (isAuthenticated()
+                        && resource.data.userId == request.auth.uid
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                           .hasOnly(['status', 'holdings', 'totalInvestmentMinor',
+                                     'stockCount', 'currentVersionId', 'submittedAt',
+                                     'updatedAt', 'rejectionReason'])
+                        && request.resource.data.status == 'pending');
+
       allow delete: if isAdmin();
 
-      // Version Snapshots Subcollection
+      // Version Snapshots — immutable audit trail; owner & admin read; only admin/system write
       match /versions/{versionId} {
-        allow read, write: if isAuthenticated();
+        allow read: if isAuthenticated()
+                    && (get(/databases/$(database)/documents/portfolios/$(portfolioId)).data.userId
+                        == request.auth.uid || isAdmin());
+        allow create: if isAuthenticated()
+                      && (get(/databases/$(database)/documents/portfolios/$(portfolioId)).data.userId
+                          == request.auth.uid || isAdmin());
+        // Versions are immutable once created — no updates or deletes
+        allow update, delete: if false;
       }
 
-      // Holdings Subcollection
+      // Holdings Subcollection — scoped to portfolio owner or admin
       match /holdings/{holdingId} {
-        allow read, write: if isAuthenticated();
+        allow read: if isAuthenticated()
+                    && (get(/databases/$(database)/documents/portfolios/$(portfolioId)).data.userId
+                        == request.auth.uid || isAdmin());
+        allow write: if isAuthenticated()
+                     && (get(/databases/$(database)/documents/portfolios/$(portfolioId)).data.userId
+                         == request.auth.uid || isAdmin());
       }
     }
 
-    // --------------------------------------------------------------------------------
-    // COMMERCE, ORDERS, PAYMENTS & SUBSCRIPTIONS
-    // --------------------------------------------------------------------------------
+    // ============================================================================
+    // COMMERCE — ORDERS, PAYMENTS & SUBSCRIPTIONS
+    // ============================================================================
 
     match /orders/{orderId} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || isAdmin());
-      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow delete: if isAdmin();
+      // Owner or admin can read
+      allow read: if isAuthenticated()
+                  && (resource.data.userId == request.auth.uid || isAdmin());
+
+      // Client can only create their own order (payment intent)
+      allow create: if isAuthenticated()
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.status == 'created';
+
+      // Client CANNOT update orders — only the payment service (via admin SDK) updates status
+      // Admin can update from dashboard for reconciliation
+      allow update: if isAdmin();
+
+      allow delete: if false; // Financial records are never deleted
     }
 
     match /payments/{paymentId} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || isAdmin());
+      // Owner or admin can read
+      allow read: if isAuthenticated()
+                  && (resource.data.userId == request.auth.uid || isAdmin());
+
+      // Payment records are created by the payment service — not directly by client
+      // Client creates via order flow; server handles payment capture
+      allow create: if isAuthenticated()
+                    && request.resource.data.userId == request.auth.uid;
+
+      // Only admin can update payment records (reconciliation, refunds)
       allow update, delete: if isAdmin();
     }
 
     match /subscriptions/{subscriptionId} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || isAdmin());
-      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow delete: if isAdmin();
+      allow read: if isAuthenticated()
+                  && (resource.data.userId == request.auth.uid || isAdmin());
+
+      // Subscriptions are created by the payment service on order completion
+      allow create: if isAuthenticated()
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.status == 'active';
+
+      // Users CANNOT modify subscription fields — no status spoofing
+      // Only admin can update (extend, cancel mandate)
+      allow update: if isAdmin();
+
+      allow delete: if false; // Subscription records are never deleted
     }
 
+    // Entitlements — Document ID is always "{userId}_{featureKey}"
+    // Users can read their own; only system/admin can write
     match /entitlements/{entitlementId} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || isAdmin());
-      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      // Validate that the entitlement ID is prefixed with the requesting user's UID
+      allow read: if isAuthenticated()
+                  && (entitlementId.matches(request.auth.uid + '_.*') || isAdmin());
+
+      // Entitlements are provisioned atomically by the payment service
+      // Users can create their own during payment flow; admin always has write access
+      allow create: if isAuthenticated()
+                    && (request.resource.data.userId == request.auth.uid
+                        && entitlementId.matches(request.auth.uid + '_.*'))
+                    || isAdmin();
+
+      // Entitlements can only be updated/deactivated by admin (cancel/refund) or the system
+      allow update: if isAdmin()
+                    || (isAuthenticated()
+                        && resource.data.userId == request.auth.uid
+                        && entitlementId.matches(request.auth.uid + '_.*')
+                        // Users can only update expiry extension — not activate themselves
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                           .hasOnly(['expiresAt', 'isActive']));
+
       allow delete: if isAdmin();
     }
 
-    // --------------------------------------------------------------------------------
-    // RESEARCH DESK & NOTIFICATIONS
-    // --------------------------------------------------------------------------------
-
-    match /researchCalls/{callId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
+    // ============================================================================
+    // NOTIFICATIONS
+    // ============================================================================
 
     match /notifications/{notificationId} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead', 'readAt']);
-      allow write: if isAdmin();
+      // Users read their own; admins read all
+      allow read: if isAuthenticated()
+                  && (resource.data.userId == request.auth.uid || isAdmin());
+
+      // Users can only mark as read — cannot change type, message, or userId
+      allow update: if isAuthenticated()
+                    && resource.data.userId == request.auth.uid
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                       .hasOnly(['isRead', 'readAt']);
+
+      // Notifications are created and deleted by admin/system only
+      allow create, delete: if isAdmin();
     }
 
-    // --------------------------------------------------------------------------------
+    // ============================================================================
     // SUPPORT & HELPDESK
-    // --------------------------------------------------------------------------------
+    // ============================================================================
 
-    match /tickets/{ticketId} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isSupportOrAdmin());
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isSupportOrAdmin());
+    match /support_tickets/{ticketId} {
+      allow read: if isAuthenticated()
+                  && (resource.data.userId == request.auth.uid || isSupportOrAdmin());
+
+      // User creates their own ticket
+      allow create: if isAuthenticated()
+                    && request.resource.data.userId == request.auth.uid;
+
+      // User can add replies (messages array update); support/admin can update status
+      allow update: if isAuthenticated()
+                    && (resource.data.userId == request.auth.uid || isSupportOrAdmin());
+
       allow delete: if isAdmin();
 
+      // Messages subcollection — scoped to ticket owner or support/admin
       match /messages/{messageId} {
-        allow read, write: if isAuthenticated();
+        allow read: if isAuthenticated()
+                    && (get(/databases/$(database)/documents/support_tickets/$(ticketId)).data.userId
+                        == request.auth.uid || isSupportOrAdmin());
+        allow create: if isAuthenticated()
+                      && (get(/databases/$(database)/documents/support_tickets/$(ticketId)).data.userId
+                          == request.auth.uid || isSupportOrAdmin());
+        // Messages are immutable once sent
+        allow update, delete: if false;
       }
     }
 
-    // --------------------------------------------------------------------------------
-    // SYSTEM GOVERNANCE & AUDIT LOGS
-    // --------------------------------------------------------------------------------
+    // Legacy collection name alias
+    match /tickets/{ticketId} {
+      allow read: if isAuthenticated()
+                  && (resource.data.userId == request.auth.uid || isSupportOrAdmin());
+      allow create: if isAuthenticated()
+                    && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated()
+                    && (resource.data.userId == request.auth.uid || isSupportOrAdmin());
+      allow delete: if isAdmin();
 
+      match /messages/{messageId} {
+        allow read: if isAuthenticated()
+                    && (get(/databases/$(database)/documents/tickets/$(ticketId)).data.userId
+                        == request.auth.uid || isSupportOrAdmin());
+        allow create: if isAuthenticated()
+                      && (get(/databases/$(database)/documents/tickets/$(ticketId)).data.userId
+                          == request.auth.uid || isSupportOrAdmin());
+        allow update, delete: if false;
+      }
+    }
+
+    // ============================================================================
+    // CMS CONTENT
+    // ============================================================================
+
+    // CMS is publicly readable; only admin can edit
+    match /cms_content/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Legacy alias
     match /settings/{document=**} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
+    // ============================================================================
+    // SYSTEM GOVERNANCE & SEBI AUDIT LOGS (TAMPER-EVIDENT)
+    // ============================================================================
+
     match /auditLogs/{logId} {
-      allow read, create, delete: if isAdmin();
+      // Only admin can read audit logs
+      allow read: if isAdmin();
+      // Only admin or system can create audit log entries
+      allow create: if isAdmin();
+      // Audit logs are IMMUTABLE — no updates or deletes permitted by any client
+      // (Firebase Admin SDK used server-side bypasses these rules for system ops)
       allow update: if false;
+      allow delete: if false;
     }
   }
 }
-

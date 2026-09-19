@@ -73,8 +73,8 @@ export default function AdminReviewPortfolio() {
         adminId: user.uid,
         adminEmail: user.email || 'Admin',
         action: 'APPROVE_PORTFOLIO',
-        targetId: id,
-        targetType: 'portfolio',
+        entityId: id,
+        entityType: 'portfolio',
         details: { message: `Approved portfolio ${id} for user ${portfolio.userId}`, validityDays }
       });
 
@@ -121,8 +121,8 @@ export default function AdminReviewPortfolio() {
         adminId: user.uid,
         adminEmail: user.email || 'Admin',
         action: 'REJECT_PORTFOLIO',
-        targetId: id,
-        targetType: 'portfolio',
+        entityId: id,
+        entityType: 'portfolio',
         details: { message: `Rejected portfolio ${id} for user ${portfolio.userId}`, reason: rejectReason.trim() }
       });
 

@@ -56,8 +56,8 @@ export const userRepository = {
         adminId: adminUid,
         adminEmail: 'admin@arthadvisory.com',
         action: 'UPDATE_USER_ROLE',
-        targetType: 'user',
-        targetId: uid,
+        entityType: 'user',
+        entityId: uid,
         details: { newRole: role }
       });
     }
@@ -71,8 +71,8 @@ export const userRepository = {
         adminId: adminUid,
         adminEmail: 'admin@arthadvisory.com',
         action: 'UPDATE_USER_STATUS',
-        targetType: 'user',
-        targetId: uid,
+        entityType: 'user',
+        entityId: uid,
         details: { newStatus: status }
       });
     }
@@ -93,8 +93,8 @@ export const userRepository = {
       adminId: adminUid,
       adminEmail,
       action: 'REVOKE_USER_ACCESS',
-      targetType: 'user',
-      targetId: uid,
+      entityType: 'user',
+      entityId: uid,
       details: {
         reason: reason.trim(),
         revokedAt: now
@@ -117,8 +117,8 @@ export const userRepository = {
       adminId: adminUid,
       adminEmail,
       action: 'REACTIVATE_USER_ACCESS',
-      targetType: 'user',
-      targetId: uid,
+      entityType: 'user',
+      entityId: uid,
       details: {
         reactivatedAt: now
       }
@@ -133,8 +133,8 @@ export const userRepository = {
       adminId: adminUid,
       adminEmail,
       action: 'DELETE_USER_PERMANENTLY',
-      targetType: 'user',
-      targetId: uid,
+      entityType: 'user',
+      entityId: uid,
       details: {
         email,
         deletedAt: new Date().toISOString()

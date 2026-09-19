@@ -1,20 +1,21 @@
 import { useState } from 'react';
 import { Link, Outlet, useLocation, Navigate } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  Users, 
-  CreditCard, 
-  ShieldCheck, 
-  Settings, 
-  LogOut, 
-  FileText, 
-  Menu, 
+import {
+  LayoutDashboard,
+  Users,
+  CreditCard,
+  ShieldCheck,
+  Settings,
+  LogOut,
+  FileText,
+  Menu,
   X,
   TrendingUp,
   Headphones,
   Shield,
   PieChart,
-  Mail
+  Mail,
+  ChevronRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../stores/authStore';
@@ -54,7 +55,7 @@ export default function AdminLayout() {
 
   return (
     <div className="min-h-screen bg-mesh bg-background text-foreground flex transition-colors duration-300">
-      
+
       {/* Desktop Admin Sidebar */}
       <aside className="w-68 bg-card/60 backdrop-blur-xl border-r border-border flex flex-col hidden lg:flex shrink-0 z-30">
         <div className="h-16 flex items-center px-6 border-b border-border justify-between">
@@ -68,8 +69,8 @@ export default function AdminLayout() {
             </div>
           </div>
         </div>
-        
-        <nav className="flex-1 px-3 py-5 space-y-1 overflow-y-auto">
+
+        <nav className="flex-1 px-3 py-5 space-y-0.5 overflow-y-auto">
           {adminNavigation.map((item) => {
             const isActive = location.pathname === item.href || (item.href !== '/admin/dashboard' && location.pathname.startsWith(item.href));
             return (
@@ -77,13 +78,14 @@ export default function AdminLayout() {
                 key={item.name}
                 to={item.href}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-xs font-medium tracking-wide transition-all duration-150 ${
-                  isActive 
-                    ? 'bg-primary/15 text-primary border border-primary/30 font-semibold shadow-sm' 
+                  isActive
+                    ? 'bg-primary/15 text-primary border border-primary/30 font-semibold shadow-sm'
                     : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
                 }`}
               >
                 <item.icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
                 <span>{item.name}</span>
+                {isActive && <ChevronRight className="w-3 h-3 ml-auto text-primary/60" />}
               </Link>
             );
           })}
@@ -107,8 +109,8 @@ export default function AdminLayout() {
               <p className="text-[10px] font-mono text-muted-foreground truncate">{dbUser?.email}</p>
             </div>
           </div>
-          <button 
-            onClick={logout} 
+          <button
+            onClick={logout}
             className="flex items-center justify-center gap-2 w-full py-2 px-3 rounded-md text-xs font-medium text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/20 transition-all cursor-pointer"
           >
             <LogOut className="h-3.5 w-3.5" />
@@ -121,38 +123,46 @@ export default function AdminLayout() {
       <AnimatePresence>
         {mobileMenuOpen && (
           <div className="fixed inset-0 z-50 lg:hidden flex">
-            {/* Crisp Dark Backdrop without GPU blur */}
-            <motion.div 
+            {/* Backdrop */}
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
               onClick={() => setMobileMenuOpen(false)}
-              className="fixed inset-0 bg-black/75"
+              className="fixed inset-0 bg-black/60"
             />
 
             {/* Slide-out Sidebar Drawer */}
-            <motion.div 
+            <motion.aside
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-              className="relative w-72 max-w-[85vw] bg-card border-r border-border flex flex-col h-full z-10 shadow-2xl overflow-hidden"
+              className="relative w-72 max-w-[85vw] flex flex-col h-full z-10 shadow-2xl overflow-hidden"
+              style={{ backgroundColor: 'hsl(var(--card))', borderRight: '1px solid hsl(var(--border))' }}
             >
               {/* Drawer Header */}
-              <div className="h-16 flex items-center justify-between px-5 border-b border-border bg-card">
+              <div
+                className="h-16 flex items-center justify-between px-5 border-b"
+                style={{ borderColor: 'hsl(var(--border))', backgroundColor: 'hsl(var(--card))' }}
+              >
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center text-primary font-bold">
+                  <div
+                    className="w-9 h-9 rounded-lg flex items-center justify-center font-bold"
+                    style={{ backgroundColor: 'hsl(var(--primary) / 0.15)', border: '1px solid hsl(var(--primary) / 0.35)', color: 'hsl(var(--primary))' }}
+                  >
                     <Shield className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="font-display font-semibold text-xs tracking-tight text-foreground block leading-tight">Admin Terminal</span>
-                    <span className="text-[10px] font-mono text-primary uppercase tracking-wider">Governance</span>
+                    <span className="font-semibold text-sm block leading-tight" style={{ color: 'hsl(var(--foreground))' }}>Admin Terminal</span>
+                    <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: 'hsl(var(--primary))' }}>Governance</span>
                   </div>
                 </div>
-                <button 
-                  onClick={() => setMobileMenuOpen(false)} 
-                  className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                <button
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="p-2 rounded-lg transition-colors cursor-pointer"
+                  style={{ color: 'hsl(var(--muted-foreground))' }}
                   aria-label="Close menu"
                 >
                   <X className="w-5 h-5" />
@@ -160,7 +170,7 @@ export default function AdminLayout() {
               </div>
 
               {/* Navigation Items */}
-              <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+              <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto" style={{ backgroundColor: 'hsl(var(--card))' }}>
                 {adminNavigation.map((item) => {
                   const isActive = location.pathname === item.href || (item.href !== '/admin/dashboard' && location.pathname.startsWith(item.href));
                   return (
@@ -168,49 +178,75 @@ export default function AdminLayout() {
                       key={item.name}
                       to={item.href}
                       onClick={() => setMobileMenuOpen(false)}
-                      className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium tracking-wide transition-all ${
-                        isActive 
-                          ? 'bg-primary/15 text-primary border border-primary/30 font-semibold shadow-xs' 
-                          : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
-                      }`}
+                      style={isActive ? {
+                        backgroundColor: 'hsl(var(--primary) / 0.12)',
+                        color: 'hsl(var(--primary))',
+                        border: '1px solid hsl(var(--primary) / 0.3)',
+                      } : {
+                        color: 'hsl(var(--foreground))',
+                        border: '1px solid transparent',
+                      }}
+                      className="flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-medium tracking-wide transition-all hover:bg-accent/60"
                     >
-                      <item.icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
+                      <item.icon
+                        className="h-4 w-4 shrink-0"
+                        style={{ color: isActive ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))' }}
+                      />
                       <span>{item.name}</span>
+                      {isActive && (
+                        <ChevronRight className="w-3.5 h-3.5 ml-auto" style={{ color: 'hsl(var(--primary))' }} />
+                      )}
                     </Link>
                   );
                 })}
               </nav>
 
               {/* Bottom Actions & User Badge */}
-              <div className="p-4 border-t border-border bg-muted/20 space-y-3">
+              <div
+                className="p-4 border-t space-y-3"
+                style={{ borderColor: 'hsl(var(--border))', backgroundColor: 'hsl(var(--muted) / 0.6)' }}
+              >
                 <Link
                   to="/dashboard"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center justify-center gap-2 w-full py-2.5 px-3 rounded-xl text-xs font-mono font-semibold bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 transition-all shadow-xs"
+                  className="flex items-center justify-center gap-2 w-full py-2.5 px-3 rounded-xl text-xs font-mono font-semibold transition-all shadow-xs"
+                  style={{
+                    backgroundColor: 'hsl(var(--primary) / 0.12)',
+                    color: 'hsl(var(--primary))',
+                    border: '1px solid hsl(var(--primary) / 0.25)'
+                  }}
                 >
                   <PieChart className="h-3.5 w-3.5" />
                   <span>Switch to Client Portal</span>
                 </Link>
 
                 <div className="flex items-center gap-2.5 px-1 py-1">
-                  <div className="w-8 h-8 rounded-lg bg-primary/15 border border-primary/30 text-primary flex items-center justify-center text-xs font-mono font-bold shrink-0">
-                    {dbUser?.role?.[0]?.toUpperCase() || 'A'}
+                  <div
+                    className="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-mono font-bold shrink-0"
+                    style={{
+                      backgroundColor: 'hsl(var(--primary) / 0.15)',
+                      border: '1px solid hsl(var(--primary) / 0.3)',
+                      color: 'hsl(var(--primary))'
+                    }}
+                  >
+                    {(dbUser?.displayName?.[0] || dbUser?.role?.[0] || 'A').toUpperCase()}
                   </div>
                   <div className="truncate">
-                    <p className="text-xs font-semibold text-foreground truncate">{dbUser?.displayName || 'Administrator'}</p>
-                    <p className="text-[10px] font-mono text-muted-foreground truncate">{dbUser?.email}</p>
+                    <p className="text-sm font-semibold truncate" style={{ color: 'hsl(var(--foreground))' }}>{dbUser?.displayName || 'Administrator'}</p>
+                    <p className="text-[11px] font-mono truncate" style={{ color: 'hsl(var(--muted-foreground))' }}>{dbUser?.email}</p>
                   </div>
                 </div>
 
-                <button 
-                  onClick={logout} 
-                  className="flex items-center justify-center gap-2 w-full py-2 px-3 rounded-xl text-xs font-medium text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/20 transition-all cursor-pointer"
+                <button
+                  onClick={logout}
+                  className="flex items-center justify-center gap-2 w-full py-2.5 px-3 rounded-xl text-sm font-medium transition-all cursor-pointer"
+                  style={{ color: 'hsl(var(--destructive))' }}
                 >
-                  <LogOut className="h-3.5 w-3.5" />
+                  <LogOut className="h-4 w-4" />
                   <span>Sign Out</span>
                 </button>
               </div>
-            </motion.div>
+            </motion.aside>
           </div>
         )}
       </AnimatePresence>
@@ -219,9 +255,9 @@ export default function AdminLayout() {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="h-16 flex items-center justify-between px-4 sm:px-8 border-b border-border bg-card/80 backdrop-blur-md sticky top-0 z-20">
           <div className="flex items-center gap-3">
-            <button 
+            <button
               onClick={() => setMobileMenuOpen(true)}
-              className="lg:hidden p-2 rounded-xl border border-border text-foreground hover:bg-muted/60 transition-colors"
+              className="lg:hidden p-2 rounded-xl border border-border text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
               aria-label="Open menu"
             >
               <Menu className="h-5 w-5" />
@@ -232,7 +268,7 @@ export default function AdminLayout() {
               </h1>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-2.5 sm:gap-3">
             <Link
               to="/dashboard"
@@ -245,13 +281,13 @@ export default function AdminLayout() {
 
             <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-xl border border-primary/30 bg-primary/10 text-primary text-[11px] font-mono uppercase tracking-wider">
               <ShieldCheck className="w-3.5 h-3.5" />
-              <span>{dbUser?.role || 'Super Admin'}</span>
+              <span>{dbUser?.role || 'super_admin'}</span>
             </div>
 
             <ThemeToggle />
 
-            <div className="w-8 h-8 rounded-xl bg-muted border border-border text-foreground font-mono font-bold text-xs flex items-center justify-center">
-              AD
+            <div className="w-8 h-8 rounded-xl bg-primary/10 border border-primary/25 text-primary font-mono font-bold text-xs flex items-center justify-center">
+              {(dbUser?.displayName?.[0] || 'A').toUpperCase()}
             </div>
           </div>
         </header>

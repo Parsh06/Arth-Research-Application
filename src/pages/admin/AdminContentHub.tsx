@@ -64,23 +64,52 @@ export default function AdminContentHub() {
         authorEmail: user?.email || 'analyst@arth.com'
       });
 
-      // Dispatch High-Conviction Alpha Signal Email Broadcast
-      if (emailBroadcast && user?.email) {
-        import('../../services/emailService').then(({ emailService }) => {
-          emailService.sendAlphaSignalEmail(user.email!, {
-            userName: user.displayName || 'Valued Investor',
-            ticker: symbol.toUpperCase(),
-            companyName: companyName || symbol.toUpperCase(),
-            action: (callType as any) || 'BUY',
-            cmp: `₹${entryPrice}`,
-            targetPrice: `₹${targetPrice}`,
-            stopLoss: `₹${stopLoss}`,
-            timeHorizon: timeHorizon.replace('_', ' '),
-            riskReward: `1 : ${(Math.abs(targetMinor - entryMinor) / Math.max(1, Math.abs(entryMinor - stopLossMinor))).toFixed(1)}`,
-            signalId: typeof callDocId === 'string' ? callDocId.slice(0, 8).toUpperCase() : `SIG-${Date.now().toString().slice(-6)}`,
-            catalyst: rationale,
-            signalUrl: window.location.origin + '/dashboard'
-          }).catch(e => console.warn('[AdminContentHub] Signal broadcast email error:', e));
+      // Broadcast Alpha Signal Email to ALL active subscribers
+      if (emailBroadcast) {
+        import('../../services/emailService').then(async ({ emailService }) => {
+          import('../../repositories/subscriptionRepository').then(async ({ subscriptionRepository }) => {
+            try {
+              const allSubs = await subscriptionRepository.getAllSubscriptions();
+              const now = Date.now();
+
+              // Only email subscribers with active, non-expired subscriptions
+              const activeSubscribers = allSubs.filter((sub: any) => {
+                const isActive = sub.status === 'ACTIVE' || sub.status === 'active';
+                const notExpired = sub.expiresAt
+                  ? (typeof sub.expiresAt === 'number'
+                    ? sub.expiresAt > now
+                    : new Date(sub.expiresAt).getTime() > now)
+                  : true;
+                return isActive && notExpired && sub.userEmail;
+              });
+
+              const signalPayload = {
+                ticker: symbol.toUpperCase(),
+                companyName: companyName || symbol.toUpperCase(),
+                action: (callType as any) || 'BUY',
+                cmp: `₹${entryPrice}`,
+                targetPrice: `₹${targetPrice}`,
+                stopLoss: `₹${stopLoss}`,
+                timeHorizon: timeHorizon.replace(/_/g, ' '),
+                riskReward: `1 : ${(Math.abs(targetMinor - entryMinor) / Math.max(1, Math.abs(entryMinor - stopLossMinor))).toFixed(1)}`,
+                signalId: typeof callDocId === 'string' ? callDocId.slice(0, 8).toUpperCase() : `SIG-${Date.now().toString().slice(-6)}`,
+                catalyst: rationale,
+                signalUrl: window.location.origin + '/dashboard'
+              };
+
+              const dispatches = activeSubscribers.map((sub: any) =>
+                emailService.sendAlphaSignalEmail(sub.userEmail, {
+                  ...signalPayload,
+                  userName: sub.userName || 'Valued Investor',
+                }).catch((e: Error) => console.warn(`[AdminContentHub] Signal email failed for ${sub.userEmail}:`, e))
+              );
+
+              await Promise.allSettled(dispatches);
+              console.info(`[AdminContentHub] Alpha signal dispatched to ${activeSubscribers.length} active subscriber(s).`);
+            } catch (broadcastErr) {
+              console.warn('[AdminContentHub] Subscriber broadcast error:', broadcastErr);
+            }
+          });
         });
       }
 
@@ -91,10 +120,10 @@ export default function AdminContentHub() {
       setTargetPrice('');
       setStopLoss('');
       setRationale('');
-      alert("Research recommendation published and email telemetry dispatched.");
+      alert(`Research recommendation published and signal broadcast dispatched to active subscribers.`);
     } catch (err) {
-      console.error("Failed to publish research call", err);
-      alert("Error publishing research call.");
+      console.error('Failed to publish research call', err);
+      alert('Error publishing research call.');
     } finally {
       setIsSubmitting(false);
     }

@@ -47,8 +47,8 @@ export default function AdminApprovals() {
           adminId: user.uid,
           adminEmail: user.email || 'admin@arth.com',
           action: 'EXTEND_PORTFOLIO_30_DAYS',
-          targetId: id,
-          targetType: 'portfolio',
+          entityId: id,
+          entityType: 'portfolio',
           details: { newExpiry }
         });
       }
@@ -81,8 +81,8 @@ export default function AdminApprovals() {
           adminId: user.uid,
           adminEmail: user.email || 'admin@arth.com',
           action: 'APPROVE_PORTFOLIO',
-          targetId: portfolio.id,
-          targetType: 'portfolio',
+          entityId: portfolio.id,
+          entityType: 'portfolio',
           details: { validityDays }
         });
       }

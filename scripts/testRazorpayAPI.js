@@ -1,27 +1,33 @@
 // scripts/testRazorpayAPI.js
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const envPath = path.resolve(__dirname, '../.env');
-const envContent = fs.readFileSync(envPath, 'utf-8');
+let keyId = process.env.VITE_RAZORPAY_KEY_ID || '';
+let keySecret = process.env.RAZORPAY_KEY_SECRET || '';
 
-const env = {};
-envContent.split('\n').forEach(line => {
-  const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
-  if (match) {
-    let value = (match[2] || '').trim();
-    if (value.startsWith('"') && value.endsWith('"')) value = value.slice(1, -1);
-    if (value.startsWith("'") && value.endsWith("'")) value = value.slice(1, -1);
-    env[match[1]] = value;
-  }
-});
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, 'utf-8');
+  envContent.split('\n').forEach(line => {
+    const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
+    if (match) {
+      let value = (match[2] || '').trim();
+      if (value.startsWith('"') && value.endsWith('"')) value = value.slice(1, -1);
+      if (value.startsWith("'") && value.endsWith("'")) value = value.slice(1, -1);
+      if (match[1] === 'VITE_RAZORPAY_KEY_ID') keyId = value;
+      if (match[1] === 'RAZORPAY_KEY_SECRET') keySecret = value;
+    }
+  });
+}
 
-const keyId = env.VITE_RAZORPAY_KEY_ID || 'rzp_test_TdoD9HIW3J4mEL';
-const keySecret = env.RAZORPAY_KEY_SECRET || 'HKTaGPRU1ZaQn1tdoEMQHArU';
+if (!keyId || !keySecret) {
+  console.error('❌ VITE_RAZORPAY_KEY_ID or RAZORPAY_KEY_SECRET not set in .env');
+  process.exit(1);
+}
 
 console.log('------------------------------------------------------------');
 console.log('💳 TESTING RAZORPAY TEST API CREDENTIALS');

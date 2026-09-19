@@ -162,8 +162,8 @@ function emailDispatcherPlugin(env: Record<string, string>): Plugin {
           res.setHeader('Content-Type', 'application/json');
           try {
             const { amountMinor, receipt, notes } = JSON.parse(body || '{}');
-            const keyId = env.VITE_RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_TdoD9HIW3J4mEL';
-            const keySecret = env.RAZORPAY_KEY_SECRET || process.env.RAZORPAY_KEY_SECRET || 'HKTaGPRU1ZaQn1tdoEMQHArU';
+            const keyId = env.VITE_RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID || '';
+            const keySecret = env.RAZORPAY_KEY_SECRET || process.env.RAZORPAY_KEY_SECRET || '';
 
             if (!amountMinor || amountMinor <= 0) {
               res.statusCode = 400;
@@ -228,7 +228,7 @@ function emailDispatcherPlugin(env: Record<string, string>): Plugin {
           res.setHeader('Content-Type', 'application/json');
           try {
             const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = JSON.parse(body || '{}');
-            const keySecret = env.RAZORPAY_KEY_SECRET || process.env.RAZORPAY_KEY_SECRET || 'HKTaGPRU1ZaQn1tdoEMQHArU';
+            const keySecret = env.RAZORPAY_KEY_SECRET || process.env.RAZORPAY_KEY_SECRET || '';
 
             if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
               res.statusCode = 400;
