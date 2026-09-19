@@ -32,8 +32,6 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
-    "@oxlint/binding-win32-x64-msvc": "^1.74.0",
-    "@rolldown/binding-win32-x64-msvc": "^1.1.5",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.13.3",
     "@types/nodemailer": "^8.0.2",
