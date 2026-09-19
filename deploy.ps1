@@ -18,7 +18,7 @@ param (
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 function Write-Banner {
-    Clear-Host
+    try { Clear-Host } catch {}
     Write-Host ""
     Write-Host " ================================================================ " -ForegroundColor Cyan
     Write-Host "   ARTH RESEARCH PLATFORM • AUTOMATED DEPLOYMENT & SYNC ENGINE   " -ForegroundColor Yellow -BackgroundColor Black
@@ -115,7 +115,12 @@ function Execute-FrontendDeploy {
 
     # 2. Deploy to Firebase Hosting
     Write-Step "Deploying to Firebase Hosting (firebase deploy --only hosting)..."
-    npx -y firebase deploy --only hosting
+    
+    if (Get-Command firebase -ErrorAction SilentlyContinue) {
+        firebase deploy --only hosting
+    } else {
+        npx -y firebase-tools deploy --only hosting
+    }
 
     if ($LASTEXITCODE -ne 0) {
         Write-ErrorMsg "Firebase hosting deployment encountered an error."
