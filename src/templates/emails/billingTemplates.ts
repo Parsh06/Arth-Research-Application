@@ -43,33 +43,41 @@ export function buildPaymentConfirmationInvoiceEmail(data: PaymentInvoiceEmailDa
         <td colspan="2" style="padding: 12px 16px;">
           <table border="0" cellpadding="0" cellspacing="0" width="100%">
             <tr>
-              <td style="font-family: 'Cinzel', Georgia, serif; font-size: 13px; font-weight: 700; color: #C6A15B; text-transform: uppercase;">TAX INVOICE &bull; ${data.invoiceNumber}</td>
-              <td align="right" style="font-family: 'Courier New', monospace; font-size: 10px; color: #94A3B8;">${data.invoiceDateFormatted}</td>
+              <td style="font-family: 'Cinzel', Georgia, serif; font-size: 13px; font-weight: 700; color: #C6A15B; text-transform: uppercase;">TAX INVOICE &bull; ${data.invoiceNumber || 'INV-ARTH-RECEIPT'}</td>
+              <td align="right" style="font-family: 'Courier New', monospace; font-size: 10px; color: #94A3B8;">${data.paymentDate || data.invoiceDateFormatted || new Date().toLocaleDateString('en-IN')}</td>
             </tr>
           </table>
         </td>
       </tr>
       <tr style="border-bottom: 1px solid #1E293B;">
-        <td style="padding: 10px 16px; font-family: 'Courier New', monospace; font-size: 11px; color: #94A3B8; width: 40%;">ADVISORY MANDATE</td>
-        <td style="padding: 10px 16px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 12px; color: #F8FAFC; font-weight: 600;">${data.planName} (${data.planTier})</td>
+        <td style="padding: 10px 16px; font-family: 'Courier New', monospace; font-size: 11px; color: #94A3B8; width: 50%;">ADVISORY MANDATE</td>
+        <td style="padding: 10px 16px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 12px; color: #F8FAFC; font-weight: 600;">${data.planName}</td>
       </tr>
       <tr style="border-bottom: 1px solid #1E293B; background-color: #0E1420;">
-        <td style="padding: 10px 16px; font-family: 'Courier New', monospace; font-size: 11px; color: #94A3B8;">DURATION</td>
-        <td style="padding: 10px 16px; font-family: 'Courier New', monospace; font-size: 11px; color: #F8FAFC;">${data.planDurationMonths} Months Active Advisory</td>
+        <td style="padding: 10px 16px; font-family: 'Courier New', monospace; font-size: 11px; color: #94A3B8;">BASE ADVISORY FEE</td>
+        <td style="padding: 10px 16px; font-family: 'Courier New', monospace; font-size: 11px; color: #F8FAFC;">${data.baseAmount || data.basePriceFormatted || '₹4,999.00'}</td>
       </tr>
       <tr style="border-bottom: 1px solid #1E293B;">
-        <td style="padding: 10px 16px; font-family: 'Courier New', monospace; font-size: 11px; color: #94A3B8;">CAPITAL MANDATE LIMIT</td>
-        <td style="padding: 10px 16px; font-family: 'Courier New', monospace; font-size: 11px; color: #C6A15B; font-weight: 700;">${data.capitalAllocationLimitFormatted}</td>
+        <td style="padding: 10px 16px; font-family: 'Courier New', monospace; font-size: 11px; color: #94A3B8;">GOODS & SERVICES TAX (GST 18%)</td>
+        <td style="padding: 10px 16px; font-family: 'Courier New', monospace; font-size: 11px; color: #F8FAFC;">${data.gstAmount || data.gstAmountFormatted || '₹899.82'}</td>
       </tr>
       <tr style="border-bottom: 1px solid #1E293B; background-color: #0E1420;">
-        <td style="padding: 10px 16px; font-family: 'Courier New', monospace; font-size: 11px; color: #94A3B8;">TRANSACTION ID</td>
-        <td style="padding: 10px 16px; font-family: 'Courier New', monospace; font-size: 11px; color: #94A3B8;">${data.transactionId}</td>
+        <td style="padding: 10px 16px; font-family: 'Courier New', monospace; font-size: 11px; color: #94A3B8;">GATEWAY & TECH FEE (3%)</td>
+        <td style="padding: 10px 16px; font-family: 'Courier New', monospace; font-size: 11px; color: #F8FAFC;">Included (3% Surcharge)</td>
+      </tr>
+      <tr style="border-bottom: 1px solid #1E293B;">
+        <td style="padding: 10px 16px; font-family: 'Courier New', monospace; font-size: 11px; color: #94A3B8;">GATEWAY TRANSACTION REF</td>
+        <td style="padding: 10px 16px; font-family: 'Courier New', monospace; font-size: 11px; color: #94A3B8;">${data.paymentMethod || data.transactionId || 'Razorpay'}</td>
       </tr>
       <tr style="background-color: #172235;">
-        <td style="padding: 12px 16px; font-family: 'Cinzel', Georgia, serif; font-size: 12px; font-weight: 700; color: #F8FAFC;">TOTAL PAID (INCL. GST)</td>
-        <td align="right" style="padding: 12px 16px; font-family: 'Courier New', monospace; font-size: 15px; font-weight: 700; color: #1E8E5A;">${data.amountPaidFormatted}</td>
+        <td style="padding: 12px 16px; font-family: 'Cinzel', Georgia, serif; font-size: 12px; font-weight: 700; color: #F8FAFC;">TOTAL AMOUNT SETTLED</td>
+        <td align="right" style="padding: 12px 16px; font-family: 'Courier New', monospace; font-size: 15px; font-weight: 700; color: #1E8E5A;">${data.amountPaid || data.amountPaidFormatted}</td>
       </tr>
     </table>
+
+    <div style="background-color: rgba(199, 163, 90, 0.08); border: 1px solid rgba(199, 163, 90, 0.25); border-radius: 6px; padding: 12px 16px; margin: 16px 0; font-size: 11px; color: #CBD5E1; font-family: 'Courier New', monospace;">
+      📄 <strong>Tax Invoice PDF Attached:</strong> Your formal computer-generated Tax Invoice (PDF) with full SAC code and GST breakdown is attached to this email for your tax filing.
+    </div>
 
     <div style="background-color: rgba(30, 142, 90, 0.08); border-left: 3px solid #1E8E5A; padding: 14px 16px; border-radius: 4px; margin: 20px 0;">
       <div style="font-size: 12px; color: #E2E8F0; font-weight: 600;">Next Step: Configure Initial Executed Holdings</div>
@@ -82,17 +90,17 @@ export function buildPaymentConfirmationInvoiceEmail(data: PaymentInvoiceEmailDa
   return {
     subject: `Payment Confirmed & Tax Invoice: ${data.planName} • Arth Research`,
     html: wrapEmailInBaseTemplate({
-      previewText: `Tax invoice ${data.invoiceNumber} for ${data.planName}. Total paid: ${data.amountPaidFormatted}.`,
+      previewText: `Tax invoice ${data.invoiceNumber} for ${data.planName}. Total paid: ${data.amountPaid || data.amountPaidFormatted}.`,
       badgeText: 'BILLING & INVOICE',
       badgeColor: 'emerald',
       headline: 'Payment Confirmed & Mandate Activated',
-      subheadline: `Your subscription to ${data.planName} is confirmed. Please configure your executed holdings.`,
+      subheadline: `Your subscription to ${data.planName} is confirmed. Statutory Tax Invoice attached.`,
       bodyHtml,
       primaryCta: {
         text: 'Configure Holdings Basket',
         url: configureUrl
       },
-      footerNotice: `GST Invoice Ref: ${data.invoiceNumber} • Digital invoice generated for audited tax compliance.`
+      footerNotice: `GST Invoice Ref: ${data.invoiceNumber} • Digital invoice generated under SEBI & GST statutory compliance.`
     })
   };
 }

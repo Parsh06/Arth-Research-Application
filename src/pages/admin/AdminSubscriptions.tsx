@@ -345,7 +345,7 @@ export default function AdminSubscriptions() {
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-mono uppercase text-muted-foreground mb-1">Price (₹ INR)</label>
+                    <label className="block text-[11px] font-mono uppercase text-muted-foreground mb-1">Base Price (₹ INR)</label>
                     <input
                       type="number"
                       value={priceRupees}
@@ -353,6 +353,11 @@ export default function AdminSubscriptions() {
                       className="w-full glass-panel-data px-3 py-1.5 text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                       required
                     />
+                    <div className="mt-1 text-[10px] font-mono text-muted-foreground flex flex-wrap gap-x-2">
+                      <span>GST (18%): <strong className="text-foreground">₹{Math.round(priceRupees * 0.18).toLocaleString()}</strong></span>
+                      <span>• Gateway (3%): <strong className="text-foreground">₹{Math.round((priceRupees * 1.18) * 0.03).toLocaleString()}</strong></span>
+                      <span>• Client Total: <strong className="text-primary">₹{Math.round((priceRupees * 1.18) * 1.03).toLocaleString()}</strong></span>
+                    </div>
                   </div>
                 </div>
 

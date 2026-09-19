@@ -28,18 +28,21 @@ export interface CreateOrderParams {
   discountMinor?: number;
   couponCode?: string;
   validityDays: number;
+  gatewayFeeMinor?: number;
 }
 
 export const orderRepository = {
   /**
-   * Creates an order with 18% GST calculation in minor units.
+   * Creates an order with 18% GST and 3% payment gateway calculation in minor units.
    */
   async createOrder(params: CreateOrderParams): Promise<Order> {
     const now = new Date().toISOString();
     const discountMinor = params.discountMinor || 0;
     const taxableAmountMinor = Math.max(0, params.priceMinor - discountMinor);
     const taxMinor = Math.round(taxableAmountMinor * 0.18); // 18% GST
-    const totalMinor = taxableAmountMinor + taxMinor;
+    const subtotalBeforeGatewayMinor = taxableAmountMinor + taxMinor;
+    const gatewayFeeMinor = params.gatewayFeeMinor ?? Math.round(subtotalBeforeGatewayMinor * 0.03); // 3% Gateway Surcharge
+    const totalMinor = subtotalBeforeGatewayMinor + gatewayFeeMinor;
 
     const orderRef = doc(collection(db, COLLECTION_ORDERS));
     const orderPayload: any = {
@@ -50,6 +53,7 @@ export const orderRepository = {
       priceMinor: params.priceMinor,
       discountMinor,
       taxMinor,
+      gatewayFeeMinor,
       totalMinor,
       status: 'created',
       currency: 'INR',

@@ -37,6 +37,13 @@ import {
 
 import { getApiEndpoint } from '../config/api';
 
+export interface EmailAttachment {
+  filename: string;
+  content: string; // base64 string
+  encoding?: string;
+  contentType?: string;
+}
+
 export interface EmailDispatchPayload {
   to: string;
   subject: string;
@@ -44,6 +51,7 @@ export interface EmailDispatchPayload {
   text?: string;
   templateId?: string;
   metadata?: Record<string, any>;
+  attachments?: EmailAttachment[];
 }
 
 export interface EmailAuditLogEntry {
@@ -78,7 +86,8 @@ export const emailService = {
           to: payload.to,
           subject: payload.subject,
           html: payload.html,
-          text: payload.text
+          text: payload.text,
+          attachments: payload.attachments
         })
       });
 
@@ -145,10 +154,20 @@ export const emailService = {
     return this.sendEmail({ to, subject, html, templateId: 'auth_security_alert' });
   },
 
-  // 4. [Billing] Payment Confirmation
-  async sendPaymentConfirmationEmail(to: string, data: PaymentConfirmationEmailData) {
+  // 4. [Billing] Payment Confirmation with attached Tax Invoice PDF
+  async sendPaymentConfirmationEmail(
+    to: string, 
+    data: PaymentConfirmationEmailData, 
+    attachments?: EmailAttachment[]
+  ) {
     const { subject, html } = buildPaymentConfirmationEmail(data);
-    return this.sendEmail({ to, subject, html, templateId: 'billing_payment_confirmation' });
+    return this.sendEmail({ 
+      to, 
+      subject, 
+      html, 
+      templateId: 'billing_payment_confirmation',
+      attachments 
+    });
   },
 
   // 5. [Billing] Payment Failed

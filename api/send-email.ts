@@ -22,7 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { to, subject, html, text, fromName } = req.body || {};
+    const { to, subject, html, text, fromName, attachments } = req.body || {};
 
     if (!to || !subject || (!html && !text)) {
       res.status(400).json({ error: 'Missing required parameters (to, subject, html or text)' });
@@ -62,6 +62,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       subject,
       text: text || '',
       html: html || '',
+      ...(attachments && Array.isArray(attachments) ? { attachments } : {})
     });
 
     console.log(`[EMAIL DISPATCH SUCCESS] Delivered to ${to} (MessageID: ${info.messageId})`);

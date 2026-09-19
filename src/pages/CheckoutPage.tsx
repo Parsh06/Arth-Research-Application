@@ -71,7 +71,9 @@ export default function CheckoutPage() {
   const discountMinor = Math.round(basePriceMinor * (discountPercent / 100));
   const taxableAmountMinor = Math.max(0, basePriceMinor - discountMinor);
   const taxMinor = Math.round(taxableAmountMinor * 0.18); // 18% GST
-  const totalMinor = taxableAmountMinor + taxMinor;
+  const subtotalBeforeGatewayMinor = taxableAmountMinor + taxMinor;
+  const gatewayFeeMinor = Math.round(subtotalBeforeGatewayMinor * 0.03); // 3% Gateway Surcharge
+  const totalMinor = subtotalBeforeGatewayMinor + gatewayFeeMinor;
 
   const handleExecutePayment = async () => {
     if (!user || !plan) return;
@@ -94,6 +96,7 @@ export default function CheckoutPage() {
         planName: plan.name,
         priceMinor: basePriceMinor,
         discountMinor,
+        gatewayFeeMinor,
         couponCode: couponApplied ? couponCode.trim().toUpperCase() : undefined,
         validityDays: plan.validityDays
       });
@@ -118,25 +121,61 @@ export default function CheckoutPage() {
               planName: plan.name
             });
 
-            // 4. Send institutional tax invoice email notification
+            // 4. Generate official SEBI-compliant Tax Invoice PDF & send via email with attachment
             if (user.email) {
               const { emailService } = await import('../services/emailService');
-              const formattedTotal = formatINR(totalMinor);
-              const basePriceCalc = Math.round(totalMinor / 1.18);
-              const gstPriceCalc = totalMinor - basePriceCalc;
+              const { getInvoicePdfBase64 } = await import('../utils/invoicePdfGenerator');
 
-              emailService.sendPaymentConfirmationEmail(user.email, {
-                userName: user.displayName || 'Valued Investor',
-                planName: plan.name,
+              const invoiceData = {
                 invoiceNumber: `INV-ARTH-${new Date().getFullYear()}-${order.id.slice(0, 6).toUpperCase()}`,
                 paymentDate: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
-                amountPaid: formattedTotal,
-                baseAmount: formatINR(basePriceCalc),
-                gstAmount: `${formatINR(gstPriceCalc)} (18% GST)`,
-                paymentMethod: `Razorpay (${rzpResponse.razorpay_payment_id})`,
-                period: `${plan.validityDays} Days Operational Mandate`,
-                invoiceUrl: window.location.origin + `/history`
-              }).catch(emailErr => {
+                paymentId: rzpResponse.razorpay_payment_id,
+                orderId: order.id,
+                userName: user.displayName || 'Valued Investor',
+                userEmail: user.email || '',
+                planName: plan.name,
+                validityDays: plan.validityDays,
+                basePriceMinor,
+                discountMinor,
+                discountPercent: couponApplied ? discountPercent : 0,
+                taxMinor,
+                gatewayFeeMinor,
+                totalMinor
+              };
+
+              // Generate PDF base64
+              let pdfBase64 = '';
+              try {
+                pdfBase64 = getInvoicePdfBase64(invoiceData);
+              } catch (pdfErr) {
+                console.warn('[CheckoutPage] PDF generation error:', pdfErr);
+              }
+
+              const attachments = pdfBase64 ? [
+                {
+                  filename: `tax_invoice_${invoiceData.invoiceNumber}.pdf`,
+                  content: pdfBase64,
+                  encoding: 'base64',
+                  contentType: 'application/pdf'
+                }
+              ] : undefined;
+
+              emailService.sendPaymentConfirmationEmail(
+                user.email,
+                {
+                  userName: user.displayName || 'Valued Investor',
+                  planName: plan.name,
+                  invoiceNumber: invoiceData.invoiceNumber,
+                  paymentDate: invoiceData.paymentDate,
+                  amountPaid: formatINR(totalMinor),
+                  baseAmount: formatINR(taxableAmountMinor),
+                  gstAmount: `${formatINR(taxMinor)} (18% GST)`,
+                  paymentMethod: `Razorpay (${rzpResponse.razorpay_payment_id})`,
+                  period: `${plan.validityDays} Days Operational Mandate`,
+                  invoiceUrl: window.location.origin + `/history`
+                },
+                attachments
+              ).catch(emailErr => {
                 console.warn('[CheckoutPage] Tax invoice email error:', emailErr);
               });
             }
@@ -146,7 +185,7 @@ export default function CheckoutPage() {
 
             // Navigate to checkout confirmation success page
             navigate(`/checkout/success?planId=${plan.id}&subscriptionId=${subscriptionId}`, {
-              state: { plan, subscriptionId }
+              state: { plan, subscriptionId, totalMinor, gatewayFeeMinor, taxMinor }
             });
           } catch (provisionErr: any) {
             console.error('[CheckoutPage] Provisioning error:', provisionErr);
@@ -273,13 +312,17 @@ export default function CheckoutPage() {
                 </div>
                 {discountMinor > 0 && (
                   <div className="flex justify-between text-[hsl(var(--success))]">
-                    <span>Promotional Voucher Discount ({discountPercent}%)</span>
+                    <span>Promotional Voucher Concession ({discountPercent}%)</span>
                     <span className="tabular-nums">-{formatINR(discountMinor)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-muted-foreground">
                   <span>Goods and Services Tax (GST 18%)</span>
                   <span className="tabular-nums font-semibold text-foreground">{formatINR(taxMinor)}</span>
+                </div>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Payment Gateway & Technology Surcharge (3%)</span>
+                  <span className="tabular-nums font-semibold text-foreground">{formatINR(gatewayFeeMinor)}</span>
                 </div>
                 <div className="border-t border-border pt-3 flex justify-between items-baseline">
                   <span className="text-sm font-semibold text-foreground">Total Amount Due</span>

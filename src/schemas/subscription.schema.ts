@@ -18,6 +18,7 @@ export const OrderSchema = z.object({
   priceMinor: z.number().int().nonnegative(),
   taxMinor: z.number().int().nonnegative().default(0),
   discountMinor: z.number().int().nonnegative().default(0),
+  gatewayFeeMinor: z.number().int().nonnegative().default(0),
   totalMinor: z.number().int().nonnegative(),
   couponCode: z.string().optional(),
   status: z.enum(['created', 'processing', 'completed', 'failed', 'cancelled']).default('created'),
