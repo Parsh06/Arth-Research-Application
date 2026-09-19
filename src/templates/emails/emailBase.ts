@@ -101,9 +101,9 @@ export function wrapEmailInBaseTemplate(options: BaseEmailOptions): string {
                     <table border="0" cellpadding="0" cellspacing="0">
                       <tr>
                         <td style="padding-right: 12px;">
-                          <!-- Gold Emblem -->
-                          <div style="width: 36px; height: 36px; background-color: #1E293B; border: 1px solid rgba(217, 119, 6, 0.5); border-radius: 8px; text-align: center; line-height: 36px;">
-                            <span style="font-family: 'Cinzel', Georgia, serif; font-size: 16px; font-weight: 700; color: #F59E0B; display: inline-block;">AR</span>
+                          <!-- Official Emblem Logo -->
+                          <div style="width: 38px; height: 38px; background-color: #1E293B; border: 1px solid rgba(217, 119, 6, 0.5); border-radius: 8px; text-align: center; vertical-align: middle; overflow: hidden;">
+                            <img src="https://arthresearch.web.app/logo1.png" alt="Arth Research" width="28" height="28" style="display: block; margin: 5px auto; width: 28px; height: 28px; border: 0; outline: none; object-fit: contain;" />
                           </div>
                         </td>
                         <td>

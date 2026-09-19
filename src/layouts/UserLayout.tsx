@@ -66,8 +66,8 @@ export default function UserLayout() {
         {/* Brand Header */}
         <div className="h-18 flex items-center px-6 border-b border-[hsl(var(--border))]">
           <Link to="/dashboard" className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] flex items-center justify-center font-bold text-sm shadow-sm">
-              AR
+            <div className="w-8 h-8 rounded-lg bg-[hsl(var(--primary)/0.12)] border border-[hsl(var(--primary)/0.25)] flex items-center justify-center p-1 overflow-hidden shadow-xs shrink-0">
+              <img src="/logo1.png" alt="Arth Research Logo" className="w-full h-full object-contain" />
             </div>
             <div>
               <span className="font-display font-semibold text-base tracking-tight text-foreground block leading-tight">Arth Research</span>
@@ -171,10 +171,10 @@ export default function UserLayout() {
               >
                 <div className="flex items-center gap-2.5">
                   <div
-                    className="w-9 h-9 rounded-lg flex items-center justify-center font-bold text-sm"
-                    style={{ backgroundColor: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))' }}
+                    className="w-9 h-9 rounded-lg flex items-center justify-center p-1.5 overflow-hidden shrink-0"
+                    style={{ backgroundColor: 'hsl(var(--primary) / 0.12)', border: '1px solid hsl(var(--primary) / 0.25)' }}
                   >
-                    AR
+                    <img src="/logo1.png" alt="Arth Research Logo" className="w-full h-full object-contain" />
                   </div>
                   <div>
                     <span className="font-display font-semibold text-sm block leading-tight" style={{ color: 'hsl(var(--foreground))' }}>Arth Research</span>

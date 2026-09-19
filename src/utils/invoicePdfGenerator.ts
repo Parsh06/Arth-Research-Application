@@ -1,6 +1,7 @@
 // src/utils/invoicePdfGenerator.ts
 import { jsPDF } from 'jspdf';
 import { toRupees } from './money';
+import { BRAND_LOGO_BASE64 } from '../assets/logoBase64';
 
 export interface InvoiceData {
   invoiceNumber: string;
@@ -81,21 +82,27 @@ export function generateInvoicePdf(data: InvoiceData): jsPDF {
   doc.setFillColor(199, 163, 90); // Gold Stripe (#C7A35A)
   doc.rect(0, 34, pageWidth, 2, 'F');
 
-  // Brand Name & Subtitle
+  // Brand Logo & Subtitle
+  try {
+    doc.addImage(BRAND_LOGO_BASE64, 'PNG', margin, 5.5, 23, 23);
+  } catch (err) {
+    console.warn('PDF logo render skipped:', err);
+  }
+
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(17);
-  doc.text('ARTH RESEARCH', margin, 13);
+  doc.setFontSize(16);
+  doc.text('ARTH RESEARCH', margin + 26, 12.5);
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
+  doc.setFontSize(7.5);
   doc.setTextColor(199, 163, 90); // Gold
-  doc.text('INSTITUTIONAL QUANTITATIVE RESEARCH & ADVISORY', margin, 19);
+  doc.text('INSTITUTIONAL QUANTITATIVE RESEARCH & ADVISORY', margin + 26, 17.5);
 
   doc.setTextColor(203, 213, 225); // Slate 300
-  doc.setFontSize(7.5);
-  doc.text('SEBI Reg. No: INH00001234  |  GSTIN: 27AABCA1234F1Z5  |  PAN: AABCA1234F', margin, 25);
-  doc.text('Registered Office: BKC Financial Centre, Bandra East, Mumbai, MH 400051', margin, 30);
+  doc.setFontSize(7);
+  doc.text('SEBI Reg. No: INH00001234  |  GSTIN: 27AABCA1234F1Z5  |  PAN: AABCA1234F', margin + 26, 23);
+  doc.text('Registered Office: BKC Financial Centre, Bandra East, Mumbai, MH 400051', margin + 26, 28);
 
   // Top Right "TAX INVOICE" Badge
   doc.setTextColor(255, 255, 255);

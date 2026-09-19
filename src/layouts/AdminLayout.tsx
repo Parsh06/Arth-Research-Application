@@ -12,7 +12,6 @@ import {
   X,
   TrendingUp,
   Headphones,
-  Shield,
   PieChart,
   Mail,
   ChevronRight
@@ -60,8 +59,8 @@ export default function AdminLayout() {
       <aside className="w-68 bg-card/60 backdrop-blur-xl border-r border-border flex flex-col hidden lg:flex shrink-0 z-30">
         <div className="h-16 flex items-center px-6 border-b border-border justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-md bg-primary/10 border border-primary/30 flex items-center justify-center text-primary font-bold text-sm">
-              <Shield className="w-4 h-4" />
+            <div className="w-8 h-8 rounded-md bg-primary/15 border border-primary/30 flex items-center justify-center p-1 overflow-hidden shadow-xs shrink-0">
+              <img src="/logo1.png" alt="Arth Research Logo" className="w-full h-full object-contain" />
             </div>
             <div>
               <span className="font-semibold text-xs tracking-tight text-foreground block leading-tight">Admin Terminal</span>
@@ -149,10 +148,10 @@ export default function AdminLayout() {
               >
                 <div className="flex items-center gap-2.5">
                   <div
-                    className="w-9 h-9 rounded-lg flex items-center justify-center font-bold"
-                    style={{ backgroundColor: 'hsl(var(--primary) / 0.15)', border: '1px solid hsl(var(--primary) / 0.35)', color: 'hsl(var(--primary))' }}
+                    className="w-9 h-9 rounded-lg flex items-center justify-center p-1.5 overflow-hidden shrink-0"
+                    style={{ backgroundColor: 'hsl(var(--primary) / 0.15)', border: '1px solid hsl(var(--primary) / 0.35)' }}
                   >
-                    <Shield className="w-4 h-4" />
+                    <img src="/logo1.png" alt="Arth Research Logo" className="w-full h-full object-contain" />
                   </div>
                   <div>
                     <span className="font-semibold text-sm block leading-tight" style={{ color: 'hsl(var(--foreground))' }}>Admin Terminal</span>

@@ -10,10 +10,13 @@ export default function TopNavBar({ backTo = '/', label = 'Home' }: { backTo?: s
     <div className="absolute top-0 left-0 w-full p-4 sm:p-6 z-50 pointer-events-none flex items-center justify-between">
       <Link 
         to={backTo}
-        className="pointer-events-auto inline-flex items-center gap-2 glass-panel px-4 py-2 text-xs font-medium text-foreground hover:border-[hsl(var(--primary)/0.4)] hover:text-[hsl(var(--primary))] transition-all cursor-pointer"
+        className="pointer-events-auto inline-flex items-center gap-2.5 glass-panel px-3.5 py-2 text-xs font-medium text-foreground hover:border-[hsl(var(--primary)/0.4)] hover:text-[hsl(var(--primary))] transition-all cursor-pointer rounded-lg shadow-sm"
       >
-        {label === 'Home' ? <Home className="w-3.5 h-3.5" /> : <ArrowLeft className="w-3.5 h-3.5" />}
-        <span>{label}</span>
+        <div className="w-5 h-5 rounded flex items-center justify-center overflow-hidden bg-primary/15 border border-primary/25 shrink-0">
+          <img src="/logo1.png" alt="Arth Research" className="w-3.5 h-3.5 object-contain" />
+        </div>
+        {label === 'Home' ? <Home className="w-3.5 h-3.5 text-muted-foreground" /> : <ArrowLeft className="w-3.5 h-3.5 text-muted-foreground" />}
+        <span className="font-semibold">{label}</span>
       </Link>
 
       <div className="pointer-events-auto flex items-center gap-2.5">
