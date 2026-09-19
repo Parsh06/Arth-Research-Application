@@ -11,21 +11,23 @@ export interface WelcomeEmailData {
 }
 
 export function buildWelcomeOrientationEmail(data: WelcomeEmailData): { subject: string; html: string } {
-  const portalUrl = data.portalUrl || 'https://arthresearch.com/login';
+  const portalUrl = data.portalUrl || 'https://arthresearch.web.app/login';
 
   const bodyHtml = `
-    <p style="margin-top: 0;">Dear <strong style="color: #F8FAFC;">${data.userName}</strong>,</p>
+    <p style="margin-top: 0; font-size: 14px; color: #1E293B;">Dear <strong style="color: #0F172A;">${data.userName}</strong>,</p>
     
-    <p>Welcome to <strong>Arth Research</strong>. Your private investor account has been initialized and secured under institutional quantitative governance.</p>
+    <p style="font-size: 13.5px; color: #334155; line-height: 1.6;">
+      Welcome to <strong>Arth Research</strong>. Your private investor account has been initialized and secured under institutional quantitative governance.
+    </p>
 
     <!-- Key Feature Box -->
-    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #141C2B; border: 1px solid #1E293B; border-radius: 10px; margin: 20px 0; padding: 18px;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; margin: 20px 0; padding: 18px; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);">
       <tr>
         <td>
-          <div style="font-family: 'Cinzel', Georgia, serif; font-size: 13px; font-weight: 700; color: #C6A15B; text-transform: uppercase; margin-bottom: 10px;">
+          <div style="font-family: 'Cinzel', Georgia, serif; font-size: 13px; font-weight: 700; color: #92400E; text-transform: uppercase; margin-bottom: 10px;">
             Your Quantitative Terminal Privileges
           </div>
-          <ul style="margin: 0; padding-left: 20px; font-size: 12px; color: #CBD5E1; line-height: 1.8;">
+          <ul style="margin: 0; padding-left: 20px; font-size: 12.5px; color: #334155; line-height: 1.8;">
             <li><strong>Proprietary Alpha Models:</strong> Access mathematically audited algorithmic model strategies.</li>
             <li><strong>Analyst Portfolio Clearance:</strong> Every executed position is audited against strict mandate parameters.</li>
             <li><strong>Zero-Latency Signals:</strong> Instant rebalance dispatches with target weights and rationale.</li>
@@ -35,7 +37,7 @@ export function buildWelcomeOrientationEmail(data: WelcomeEmailData): { subject:
       </tr>
     </table>
 
-    <p style="font-size: 12px; color: #94A3B8;">
+    <p style="font-size: 13px; color: #475569; line-height: 1.6;">
       To unlock live position monitoring and algorithmic signals, select an advisory mandate from your terminal catalog and configure your initial holdings.
     </p>
   `;
@@ -72,19 +74,21 @@ export function buildPasswordResetEmail(data: PasswordResetEmailData): { subject
   const expiresIn = data.expiresInMinutes || 15;
 
   const bodyHtml = `
-    <p style="margin-top: 0;">Dear <strong style="color: #F8FAFC;">${data.userName}</strong>,</p>
+    <p style="margin-top: 0; font-size: 14px; color: #1E293B;">Dear <strong style="color: #0F172A;">${data.userName}</strong>,</p>
     
-    <p>We received a statutory request to reset the access credentials for your authenticated account (<strong style="color: #C6A15B;">${data.userEmail}</strong>).</p>
+    <p style="font-size: 13.5px; color: #334155; line-height: 1.6;">
+      We received a statutory request to reset the access credentials for your authenticated account (<strong style="color: #92400E;">${data.userEmail}</strong>).
+    </p>
 
     <!-- Expiry Alert Box -->
-    <div style="background-color: rgba(198, 161, 91, 0.08); border-left: 3px solid #C6A15B; padding: 14px 16px; border-radius: 4px; margin: 20px 0;">
-      <div style="font-size: 12px; color: #E2E8F0; font-weight: 600;">Time-Sensitive Security Link</div>
-      <div style="font-size: 11px; color: #94A3B8; margin-top: 2px;">
-        This cryptographic password reset token expires in <strong style="color: #C6A15B;">${expiresIn} minutes</strong>.
+    <div style="background-color: #FEF3C7; border-left: 4px solid #D97706; padding: 14px 16px; border-radius: 4px; margin: 20px 0;">
+      <div style="font-size: 12.5px; color: #92400E; font-weight: 700;">Time-Sensitive Security Link</div>
+      <div style="font-size: 12px; color: #78350F; margin-top: 3px; line-height: 1.5;">
+        This cryptographic password reset token expires in <strong style="color: #92400E;">${expiresIn} minutes</strong>.
       </div>
     </div>
 
-    <p style="font-size: 12px; color: #94A3B8;">
+    <p style="font-size: 13px; color: #475569; line-height: 1.6;">
       If you did not initiate this request, you can safely disregard this email. Your password will remain unchanged and your terminal session remains secure.
     </p>
   `;
@@ -127,36 +131,38 @@ export interface SecurityLoginAlertEmailData {
 export type SecurityAlertEmailData = SecurityLoginAlertEmailData;
 
 export function buildSecurityLoginAlertEmail(data: SecurityLoginAlertEmailData): { subject: string; html: string } {
-  const secureUrl = data.secureAccountUrl || 'https://arthresearch.com/profile';
+  const secureUrl = data.secureAccountUrl || 'https://arthresearch.web.app/profile';
 
   const bodyHtml = `
-    <p style="margin-top: 0;">Dear <strong style="color: #F8FAFC;">${data.userName}</strong>,</p>
+    <p style="margin-top: 0; font-size: 14px; color: #1E293B;">Dear <strong style="color: #0F172A;">${data.userName}</strong>,</p>
     
-    <p>A new terminal session was authenticated for your account (<strong style="color: #C6A15B;">${data.userEmail}</strong>).</p>
+    <p style="font-size: 13.5px; color: #334155; line-height: 1.6;">
+      A new terminal session was authenticated for your account (<strong style="color: #92400E;">${data.userEmail}</strong>).
+    </p>
 
     <!-- Session Details Table -->
-    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #141C2B; border: 1px solid #1E293B; border-radius: 10px; margin: 20px 0; overflow: hidden;">
-      <tr style="border-bottom: 1px solid #1E293B;">
-        <td style="padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 11px; color: #94A3B8; width: 35%;">TIMESTAMP</td>
-        <td style="padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 11px; color: #F8FAFC; font-weight: 600;">${data.timestampFormatted}</td>
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; margin: 20px 0; overflow: hidden; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);">
+      <tr style="border-bottom: 1px solid #E2E8F0; background-color: #F8FAFC;">
+        <td style="padding: 10px 14px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11.5px; color: #64748B; width: 35%;">TIMESTAMP</td>
+        <td style="padding: 10px 14px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 12px; color: #0F172A; font-weight: 600;">${data.timestampFormatted}</td>
       </tr>
-      <tr style="border-bottom: 1px solid #1E293B; background-color: #0E1420;">
-        <td style="padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 11px; color: #94A3B8;">IP ADDRESS</td>
-        <td style="padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 11px; color: #C6A15B; font-weight: 600;">${data.ipAddress}</td>
+      <tr style="border-bottom: 1px solid #E2E8F0; background-color: #FFFFFF;">
+        <td style="padding: 10px 14px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11.5px; color: #64748B;">IP ADDRESS</td>
+        <td style="padding: 10px 14px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 12px; color: #92400E; font-weight: 700;">${data.ipAddress}</td>
       </tr>
-      <tr style="border-bottom: 1px solid #1E293B;">
-        <td style="padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 11px; color: #94A3B8;">DEVICE / CLIENT</td>
-        <td style="padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 11px; color: #F8FAFC;">${data.deviceBrowser}</td>
+      <tr style="border-bottom: 1px solid #E2E8F0; background-color: #F8FAFC;">
+        <td style="padding: 10px 14px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11.5px; color: #64748B;">DEVICE / CLIENT</td>
+        <td style="padding: 10px 14px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 12px; color: #0F172A;">${data.deviceBrowser}</td>
       </tr>
       ${data.locationCityCountry ? `
-      <tr style="background-color: #0E1420;">
-        <td style="padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 11px; color: #94A3B8;">EST. LOCATION</td>
-        <td style="padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 11px; color: #F8FAFC;">${data.locationCityCountry}</td>
+      <tr style="background-color: #FFFFFF;">
+        <td style="padding: 10px 14px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11.5px; color: #64748B;">EST. LOCATION</td>
+        <td style="padding: 10px 14px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 12px; color: #0F172A;">${data.locationCityCountry}</td>
       </tr>
       ` : ''}
     </table>
 
-    <p style="font-size: 12px; color: #94A3B8;">
+    <p style="font-size: 13px; color: #475569; line-height: 1.6;">
       If this was you, no action is required. If you do not recognize this login, please revoke your active sessions and reset your password immediately.
     </p>
   `;

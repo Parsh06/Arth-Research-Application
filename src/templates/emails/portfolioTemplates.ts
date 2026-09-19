@@ -36,49 +36,51 @@ export function buildHoldingsSubmittedEmail(data: any): { subject: string; html:
   const portfolioId = data.portfolioId || 'PORT-SUBMITTED';
 
   const holdingsRows = holdingsList.length > 0 ? holdingsList.map((h: any, i: number) => `
-    <tr style="border-bottom: 1px solid #1E293B; ${i % 2 === 1 ? 'background-color: #0E1420;' : ''}">
-      <td style="padding: 8px 12px; font-family: 'Courier New', monospace; font-size: 11px; font-weight: 700; color: #F8FAFC;">${h.ticker || h.symbol}</td>
-      <td style="padding: 8px 12px; font-family: 'Courier New', monospace; font-size: 11px; color: #CBD5E1; text-align: right;">${h.quantity}</td>
-      <td style="padding: 8px 12px; font-family: 'Courier New', monospace; font-size: 11px; color: #94A3B8; text-align: right;">${h.avgPriceFormatted || h.buyPrice || '₹1,000.00'}</td>
-      <td style="padding: 8px 12px; font-family: 'Courier New', monospace; font-size: 11px; font-weight: 600; color: #C6A15B; text-align: right;">${h.totalValueFormatted || '₹0.00'}</td>
+    <tr style="border-bottom: 1px solid #E2E8F0; ${i % 2 === 1 ? 'background-color: #F8FAFC;' : 'background-color: #FFFFFF;'}">
+      <td style="padding: 10px 12px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11.5px; font-weight: 700; color: #0F172A;">${h.ticker || h.symbol}</td>
+      <td style="padding: 10px 12px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11.5px; font-weight: 600; color: #334155; text-align: right;">${h.quantity}</td>
+      <td style="padding: 10px 12px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11.5px; color: #475569; text-align: right;">${h.avgPriceFormatted || h.buyPrice || '₹1,000.00'}</td>
+      <td style="padding: 10px 12px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11.5px; font-weight: 700; color: #0F172A; text-align: right;">${h.totalValueFormatted || '₹0.00'}</td>
     </tr>
   `).join('') : `
     <tr>
-      <td colspan="4" style="padding: 12px; text-align: center; color: #94A3B8; font-family: 'Courier New', monospace; font-size: 11px;">
+      <td colspan="4" style="padding: 14px; text-align: center; color: #64748B; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 12px;">
         ${holdingsCount} Holdings Logged for Clearance
       </td>
     </tr>
   `;
 
   const bodyHtml = `
-    <p style="margin-top: 0;">Dear <strong style="color: #F8FAFC;">${data.userName}</strong>,</p>
+    <p style="margin-top: 0; font-size: 14px; color: #1E293B;">Dear <strong style="color: #0F172A;">${data.userName}</strong>,</p>
     
-    <p>Your executed position entries for the <strong style="color: #C6A15B;">${planName}</strong> strategy mandate have been securely logged and placed into the <strong>Analyst Verification Queue</strong>.</p>
+    <p style="font-size: 13.5px; color: #334155; line-height: 1.6;">
+      Your executed position entries for the <strong style="color: #92400E;">${planName}</strong> strategy mandate have been securely logged and placed into the <strong>Analyst Verification Queue</strong>.
+    </p>
 
     <!-- Submitted Basket Table -->
-    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #141C2B; border: 1px solid #1E293B; border-radius: 10px; margin: 20px 0; overflow: hidden;">
-      <tr style="background-color: #0E1420; border-bottom: 1px solid #1E293B;">
-        <th style="padding: 10px 12px; font-family: 'Courier New', monospace; font-size: 10px; font-weight: 700; color: #94A3B8; text-align: left; text-transform: uppercase;">Ticker</th>
-        <th style="padding: 10px 12px; font-family: 'Courier New', monospace; font-size: 10px; font-weight: 700; color: #94A3B8; text-align: right; text-transform: uppercase;">Qty</th>
-        <th style="padding: 10px 12px; font-family: 'Courier New', monospace; font-size: 10px; font-weight: 700; color: #94A3B8; text-align: right; text-transform: uppercase;">Avg Price</th>
-        <th style="padding: 10px 12px; font-family: 'Courier New', monospace; font-size: 10px; font-weight: 700; color: #94A3B8; text-align: right; text-transform: uppercase;">Position Total</th>
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; margin: 20px 0; overflow: hidden; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);">
+      <tr style="background-color: #0F172A; border-bottom: 1px solid #1E293B;">
+        <th style="padding: 11px 12px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 10.5px; font-weight: 700; color: #FFFFFF; text-align: left; text-transform: uppercase;">Ticker</th>
+        <th style="padding: 11px 12px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 10.5px; font-weight: 700; color: #FFFFFF; text-align: right; text-transform: uppercase;">Qty</th>
+        <th style="padding: 11px 12px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 10.5px; font-weight: 700; color: #FFFFFF; text-align: right; text-transform: uppercase;">Avg Price</th>
+        <th style="padding: 11px 12px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 10.5px; font-weight: 700; color: #FFFFFF; text-align: right; text-transform: uppercase;">Position Total</th>
       </tr>
       ${holdingsRows}
-      <tr style="background-color: #172235;">
-        <td colspan="3" style="padding: 10px 12px; font-family: 'Cinzel', Georgia, serif; font-size: 11px; font-weight: 700; color: #F8FAFC;">TOTAL REPORTED CAPITAL</td>
-        <td style="padding: 10px 12px; font-family: 'Courier New', monospace; font-size: 13px; font-weight: 700; color: #1E8E5A; text-align: right;">${totalInvestmentFormatted}</td>
+      <tr style="background-color: #F8FAFC; border-top: 2px solid #E2E8F0;">
+        <td colspan="3" style="padding: 12px 12px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11.5px; font-weight: 700; color: #0F172A;">TOTAL REPORTED CAPITAL</td>
+        <td style="padding: 12px 12px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13.5px; font-weight: 700; color: #059669; text-align: right;">${totalInvestmentFormatted}</td>
       </tr>
     </table>
 
     ${holdingsList.length > 6 ? `
-    <p style="font-size: 11px; color: #94A3B8; font-style: italic; margin-top: -10px; text-align: right;">
+    <p style="font-size: 11px; color: #64748B; font-style: italic; margin-top: -10px; text-align: right;">
       + ${holdingsList.length - 6} additional holdings recorded.
     </p>
     ` : ''}
 
-    <div style="background-color: rgba(198, 161, 91, 0.08); border-left: 3px solid #C6A15B; padding: 14px 16px; border-radius: 4px; margin: 20px 0;">
-      <div style="font-size: 12px; color: #E2E8F0; font-weight: 600;">Verification SLA: 24–48 Hours</div>
-      <div style="font-size: 11px; color: #94A3B8; margin-top: 2px;">
+    <div style="background-color: #FEF3C7; border-left: 4px solid #D97706; padding: 14px 16px; border-radius: 4px; margin: 20px 0;">
+      <div style="font-size: 12.5px; color: #92400E; font-weight: 700;">Verification SLA: 24–48 Hours</div>
+      <div style="font-size: 12px; color: #78350F; margin-top: 3px; line-height: 1.5;">
         Our research desk will audit your entries against model basket constraints. You will receive an immediate notification when clearance is issued.
       </div>
     </div>
@@ -101,6 +103,7 @@ export function buildHoldingsSubmittedEmail(data: any): { subject: string; html:
     })
   };
 }
+
 // -------------------------------------------------------------------------------------------------
 export interface PortfolioClearanceEmailData {
   userName: string;
@@ -120,53 +123,53 @@ export interface PortfolioClearanceEmailData {
 }
 
 export function buildAnalystPortfolioClearanceEmail(data: PortfolioClearanceEmailData): { subject: string; html: string } {
-  const portfolioUrl = data.portalUrl || data.portfolioUrl || 'https://arthresearch.com/portfolio';
+  const portfolioUrl = data.portalUrl || data.portfolioUrl || 'https://arthresearch.web.app/portfolio';
   const planName = data.mandateName || data.planName || 'Institutional Advisory Mandate';
   const clearedCapital = data.portfolioNav || data.clearedCapitalFormatted || 'Active Deployed Capital';
   const clearedDate = data.clearanceDate || data.clearedAtFormatted || new Date().toLocaleDateString('en-IN');
   const analystNote = data.analystRemarks || data.leadAnalystNotes;
 
   const bodyHtml = `
-    <p style="margin-top: 0;">Dear <strong style="color: #F8FAFC;">${data.userName}</strong>,</p>
+    <p style="margin-top: 0; font-size: 14px; color: #1E293B;">Dear <strong style="color: #0F172A;">${data.userName}</strong>,</p>
     
-    <p>We are pleased to inform you that your executed holdings for <strong style="color: #C6A15B;">${planName}</strong> have successfully passed quantitative audit rules. Formal clearance has been issued.</p>
+    <p style="font-size: 13.5px; color: #334155; line-height: 1.6;">
+      We are pleased to inform you that your executed holdings for <strong style="color: #92400E;">${planName}</strong> have successfully passed quantitative audit rules. Formal clearance has been issued.
+    </p>
 
     <!-- Clearance Certificate Box -->
-    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #141C2B; border: 1px solid rgba(30, 142, 90, 0.4); border-radius: 10px; margin: 20px 0; overflow: hidden;">
-      <tr style="background-color: rgba(30, 142, 90, 0.15); border-bottom: 1px solid rgba(30, 142, 90, 0.3);">
-        <td colspan="2" style="padding: 12px 16px;">
-          <table border="0" cellpadding="0" cellspacing="0" width="100%">
-            <tr>
-              <td style="font-family: 'Cinzel', Georgia, serif; font-size: 13px; font-weight: 700; color: #1E8E5A; text-transform: uppercase;">
-                &#10004; MANDATE CLEARANCE CERTIFICATE
-              </td>
-              <td align="right" style="font-family: 'Courier New', monospace; font-size: 10px; color: #94A3B8;">${clearedDate}</td>
-            </tr>
-          </table>
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #FFFFFF; border: 1px solid #BBF7D0; border-radius: 8px; margin: 20px 0; overflow: hidden; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);">
+      <tr style="background-color: #DCFCE7; border-bottom: 1px solid #BBF7D0;">
+        <td style="padding: 12px 16px;">
+          <span style="font-family: 'Cinzel', Georgia, serif; font-size: 12.5px; font-weight: 700; color: #166534; text-transform: uppercase;">
+            &#10004; MANDATE CLEARANCE CERTIFICATE
+          </span>
+        </td>
+        <td align="right" style="padding: 12px 16px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11px; color: #15803D; font-weight: 600;">
+          ${clearedDate}
         </td>
       </tr>
-      <tr style="border-bottom: 1px solid #1E293B;">
-        <td style="padding: 10px 16px; font-family: 'Courier New', monospace; font-size: 11px; color: #94A3B8; width: 40%;">CLEARED STRATEGY</td>
-        <td style="padding: 10px 16px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 12px; color: #F8FAFC; font-weight: 600;">${planName}</td>
+      <tr style="border-bottom: 1px solid #E2E8F0; background-color: #FFFFFF;">
+        <td style="padding: 10px 16px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11.5px; color: #64748B; width: 40%;">CLEARED STRATEGY</td>
+        <td style="padding: 10px 16px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 12px; color: #0F172A; font-weight: 700;">${planName}</td>
       </tr>
-      <tr style="border-bottom: 1px solid #1E293B; background-color: #0E1420;">
-        <td style="padding: 10px 16px; font-family: 'Courier New', monospace; font-size: 11px; color: #94A3B8;">ACTIVE DEPLOYED CAPITAL</td>
-        <td style="padding: 10px 16px; font-family: 'Courier New', monospace; font-size: 12px; color: #1E8E5A; font-weight: 700;">${clearedCapital}</td>
+      <tr style="border-bottom: 1px solid #E2E8F0; background-color: #F8FAFC;">
+        <td style="padding: 10px 16px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11.5px; color: #64748B;">ACTIVE DEPLOYED CAPITAL</td>
+        <td style="padding: 10px 16px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 12px; color: #059669; font-weight: 700;">${clearedCapital}</td>
       </tr>
-      <tr style="border-bottom: 1px solid #1E293B;">
-        <td style="padding: 10px 16px; font-family: 'Courier New', monospace; font-size: 11px; color: #94A3B8;">AUDIT STATUS</td>
-        <td style="padding: 10px 16px; font-family: 'Courier New', monospace; font-size: 11px; color: #1E8E5A; font-weight: 700; text-transform: uppercase;">ACTIVE &bull; TELEMETRY LIVE</td>
+      <tr style="border-bottom: 1px solid #E2E8F0; background-color: #FFFFFF;">
+        <td style="padding: 10px 16px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11.5px; color: #64748B;">AUDIT STATUS</td>
+        <td style="padding: 10px 16px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11.5px; color: #059669; font-weight: 700; text-transform: uppercase;">ACTIVE &bull; TELEMETRY LIVE</td>
       </tr>
       ${analystNote ? `
-      <tr style="background-color: #0E1420;">
-        <td style="padding: 10px 16px; font-family: 'Courier New', monospace; font-size: 11px; color: #94A3B8;">ANALYST NOTE</td>
-        <td style="padding: 10px 16px; font-size: 12px; color: #CBD5E1; line-height: 1.5;">${analystNote}</td>
+      <tr style="background-color: #F8FAFC;">
+        <td style="padding: 10px 16px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11.5px; color: #64748B;">ANALYST NOTE</td>
+        <td style="padding: 10px 16px; font-size: 12px; color: #334155; line-height: 1.5;">${analystNote}</td>
       </tr>
       ` : ''}
     </table>
 
-    <p style="font-size: 12px; color: #94A3B8;">
-      Your portfolio dashboard is now unlocked with live trailing NAV tracking, factor weight analytics, and algorithmic rebalance telemetry.
+    <p style="font-size: 13px; color: #475569; line-height: 1.6;">
+      Your portfolio dashboard is now unlocked with live position tracking, factor weight analytics, and algorithmic rebalance telemetry.
     </p>
   `;
 
@@ -207,29 +210,31 @@ export interface HoldingsRevisionEmailData {
 }
 
 export function buildHoldingsRevisionRequestedEmail(data: HoldingsRevisionEmailData): { subject: string; html: string } {
-  const updateUrl = data.portalUrl || data.updateUrl || `https://arthresearch.com/setup-portfolio?portfolioId=${data.portfolioId || ''}`;
+  const updateUrl = data.portalUrl || data.updateUrl || `https://arthresearch.web.app/setup-portfolio?portfolioId=${data.portfolioId || ''}`;
   const planName = data.mandateName || data.planName || 'Institutional Advisory Mandate';
   const reason = data.reasonSummary || data.rejectionReason || 'Holdings require adjustment.';
 
   const bodyHtml = `
-    <p style="margin-top: 0;">Dear <strong style="color: #F8FAFC;">${data.userName}</strong>,</p>
+    <p style="margin-top: 0; font-size: 14px; color: #1E293B;">Dear <strong style="color: #0F172A;">${data.userName}</strong>,</p>
     
-    <p>Our quantitative analyst desk has completed the initial audit for your submitted entries in <strong style="color: #C6A15B;">${planName}</strong>. Certain positions require adjustment before active clearance can be granted.</p>
+    <p style="font-size: 13.5px; color: #334155; line-height: 1.6;">
+      Our quantitative analyst desk has completed the initial audit for your submitted entries in <strong style="color: #92400E;">${planName}</strong>. Certain positions require adjustment before active clearance can be granted.
+    </p>
 
     <!-- Analyst Remarks Box -->
-    <div style="background-color: rgba(179, 40, 63, 0.1); border: 1px solid rgba(179, 40, 63, 0.35); border-radius: 8px; padding: 18px; margin: 20px 0;">
-      <div style="font-family: 'Cinzel', Georgia, serif; font-size: 12px; font-weight: 700; color: #E05263; text-transform: uppercase;">
+    <div style="background-color: #FEF2F2; border: 1px solid #FECACA; border-radius: 8px; padding: 18px; margin: 20px 0;">
+      <div style="font-family: 'Cinzel', Georgia, serif; font-size: 12px; font-weight: 700; color: #991B1B; text-transform: uppercase;">
         &#9888; Research Analyst Audit Remarks
       </div>
-      <div style="font-family: 'Courier New', monospace; font-size: 12px; color: #F8FAFC; margin-top: 8px; line-height: 1.6; background-color: #0A0E16; padding: 12px; border-radius: 6px; border: 1px solid #1E293B;">
+      <div style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 12.5px; color: #0F172A; font-weight: 600; margin-top: 8px; line-height: 1.6; background-color: #FFFFFF; padding: 12px; border-radius: 6px; border: 1px solid #FCA5A5;">
         "${reason}"
       </div>
-      <div style="font-size: 11px; color: #94A3B8; margin-top: 8px;">
+      <div style="font-size: 11.5px; color: #7F1D1D; margin-top: 8px; line-height: 1.5;">
         Please rectify the indicated position quantities or average execution prices on your portfolio configuration desk.
       </div>
     </div>
 
-    <p style="font-size: 12px; color: #94A3B8;">
+    <p style="font-size: 13px; color: #475569; line-height: 1.6;">
       Click the button below to update your holdings and resubmit for priority re-verification.
     </p>
   `;
@@ -257,8 +262,8 @@ export const buildPortfolioClearanceEmail = (data: any) => {
     userName: data.userName,
     planName: data.mandateName || data.planName || 'Strategy Mandate',
     portfolioId: data.portfolioId || 'PORT-ACTIVE',
-    clearedCapitalFormatted: data.portfolioNav || data.clearedCapitalFormatted || '₹84,50,000.00',
-    clearedAtFormatted: data.clearanceDate || data.clearedAtFormatted || '19 Sep 2026',
+    clearedCapitalFormatted: data.portfolioNav || data.clearedCapitalFormatted || '₹4,999.00',
+    clearedAtFormatted: data.clearanceDate || data.clearedAtFormatted || new Date().toLocaleDateString('en-IN'),
     leadAnalystNotes: data.analystRemarks || data.leadAnalystNotes,
     portfolioUrl: data.portalUrl || data.portfolioUrl
   });
@@ -270,7 +275,7 @@ export const buildHoldingsRevisionEmail = (data: any) => {
     planName: data.mandateName || data.planName || 'Strategy Mandate',
     portfolioId: data.portfolioId || 'PORT-REVISION',
     rejectionReason: data.reasonSummary || data.rejectionReason || 'Holdings require adjustment.',
-    submittedCapitalFormatted: data.submittedCapitalFormatted || '₹84,50,000.00',
+    submittedCapitalFormatted: data.submittedCapitalFormatted || '₹4,999.00',
     updateUrl: data.portalUrl || data.updateUrl
   });
 };

@@ -15,38 +15,40 @@ export interface AccountRevokedEmailData {
 }
 
 export function buildAccountRevokedEmail(data: AccountRevokedEmailData): { subject: string; html: string } {
-  const appealUrl = data.appealUrl || 'https://arthresearch.com/support';
+  const appealUrl = data.appealUrl || 'https://arthresearch.web.app/support';
   const supervisor = data.supervisorName ? `${data.supervisorName} (${data.supervisorRole || 'Compliance Officer'})` : 'Supervisory Risk Committee';
 
   const bodyHtml = `
-    <p style="margin-top: 0;">Dear <strong style="color: #F8FAFC;">${data.userName}</strong>,</p>
+    <p style="margin-top: 0; font-size: 14px; color: #1E293B;">Dear <strong style="color: #0F172A;">${data.userName}</strong>,</p>
     
-    <p>Notice is hereby given that terminal privileges for account <strong style="color: #CBD5E1;">${data.userEmail}</strong> have been suspended under institutional risk and compliance directives.</p>
+    <p style="font-size: 13.5px; color: #334155; line-height: 1.6;">
+      Notice is hereby given that terminal privileges for account <strong style="color: #0F172A;">${data.userEmail}</strong> have been suspended under institutional risk and compliance directives.
+    </p>
 
     <!-- Revocation Reason Box -->
-    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #171115; border: 1px solid rgba(179, 40, 63, 0.4); border-radius: 10px; margin: 20px 0; padding: 18px;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #FFFFFF; border: 1px solid #FECACA; border-radius: 8px; margin: 20px 0; padding: 18px; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);">
       <tr>
         <td>
-          <div style="font-family: 'Courier New', monospace; font-size: 11px; font-weight: 700; color: #E05263; letter-spacing: 1px; text-transform: uppercase;">
-            &#9888; OFFICIAL REVOCATION RECORD
+          <div style="font-family: 'Cinzel', Georgia, serif; font-size: 12.5px; font-weight: 700; color: #991B1B; text-transform: uppercase;">
+            &#9888; Official Revocation Record
           </div>
           
           <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 12px;">
             <tr>
-              <td style="font-size: 11px; color: #94A3B8; font-family: 'Courier New', monospace;" width="130">Effective Date:</td>
-              <td style="font-size: 12px; color: #CBD5E1; font-family: 'Courier New', monospace; font-weight: 600;">${data.revocationDate}</td>
+              <td style="font-size: 11.5px; color: #64748B;" width="130">Effective Date:</td>
+              <td style="font-size: 12px; color: #0F172A; font-weight: 600;">${data.revocationDate}</td>
             </tr>
             <tr>
-              <td style="font-size: 11px; color: #94A3B8; font-family: 'Courier New', monospace; padding-top: 6px;">Authorized By:</td>
-              <td style="font-size: 12px; color: #CBD5E1; font-family: 'Courier New', monospace; font-weight: 600; padding-top: 6px;">${supervisor}</td>
+              <td style="font-size: 11.5px; color: #64748B; padding-top: 6px;">Authorized By:</td>
+              <td style="font-size: 12px; color: #0F172A; font-weight: 600; padding-top: 6px;">${supervisor}</td>
             </tr>
           </table>
 
-          <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(179, 40, 63, 0.2);">
-            <div style="font-size: 11px; font-weight: 700; color: #E05263; text-transform: uppercase; margin-bottom: 6px;">
+          <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid #FEE2E2;">
+            <div style="font-size: 11.5px; font-weight: 700; color: #991B1B; text-transform: uppercase; margin-bottom: 6px;">
               Supervisor Basis & Findings:
             </div>
-            <div style="font-size: 12px; line-height: 1.6; color: #F1F5F9; background-color: #0F0A0E; padding: 12px 14px; border-radius: 6px; border-left: 3px solid #E05263;">
+            <div style="font-size: 12.5px; line-height: 1.6; color: #7F1D1D; background-color: #FEF2F2; padding: 12px 14px; border-radius: 6px; border-left: 4px solid #DC2626;">
               ${data.reason}
             </div>
           </div>
@@ -54,12 +56,12 @@ export function buildAccountRevokedEmail(data: AccountRevokedEmailData): { subje
       </tr>
     </table>
 
-    <p style="font-size: 12px; color: #94A3B8; line-height: 1.6;">
+    <p style="font-size: 13px; color: #475569; line-height: 1.6;">
       While access to live quantitative signals and order feeds is suspended, existing transaction records and billing history remain archived in accordance with statutory retention regulations.
     </p>
     
-    <p style="font-size: 12px; color: #94A3B8; line-height: 1.6;">
-      If you believe this administrative action was taken in error or wish to submit KYC documentation for remediation, please contact compliance desk immediately.
+    <p style="font-size: 13px; color: #475569; line-height: 1.6;">
+      If you believe this administrative action was taken in error or wish to submit KYC documentation for remediation, please contact our compliance desk immediately.
     </p>
   `;
 
@@ -93,42 +95,44 @@ export interface AccountReactivatedEmailData {
 }
 
 export function buildAccountReactivatedEmail(data: AccountReactivatedEmailData): { subject: string; html: string } {
-  const portalUrl = data.portalUrl || 'https://arthresearch.com/login';
+  const portalUrl = data.portalUrl || 'https://arthresearch.web.app/login';
 
   const bodyHtml = `
-    <p style="margin-top: 0;">Dear <strong style="color: #F8FAFC;">${data.userName}</strong>,</p>
+    <p style="margin-top: 0; font-size: 14px; color: #1E293B;">Dear <strong style="color: #0F172A;">${data.userName}</strong>,</p>
     
-    <p>We are pleased to notify you that institutional access for account <strong style="color: #CBD5E1;">${data.userEmail}</strong> has been <strong>fully reinstated and verified</strong> by our supervisory desk.</p>
+    <p style="font-size: 13.5px; color: #334155; line-height: 1.6;">
+      We are pleased to notify you that institutional access for account <strong style="color: #0F172A;">${data.userEmail}</strong> has been <strong>fully reinstated and verified</strong> by our supervisory desk.
+    </p>
 
     <!-- Reactivation Summary Box -->
-    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #101F18; border: 1px solid rgba(30, 142, 90, 0.4); border-radius: 10px; margin: 20px 0; padding: 18px;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #FFFFFF; border: 1px solid #BBF7D0; border-radius: 8px; margin: 20px 0; padding: 18px; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);">
       <tr>
         <td>
-          <div style="font-family: 'Courier New', monospace; font-size: 11px; font-weight: 700; color: #1E8E5A; letter-spacing: 1px; text-transform: uppercase;">
-            &#10004; ACCESS CLEARANCE RESTORED
+          <div style="font-family: 'Cinzel', Georgia, serif; font-size: 12.5px; font-weight: 700; color: #166534; text-transform: uppercase;">
+            &#10004; Access Clearance Restored
           </div>
           
           <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 12px;">
             <tr>
-              <td style="font-size: 11px; color: #94A3B8; font-family: 'Courier New', monospace;" width="140">Reactivation Timestamp:</td>
-              <td style="font-size: 12px; color: #CBD5E1; font-family: 'Courier New', monospace; font-weight: 600;">${data.reactivationDate}</td>
+              <td style="font-size: 11.5px; color: #64748B;" width="140">Reactivation Date:</td>
+              <td style="font-size: 12px; color: #0F172A; font-weight: 600;">${data.reactivationDate}</td>
             </tr>
             ${data.planName ? `
             <tr>
-              <td style="font-size: 11px; color: #94A3B8; font-family: 'Courier New', monospace; padding-top: 6px;">Active Mandate:</td>
-              <td style="font-size: 12px; color: #C6A15B; font-family: 'Courier New', monospace; font-weight: 700; padding-top: 6px;">${data.planName}</td>
+              <td style="font-size: 11.5px; color: #64748B; padding-top: 6px;">Active Mandate:</td>
+              <td style="font-size: 12px; color: #92400E; font-weight: 700; padding-top: 6px;">${data.planName}</td>
             </tr>
             ` : ''}
             <tr>
-              <td style="font-size: 11px; color: #94A3B8; font-family: 'Courier New', monospace; padding-top: 6px;">Status:</td>
-              <td style="font-size: 12px; color: #1E8E5A; font-family: 'Courier New', monospace; font-weight: 700; padding-top: 6px;">CLEAR & ACTIVE</td>
+              <td style="font-size: 11.5px; color: #64748B; padding-top: 6px;">Status:</td>
+              <td style="font-size: 12px; color: #059669; font-weight: 700; padding-top: 6px;">CLEAR & ACTIVE</td>
             </tr>
           </table>
         </td>
       </tr>
     </table>
 
-    <p style="font-size: 12px; color: #94A3B8; line-height: 1.6;">
+    <p style="font-size: 13px; color: #475569; line-height: 1.6;">
       All terminal capabilities, real-time quant model signals, and portfolio rebalance notifications are now active.
     </p>
   `;

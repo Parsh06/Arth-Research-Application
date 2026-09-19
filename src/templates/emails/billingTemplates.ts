@@ -30,58 +30,58 @@ export interface PaymentInvoiceEmailData {
 export type PaymentConfirmationEmailData = PaymentInvoiceEmailData;
 
 export function buildPaymentConfirmationInvoiceEmail(data: PaymentInvoiceEmailData): { subject: string; html: string } {
-  const configureUrl = data.configureBasketUrl || 'https://arthresearch.com/setup-portfolio';
+  const configureUrl = data.configureBasketUrl || 'https://arthresearch.web.app/setup-portfolio';
 
   const bodyHtml = `
-    <p style="margin-top: 0;">Dear <strong style="color: #F8FAFC;">${data.userName}</strong>,</p>
+    <p style="margin-top: 0; font-size: 14px; color: #1E293B;">Dear <strong style="color: #0F172A;">${data.userName}</strong>,</p>
     
-    <p>We have successfully processed your advisory subscription mandate. Your payment is confirmed and your official statutory <strong>GST Tax Invoice</strong> is detailed below.</p>
+    <p style="font-size: 13.5px; color: #334155; line-height: 1.6;">
+      We have successfully processed your advisory subscription mandate. Your payment is confirmed and your official statutory <strong>GST Tax Invoice</strong> is detailed below.
+    </p>
 
     <!-- Invoice Summary Box -->
-    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #141C2B; border: 1px solid #1E293B; border-radius: 10px; margin: 20px 0; overflow: hidden;">
-      <tr style="background-color: #0E1420; border-bottom: 1px solid #1E293B;">
-        <td colspan="2" style="padding: 12px 16px;">
-          <table border="0" cellpadding="0" cellspacing="0" width="100%">
-            <tr>
-              <td style="font-family: 'Cinzel', Georgia, serif; font-size: 13px; font-weight: 700; color: #C6A15B; text-transform: uppercase;">TAX INVOICE &bull; ${data.invoiceNumber || 'INV-ARTH-RECEIPT'}</td>
-              <td align="right" style="font-family: 'Courier New', monospace; font-size: 10px; color: #94A3B8;">${data.paymentDate || data.invoiceDateFormatted || new Date().toLocaleDateString('en-IN')}</td>
-            </tr>
-          </table>
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; margin: 20px 0; overflow: hidden; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);">
+      <tr style="background-color: #0F172A; border-bottom: 1px solid #1E293B;">
+        <td style="padding: 12px 16px;">
+          <span style="font-family: 'Cinzel', Georgia, serif; font-size: 12.5px; font-weight: 700; color: #F59E0B; text-transform: uppercase;">TAX INVOICE &bull; ${data.invoiceNumber || 'INV-ARTH-RECEIPT'}</span>
+        </td>
+        <td align="right" style="padding: 12px 16px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11px; color: #CBD5E1;">
+          ${data.paymentDate || data.invoiceDateFormatted || new Date().toLocaleDateString('en-IN')}
         </td>
       </tr>
-      <tr style="border-bottom: 1px solid #1E293B;">
-        <td style="padding: 10px 16px; font-family: 'Courier New', monospace; font-size: 11px; color: #94A3B8; width: 50%;">ADVISORY MANDATE</td>
-        <td style="padding: 10px 16px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 12px; color: #F8FAFC; font-weight: 600;">${data.planName}</td>
+      <tr style="border-bottom: 1px solid #E2E8F0; background-color: #FFFFFF;">
+        <td style="padding: 10px 16px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11.5px; color: #64748B; width: 45%;">ADVISORY MANDATE</td>
+        <td style="padding: 10px 16px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 12px; color: #0F172A; font-weight: 700;">${data.planName}</td>
       </tr>
-      <tr style="border-bottom: 1px solid #1E293B; background-color: #0E1420;">
-        <td style="padding: 10px 16px; font-family: 'Courier New', monospace; font-size: 11px; color: #94A3B8;">BASE ADVISORY FEE</td>
-        <td style="padding: 10px 16px; font-family: 'Courier New', monospace; font-size: 11px; color: #F8FAFC;">${data.baseAmount || data.basePriceFormatted || '₹4,999.00'}</td>
+      <tr style="border-bottom: 1px solid #E2E8F0; background-color: #F8FAFC;">
+        <td style="padding: 10px 16px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11.5px; color: #64748B;">BASE ADVISORY FEE</td>
+        <td style="padding: 10px 16px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 12px; color: #0F172A; font-weight: 600;">${data.baseAmount || data.basePriceFormatted || '₹4,999.00'}</td>
       </tr>
-      <tr style="border-bottom: 1px solid #1E293B;">
-        <td style="padding: 10px 16px; font-family: 'Courier New', monospace; font-size: 11px; color: #94A3B8;">GOODS & SERVICES TAX (GST 18%)</td>
-        <td style="padding: 10px 16px; font-family: 'Courier New', monospace; font-size: 11px; color: #F8FAFC;">${data.gstAmount || data.gstAmountFormatted || '₹899.82'}</td>
+      <tr style="border-bottom: 1px solid #E2E8F0; background-color: #FFFFFF;">
+        <td style="padding: 10px 16px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11.5px; color: #64748B;">GOODS & SERVICES TAX (GST 18%)</td>
+        <td style="padding: 10px 16px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 12px; color: #0F172A; font-weight: 600;">${data.gstAmount || data.gstAmountFormatted || '₹899.82'}</td>
       </tr>
-      <tr style="border-bottom: 1px solid #1E293B; background-color: #0E1420;">
-        <td style="padding: 10px 16px; font-family: 'Courier New', monospace; font-size: 11px; color: #94A3B8;">GATEWAY & TECH FEE (3%)</td>
-        <td style="padding: 10px 16px; font-family: 'Courier New', monospace; font-size: 11px; color: #F8FAFC;">Included (3% Surcharge)</td>
+      <tr style="border-bottom: 1px solid #E2E8F0; background-color: #F8FAFC;">
+        <td style="padding: 10px 16px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11.5px; color: #64748B;">GATEWAY & TECH SURCHARGE (3%)</td>
+        <td style="padding: 10px 16px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 12px; color: #0F172A; font-weight: 600;">Included (3% Surcharge)</td>
       </tr>
-      <tr style="border-bottom: 1px solid #1E293B;">
-        <td style="padding: 10px 16px; font-family: 'Courier New', monospace; font-size: 11px; color: #94A3B8;">GATEWAY TRANSACTION REF</td>
-        <td style="padding: 10px 16px; font-family: 'Courier New', monospace; font-size: 11px; color: #94A3B8;">${data.paymentMethod || data.transactionId || 'Razorpay'}</td>
+      <tr style="border-bottom: 1px solid #E2E8F0; background-color: #FFFFFF;">
+        <td style="padding: 10px 16px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11.5px; color: #64748B;">GATEWAY TRANSACTION REF</td>
+        <td style="padding: 10px 16px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11.5px; color: #475569; font-weight: 600;">${data.paymentMethod || data.transactionId || 'Razorpay'}</td>
       </tr>
-      <tr style="background-color: #172235;">
-        <td style="padding: 12px 16px; font-family: 'Cinzel', Georgia, serif; font-size: 12px; font-weight: 700; color: #F8FAFC;">TOTAL AMOUNT SETTLED</td>
-        <td align="right" style="padding: 12px 16px; font-family: 'Courier New', monospace; font-size: 15px; font-weight: 700; color: #1E8E5A;">${data.amountPaid || data.amountPaidFormatted}</td>
+      <tr style="background-color: #0F172A;">
+        <td style="padding: 12px 16px; font-family: 'Cinzel', Georgia, serif; font-size: 12px; font-weight: 700; color: #FFFFFF;">TOTAL AMOUNT SETTLED</td>
+        <td align="right" style="padding: 12px 16px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 15px; font-weight: 700; color: #34D399;">${data.amountPaid || data.amountPaidFormatted}</td>
       </tr>
     </table>
 
-    <div style="background-color: rgba(199, 163, 90, 0.08); border: 1px solid rgba(199, 163, 90, 0.25); border-radius: 6px; padding: 12px 16px; margin: 16px 0; font-size: 11px; color: #CBD5E1; font-family: 'Courier New', monospace;">
-      📄 <strong>Tax Invoice PDF Attached:</strong> Your formal computer-generated Tax Invoice (PDF) with full SAC code and GST breakdown is attached to this email for your tax filing.
+    <div style="background-color: #FEF3C7; border: 1px solid #FDE68A; border-radius: 6px; padding: 12px 16px; margin: 16px 0; font-size: 12px; color: #92400E; line-height: 1.5;">
+      📄 <strong>Official Tax Invoice PDF Attached:</strong> Your formal computer-generated Tax Invoice (PDF) with full SAC code and GST breakdown is attached to this email for your tax filing.
     </div>
 
-    <div style="background-color: rgba(30, 142, 90, 0.08); border-left: 3px solid #1E8E5A; padding: 14px 16px; border-radius: 4px; margin: 20px 0;">
-      <div style="font-size: 12px; color: #E2E8F0; font-weight: 600;">Next Step: Configure Initial Executed Holdings</div>
-      <div style="font-size: 11px; color: #94A3B8; margin-top: 2px;">
+    <div style="background-color: #ECFDF5; border-left: 4px solid #059669; padding: 14px 16px; border-radius: 4px; margin: 20px 0;">
+      <div style="font-size: 12.5px; color: #065F46; font-weight: 700;">Next Step: Configure Initial Executed Holdings</div>
+      <div style="font-size: 12px; color: #047857; margin-top: 3px; line-height: 1.5;">
         Submit your executed stock entries for research analyst verification. Clearance is typically granted within 24–48 hours.
       </div>
     </div>
@@ -120,26 +120,28 @@ export interface PaymentFailedEmailData {
 }
 
 export function buildPaymentFailedNoticeEmail(data: PaymentFailedEmailData): { subject: string; html: string } {
-  const retryUrl = data.retryUrl || 'https://arthresearch.com/plans';
-  const displayAmount = data.amountFormatted || data.amount || '₹29,500.00';
+  const retryUrl = data.retryUrl || 'https://arthresearch.web.app/plans';
+  const displayAmount = data.amountFormatted || data.amount || '₹4,999.00';
 
   const bodyHtml = `
-    <p style="margin-top: 0;">Dear <strong style="color: #F8FAFC;">${data.userName}</strong>,</p>
+    <p style="margin-top: 0; font-size: 14px; color: #1E293B;">Dear <strong style="color: #0F172A;">${data.userName}</strong>,</p>
     
-    <p>We were unable to complete the payment authorization for your subscription to <strong style="color: #C6A15B;">${data.planName}</strong> (${displayAmount}).</p>
+    <p style="font-size: 13.5px; color: #334155; line-height: 1.6;">
+      We were unable to complete the payment authorization for your subscription to <strong style="color: #92400E;">${data.planName}</strong> (${displayAmount}).
+    </p>
 
     <!-- Failure Box -->
-    <div style="background-color: rgba(179, 40, 63, 0.1); border: 1px solid rgba(179, 40, 63, 0.3); border-radius: 8px; padding: 16px; margin: 20px 0;">
-      <div style="font-family: 'Courier New', monospace; font-size: 10px; font-weight: 700; color: #E05263; text-transform: uppercase;">GATEWAY DIAGNOSTIC</div>
-      <div style="font-size: 12px; color: #F8FAFC; margin-top: 4px; font-weight: 600;">
+    <div style="background-color: #FEF2F2; border: 1px solid #FECACA; border-radius: 8px; padding: 16px; margin: 20px 0;">
+      <div style="font-size: 11px; font-weight: 700; color: #991B1B; text-transform: uppercase; letter-spacing: 0.5px;">GATEWAY DIAGNOSTIC</div>
+      <div style="font-size: 13px; color: #7F1D1D; margin-top: 4px; font-weight: 600;">
         ${data.failureReason || data.reason || 'Transaction declined by issuer or payment session timed out.'}
       </div>
-      <div style="font-size: 11px; color: #94A3B8; margin-top: 4px;">
+      <div style="font-size: 12px; color: #B91C1C; margin-top: 4px; line-height: 1.5;">
         No funds were charged. If money was debited from your account, it will automatically reverse within 3–5 banking days.
       </div>
     </div>
 
-    <p style="font-size: 12px; color: #94A3B8;">
+    <p style="font-size: 13px; color: #475569; line-height: 1.6;">
       You can safely retry the transaction using UPI, Credit/Debit Card, or Net Banking on the secure checkout desk.
     </p>
   `;
@@ -177,34 +179,36 @@ export interface ExpiryWarning7DaysEmailData {
 export type SubscriptionExpiryWarningEmailData = ExpiryWarning7DaysEmailData;
 
 export function buildExpiryWarning7DaysEmail(data: ExpiryWarning7DaysEmailData): { subject: string; html: string } {
-  const renewalUrl = data.renewalUrl || 'https://arthresearch.com/plans';
+  const renewalUrl = data.renewalUrl || 'https://arthresearch.web.app/plans';
   const displayExpiry = data.expiryDateFormatted || data.expiryDate || 'in 7 days';
 
   const bodyHtml = `
-    <p style="margin-top: 0;">Dear <strong style="color: #F8FAFC;">${data.userName}</strong>,</p>
+    <p style="margin-top: 0; font-size: 14px; color: #1E293B;">Dear <strong style="color: #0F172A;">${data.userName}</strong>,</p>
     
-    <p>This is a scheduled advisory notice to inform you that your quantitative subscription for <strong style="color: #C6A15B;">${data.planName}</strong> will conclude in <strong style="color: #C6A15B;">7 days</strong> on <strong style="color: #F8FAFC;">${displayExpiry}</strong>.</p>
+    <p style="font-size: 13.5px; color: #334155; line-height: 1.6;">
+      This is a scheduled advisory notice to inform you that your quantitative subscription for <strong style="color: #92400E;">${data.planName}</strong> will conclude in <strong style="color: #92400E;">7 days</strong> on <strong style="color: #0F172A;">${displayExpiry}</strong>.
+    </p>
 
     <!-- Expiry Summary Card -->
-    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #141C2B; border: 1px solid #1E293B; border-radius: 10px; margin: 20px 0; padding: 18px;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; margin: 20px 0; padding: 18px; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);">
       <tr>
         <td>
-          <div style="font-family: 'Cinzel', Georgia, serif; font-size: 13px; font-weight: 700; color: #C6A15B; text-transform: uppercase;">
+          <div style="font-family: 'Cinzel', Georgia, serif; font-size: 13px; font-weight: 700; color: #92400E; text-transform: uppercase;">
             Mandate Continuity Guarantee
           </div>
-          <p style="font-size: 12px; color: #CBD5E1; line-height: 1.6; margin: 8px 0 0 0;">
+          <p style="font-size: 12.5px; color: #334155; line-height: 1.6; margin: 8px 0 0 0;">
             Renewing before your expiry date guarantees uninterrupted real-time rebalancing telemetry, risk monitoring, and direct research desk access without needing to re-audit your portfolio.
           </p>
           ${data.generatedPnlFormatted ? `
-          <div style="margin-top: 14px; padding-top: 10px; border-top: 1px solid #1E293B; font-family: 'Courier New', monospace; font-size: 11px; color: #94A3B8;">
-            CURRENT GENERATED GAIN: <strong style="color: #1E8E5A;">${data.generatedPnlFormatted}</strong>
+          <div style="margin-top: 14px; padding-top: 10px; border-top: 1px solid #E2E8F0; font-size: 12px; color: #475569;">
+            CURRENT GENERATED GAIN: <strong style="color: #059669;">${data.generatedPnlFormatted}</strong>
           </div>
           ` : ''}
         </td>
       </tr>
     </table>
 
-    <p style="font-size: 12px; color: #94A3B8;">
+    <p style="font-size: 13px; color: #475569;">
       Click below to lock in seamless renewal for your quantitative advisory tier.
     </p>
   `;
@@ -240,22 +244,24 @@ export interface SubscriptionExpiredEmailData {
 }
 
 export function buildSubscriptionExpiredEmail(data: SubscriptionExpiredEmailData): { subject: string; html: string } {
-  const renewalUrl = data.renewalUrl || 'https://arthresearch.com/plans';
+  const renewalUrl = data.renewalUrl || 'https://arthresearch.web.app/plans';
 
   const bodyHtml = `
-    <p style="margin-top: 0;">Dear <strong style="color: #F8FAFC;">${data.userName}</strong>,</p>
+    <p style="margin-top: 0; font-size: 14px; color: #1E293B;">Dear <strong style="color: #0F172A;">${data.userName}</strong>,</p>
     
-    <p>Your quantitative advisory mandate for <strong style="color: #C6A15B;">${data.planName}</strong> has expired as of <strong style="color: #F8FAFC;">${data.expiredDateFormatted}</strong>.</p>
+    <p style="font-size: 13.5px; color: #334155; line-height: 1.6;">
+      Your quantitative advisory mandate for <strong style="color: #92400E;">${data.planName}</strong> has expired as of <strong style="color: #0F172A;">${data.expiredDateFormatted}</strong>.
+    </p>
 
     <!-- Suspension Notice Box -->
-    <div style="background-color: rgba(179, 40, 63, 0.08); border-left: 3px solid #B3283F; padding: 14px 16px; border-radius: 4px; margin: 20px 0;">
-      <div style="font-size: 12px; color: #E2E8F0; font-weight: 600;">Telemetry Paused</div>
-      <div style="font-size: 11px; color: #94A3B8; margin-top: 2px; line-height: 1.6;">
+    <div style="background-color: #FEF2F2; border-left: 4px solid #DC2626; padding: 14px 16px; border-radius: 4px; margin: 20px 0;">
+      <div style="font-size: 12.5px; color: #991B1B; font-weight: 700;">Telemetry Paused</div>
+      <div style="font-size: 12px; color: #7F1D1D; margin-top: 3px; line-height: 1.6;">
         Real-time model rebalancing alerts, target weight adjustments, and analyst desk communications for this portfolio are paused until the mandate is renewed.
       </div>
     </div>
 
-    <p style="font-size: 12px; color: #94A3B8;">
+    <p style="font-size: 13px; color: #475569; line-height: 1.6;">
       Your historical performance and position records remain safely archived in your Private Ledger. Renew anytime to restore live signal dispatch.
     </p>
   `;
@@ -285,13 +291,13 @@ export const buildPaymentConfirmationEmail = (data: any) => {
     planName: data.planName,
     planTier: data.planTier || 'Flagship Alpha',
     planDurationMonths: data.planDurationMonths || 12,
-    amountPaidFormatted: data.amountPaid || data.amountPaidFormatted || '₹1,17,999.00',
-    basePriceFormatted: data.baseAmount || data.basePriceFormatted || '₹99,999.15',
-    gstAmountFormatted: data.gstAmount || data.gstAmountFormatted || '₹17,999.85',
+    amountPaidFormatted: data.amountPaid || data.amountPaidFormatted || '₹4,999.00',
+    basePriceFormatted: data.baseAmount || data.basePriceFormatted || '₹4,999.00',
+    gstAmountFormatted: data.gstAmount || data.gstAmountFormatted || '₹899.82',
     transactionId: data.paymentMethod || data.transactionId || 'TXN-ARTH-LIVE',
     invoiceNumber: data.invoiceNumber || 'INV-ARTH-2026',
-    invoiceDateFormatted: data.paymentDate || data.invoiceDateFormatted || '19 Sep 2026',
-    capitalAllocationLimitFormatted: data.period || data.capitalAllocationLimitFormatted || 'Annual Operational Mandate',
+    invoiceDateFormatted: data.paymentDate || data.invoiceDateFormatted || new Date().toLocaleDateString('en-IN'),
+    capitalAllocationLimitFormatted: data.period || data.capitalAllocationLimitFormatted || 'Operational Mandate',
     configureBasketUrl: data.invoiceUrl || data.configureBasketUrl
   });
 };
@@ -300,7 +306,7 @@ export const buildPaymentFailedEmail = (data: any) => {
   return buildPaymentFailedNoticeEmail({
     userName: data.userName,
     planName: data.planName,
-    amountFormatted: data.amount || data.amountFormatted || '₹29,500.00',
+    amountFormatted: data.amount || data.amountFormatted || '₹4,999.00',
     failureReason: data.reason || data.failureReason,
     retryUrl: data.retryUrl
   });

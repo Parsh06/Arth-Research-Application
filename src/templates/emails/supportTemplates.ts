@@ -15,25 +15,27 @@ export interface TicketLoggedEmailData {
 }
 
 export function buildTicketLoggedEmail(data: TicketLoggedEmailData): { subject: string; html: string } {
-  const ticketUrl = data.ticketUrl || 'https://arthresearch.com/support';
+  const ticketUrl = data.ticketUrl || 'https://arthresearch.web.app/support';
 
   const bodyHtml = `
-    <p style="margin-top: 0;">Dear <strong style="color: #F8FAFC;">${data.userName}</strong>,</p>
+    <p style="margin-top: 0; font-size: 14px; color: #1E293B;">Dear <strong style="color: #0F172A;">${data.userName}</strong>,</p>
     
-    <p>Your support inquiry has been registered in the institutional priority queue and assigned ticket ID <span style="font-family: 'Courier New', monospace; font-weight: 700; color: #C6A15B;">#${data.ticketId}</span>.</p>
+    <p style="font-size: 13.5px; color: #334155; line-height: 1.6;">
+      Your support inquiry has been registered in the institutional priority queue and assigned ticket ID <strong style="color: #92400E;">#${data.ticketId}</strong>.
+    </p>
 
     <!-- Ticket Summary Box -->
-    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #121824; border: 1px solid #1E293B; border-radius: 10px; margin: 18px 0; overflow: hidden;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; margin: 18px 0; overflow: hidden; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);">
       <tr>
-        <td style="padding: 14px 18px; background-color: #172033; border-bottom: 1px solid #1E293B;">
+        <td style="padding: 12px 18px; background-color: #0F172A; border-bottom: 1px solid #1E293B;">
           <table border="0" cellpadding="0" cellspacing="0" width="100%">
             <tr>
               <td>
-                <span style="font-size: 11px; font-family: 'Courier New', monospace; color: #94A3B8;">TICKET ID:</span>
-                <span style="font-size: 12px; font-family: 'Courier New', monospace; font-weight: 700; color: #C6A15B; margin-left: 6px;">#${data.ticketId}</span>
+                <span style="font-size: 11px; font-family: 'Plus Jakarta Sans', sans-serif; color: #94A3B8;">TICKET ID:</span>
+                <span style="font-size: 12px; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; color: #F59E0B; margin-left: 6px;">#${data.ticketId}</span>
               </td>
               <td align="right">
-                <span style="background-color: rgba(46, 90, 166, 0.2); color: #2E5AA6; border: 1px solid rgba(46, 90, 166, 0.4); font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; font-family: 'Courier New', monospace;">
+                <span style="background-color: #DBEAFE; color: #1E40AF; border: 1px solid #BFDBFE; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px; font-family: 'Plus Jakarta Sans', sans-serif;">
                   PRIORITY: ${data.priority}
                 </span>
               </td>
@@ -42,22 +44,22 @@ export function buildTicketLoggedEmail(data: TicketLoggedEmailData): { subject: 
         </td>
       </tr>
       <tr>
-        <td style="padding: 16px 18px;">
-          <div style="font-size: 12px; color: #94A3B8; margin-bottom: 4px;">Subject:</div>
-          <div style="font-size: 13px; font-weight: 600; color: #FFFFFF; margin-bottom: 12px;">${data.subject}</div>
+        <td style="padding: 16px 18px; background-color: #FFFFFF;">
+          <div style="font-size: 11px; font-weight: 600; color: #64748B; text-transform: uppercase;">Subject:</div>
+          <div style="font-size: 13.5px; font-weight: 700; color: #0F172A; margin-bottom: 12px; margin-top: 2px;">${data.subject}</div>
 
-          <div style="font-size: 12px; color: #94A3B8; margin-bottom: 4px;">Category:</div>
-          <div style="font-size: 12px; font-weight: 500; color: #CBD5E1; margin-bottom: 12px;">${data.category}</div>
+          <div style="font-size: 11px; font-weight: 600; color: #64748B; text-transform: uppercase;">Category:</div>
+          <div style="font-size: 12.5px; font-weight: 600; color: #334155; margin-bottom: 12px; margin-top: 2px;">${data.category}</div>
 
-          <div style="font-size: 12px; color: #94A3B8; margin-bottom: 4px;">Inquiry Details:</div>
-          <div style="font-size: 12px; line-height: 1.6; color: #CBD5E1; background-color: #0B0F18; padding: 10px 14px; border-radius: 6px; border-left: 3px solid #334155;">
+          <div style="font-size: 11px; font-weight: 600; color: #64748B; text-transform: uppercase;">Inquiry Details:</div>
+          <div style="font-size: 12.5px; line-height: 1.6; color: #334155; background-color: #F8FAFC; padding: 12px 14px; border-radius: 6px; border-left: 4px solid #CBD5E1; margin-top: 4px;">
             ${data.messageSnippet}
           </div>
         </td>
       </tr>
     </table>
 
-    <p style="font-size: 12px; color: #94A3B8;">
+    <p style="font-size: 13px; color: #475569; line-height: 1.6;">
       Our research desk and technical support team will examine your ticket and provide an update. You will receive an automated alert when an analyst replies.
     </p>
   `;
@@ -94,43 +96,45 @@ export interface AnalystReplyEmailData {
 }
 
 export function buildAnalystReplyEmail(data: AnalystReplyEmailData): { subject: string; html: string } {
-  const ticketUrl = data.ticketUrl || 'https://arthresearch.com/support';
+  const ticketUrl = data.ticketUrl || 'https://arthresearch.web.app/support';
   const analystRole = data.analystRole || 'Research Desk Analyst';
 
   const bodyHtml = `
-    <p style="margin-top: 0;">Dear <strong style="color: #F8FAFC;">${data.userName}</strong>,</p>
+    <p style="margin-top: 0; font-size: 14px; color: #1E293B;">Dear <strong style="color: #0F172A;">${data.userName}</strong>,</p>
     
-    <p>A response has been posted by <strong style="color: #C6A15B;">${data.analystName}</strong> (${analystRole}) regarding support ticket <span style="font-family: 'Courier New', monospace; font-weight: 700; color: #FFFFFF;">#${data.ticketId}</span>.</p>
+    <p style="font-size: 13.5px; color: #334155; line-height: 1.6;">
+      A response has been posted by <strong style="color: #92400E;">${data.analystName}</strong> (${analystRole}) regarding support ticket <strong style="color: #0F172A;">#${data.ticketId}</strong>.
+    </p>
 
     <!-- Reply Box -->
-    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #121824; border: 1px solid #1E293B; border-radius: 10px; margin: 18px 0; overflow: hidden;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; margin: 18px 0; overflow: hidden; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);">
       <tr>
-        <td style="padding: 14px 18px; background-color: #172033; border-bottom: 1px solid #1E293B;">
+        <td style="padding: 12px 18px; background-color: #0F172A; border-bottom: 1px solid #1E293B;">
           <table border="0" cellpadding="0" cellspacing="0" width="100%">
             <tr>
               <td>
-                <span style="font-size: 11px; font-family: 'Courier New', monospace; color: #94A3B8;">TICKET:</span>
-                <span style="font-size: 12px; font-family: 'Courier New', monospace; font-weight: 700; color: #FFFFFF; margin-left: 6px;">#${data.ticketId} &bull; ${data.subject}</span>
+                <span style="font-size: 11px; font-family: 'Plus Jakarta Sans', sans-serif; color: #94A3B8;">TICKET:</span>
+                <span style="font-size: 12px; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; color: #FFFFFF; margin-left: 6px;">#${data.ticketId} &bull; ${data.subject}</span>
               </td>
             </tr>
           </table>
         </td>
       </tr>
       <tr>
-        <td style="padding: 18px;">
-          <div style="display: flex; align-items: center; margin-bottom: 10px;">
-            <div style="font-size: 12px; font-weight: 700; color: #C6A15B;">${data.analystName}</div>
-            <div style="font-size: 11px; color: #64748B; margin-left: 8px;">(${analystRole})</div>
+        <td style="padding: 18px; background-color: #FFFFFF;">
+          <div style="margin-bottom: 10px;">
+            <span style="font-size: 12.5px; font-weight: 700; color: #92400E;">${data.analystName}</span>
+            <span style="font-size: 11.5px; color: #64748B; margin-left: 6px;">(${analystRole})</span>
           </div>
 
-          <div style="font-size: 13px; line-height: 1.65; color: #E2E8F0; background-color: #0A0E16; padding: 14px 16px; border-radius: 8px; border-left: 3px solid #C6A15B;">
+          <div style="font-size: 13px; line-height: 1.65; color: #1E293B; background-color: #F8FAFC; padding: 14px 16px; border-radius: 6px; border-left: 4px solid #D97706;">
             ${data.replySnippet}
           </div>
         </td>
       </tr>
     </table>
 
-    <p style="font-size: 12px; color: #94A3B8;">
+    <p style="font-size: 13px; color: #475569; line-height: 1.6;">
       If you require further clarification or wish to attach documents, please open the ticket thread on your terminal.
     </p>
   `;
