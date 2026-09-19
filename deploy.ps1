@@ -1,52 +1,45 @@
 # ==============================================================================
 # Arth Research Application - Automated Deployment & Git Sync Automation
-# Usage: 
-#   .\deploy.ps1
-#   .\deploy.ps1 -Target frontend
-#   .\deploy.ps1 -Target backend
-#   .\deploy.ps1 -Target both
 # ==============================================================================
 
 [CmdletBinding()]
 param (
     [Parameter(Mandatory = $false)]
-    [ValidateSet("frontend", "backend", "both", "1", "2", "3")]
+    [ValidateSet('frontend', 'backend', 'both', '1', '2', '3')]
     [string]$Target
 )
 
-# Set Output Encoding to UTF-8
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 function Write-Banner {
-    try { Clear-Host } catch {}
-    Write-Host ""
-    Write-Host " ================================================================ " -ForegroundColor Cyan
-    Write-Host "   ARTH RESEARCH PLATFORM • AUTOMATED DEPLOYMENT & SYNC ENGINE   " -ForegroundColor Yellow -BackgroundColor Black
-    Write-Host " ================================================================ " -ForegroundColor Cyan
-    Write-Host ""
+    Write-Host ''
+    Write-Host ' ================================================================ ' -ForegroundColor Cyan
+    Write-Host '   ARTH RESEARCH PLATFORM - AUTOMATED DEPLOYMENT & SYNC ENGINE    ' -ForegroundColor Yellow
+    Write-Host ' ================================================================ ' -ForegroundColor Cyan
+    Write-Host ''
 }
 
 function Write-Step {
     param([string]$message)
-    Write-Host " [RUNNING] " -ForegroundColor Cyan -NoNewline
+    Write-Host ' [RUNNING] ' -ForegroundColor Cyan -NoNewline
     Write-Host $message -ForegroundColor White
 }
 
 function Write-Success {
     param([string]$message)
-    Write-Host " [SUCCESS] " -ForegroundColor Green -NoNewline
+    Write-Host ' [SUCCESS] ' -ForegroundColor Green -NoNewline
     Write-Host $message -ForegroundColor Green
 }
 
 function Write-WarningMsg {
     param([string]$message)
-    Write-Host " [WARNING] " -ForegroundColor Yellow -NoNewline
+    Write-Host ' [WARNING] ' -ForegroundColor Yellow -NoNewline
     Write-Host $message -ForegroundColor Yellow
 }
 
 function Write-ErrorMsg {
     param([string]$message)
-    Write-Host " [ERROR]   " -ForegroundColor Red -NoNewline
+    Write-Host ' [ERROR]   ' -ForegroundColor Red -NoNewline
     Write-Host $message -ForegroundColor Red
 }
 
@@ -69,155 +62,141 @@ function Generate-CommitMessage {
         }
     }
 
-    $summaryFiles = ($fileNames | Select-Object -First 3) -join ", "
+    $summaryFiles = ($fileNames | Select-Object -First 3) -join ', '
     if ($fileNames.Count -gt 3) {
         $extra = $fileNames.Count - 3
         $summaryFiles += " +$extra more"
     }
 
-    # Categorize commit intent
-    $hasPages = $status | Select-String -Pattern "src/pages"
-    $hasStyles = $status | Select-String -Pattern "index.css|tailwind|theme"
-    $hasTemplates = $status | Select-String -Pattern "templates|emails"
-    $hasApi = $status | Select-String -Pattern "api/|repositories/"
-    $hasConfig = $status | Select-String -Pattern "package.json|tsconfig|vercel|firebase"
-
-    $prefix = "chore"
-    if ($hasPages -or $hasTemplates) {
-        $prefix = "feat(ui)"
-    } elseif ($hasApi) {
-        $prefix = "feat(api)"
-    } elseif ($hasStyles) {
-        $prefix = "style(theme)"
-    } elseif ($hasConfig) {
-        $prefix = "build(config)"
+    $statusStr = $status -join ' '
+    $prefix = 'chore'
+    if ($statusStr -match 'src/pages' -or $statusStr -match 'templates') {
+        $prefix = 'feat(ui)'
+    } elseif ($statusStr -match 'api/' -or $statusStr -match 'repositories/') {
+        $prefix = 'feat(api)'
+    } elseif ($statusStr -match 'index.css|theme') {
+        $prefix = 'style(theme)'
+    } elseif ($statusStr -match 'package.json|tsconfig|vercel|firebase') {
+        $prefix = 'build(config)'
     }
 
-    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm"
+    $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm'
     return "${prefix}: auto-sync update [$timestamp] - ($summaryFiles)"
 }
 
 function Execute-FrontendDeploy {
-    Write-Host ""
-    Write-Host "------------------------------------------------------------" -ForegroundColor DarkGray
-    Write-Host "🚀 STARTING FRONTEND PRODUCTION BUILD & FIREBASE DEPLOY" -ForegroundColor Cyan
-    Write-Host "------------------------------------------------------------" -ForegroundColor DarkGray
+    Write-Host ''
+    Write-Host '------------------------------------------------------------' -ForegroundColor DarkGray
+    Write-Host ' STARTING FRONTEND PRODUCTION BUILD & FIREBASE DEPLOY' -ForegroundColor Cyan
+    Write-Host '------------------------------------------------------------' -ForegroundColor DarkGray
     
     # 1. Build
-    Write-Step "Executing TypeScript validation & production build (npm run build)..."
+    Write-Step 'Executing TypeScript validation and production build (npm run build)...'
     npm run build
 
     if ($LASTEXITCODE -ne 0) {
-        Write-ErrorMsg "Production build failed! Aborting Firebase deployment to protect live site."
+        Write-ErrorMsg 'Production build failed! Aborting Firebase deployment to protect live site.'
         return $false
     }
-    Write-Success "Production bundle compiled successfully into /dist directory."
+    Write-Success 'Production bundle compiled successfully into dist directory.'
 
     # 2. Deploy to Firebase Hosting
-    Write-Step "Deploying to Firebase Hosting (firebase deploy --only hosting)..."
+    Write-Step 'Deploying to Firebase Hosting...'
     
-    if (Get-Command firebase -ErrorAction SilentlyContinue) {
-        firebase deploy --only hosting
-    } else {
-        npx -y firebase-tools deploy --only hosting
-    }
+    cmd.exe /c 'npx firebase-tools deploy --only hosting'
 
     if ($LASTEXITCODE -ne 0) {
-        Write-ErrorMsg "Firebase hosting deployment encountered an error."
+        Write-ErrorMsg 'Firebase hosting deployment encountered an error.'
         return $false
     }
 
-    Write-Success "Frontend successfully deployed to https://arthresearch.web.app!"
+    Write-Success 'Frontend successfully deployed to https://arthresearch.web.app'
     return $true
 }
 
 function Execute-BackendSync {
-    Write-Host ""
-    Write-Host "------------------------------------------------------------" -ForegroundColor DarkGray
-    Write-Host "📦 STARTING REPOSITORY GIT AUTO-COMMIT & CLOUD PUSH" -ForegroundColor Cyan
-    Write-Host "------------------------------------------------------------" -ForegroundColor DarkGray
+    Write-Host ''
+    Write-Host '------------------------------------------------------------' -ForegroundColor DarkGray
+    Write-Host ' STARTING REPOSITORY GIT AUTO-COMMIT & CLOUD PUSH' -ForegroundColor Cyan
+    Write-Host '------------------------------------------------------------' -ForegroundColor DarkGray
 
     # Check git status
     $status = git status --porcelain
     if (-not $status) {
-        Write-WarningMsg "No uncommitted local changes detected in working tree."
-        Write-Step "Attempting git push in case of pending local commits..."
+        Write-WarningMsg 'No uncommitted local changes detected in working tree.'
+        Write-Step 'Attempting git push in case of pending local commits...'
         git push
         if ($LASTEXITCODE -eq 0) {
-            Write-Success "Remote repository is fully synchronized."
+            Write-Success 'Remote repository is fully synchronized.'
         }
         return $true
     }
 
     # 1. Git Add
-    Write-Step "Staging all modified and created files (git add .)..."
+    Write-Step 'Staging all modified and created files (git add .)...'
     git add .
     if ($LASTEXITCODE -ne 0) {
-        Write-ErrorMsg "Failed to stage files with git add."
+        Write-ErrorMsg 'Failed to stage files with git add.'
         return $false
     }
 
-    # 2. AI Generated Commit Message
+    # 2. Commit Message
     $autoMessage = Generate-CommitMessage
-    Write-Host " 🤖 AI Commit Message: " -ForegroundColor Magenta -NoNewline
+    Write-Host ' Commit Message: ' -ForegroundColor Magenta -NoNewline
     Write-Host "'$autoMessage'" -ForegroundColor White
     
-    Write-Step "Committing changes (git commit)..."
+    Write-Step 'Committing changes (git commit)...'
     git commit -m "$autoMessage"
 
     if ($LASTEXITCODE -ne 0) {
-        Write-ErrorMsg "Git commit failed."
+        Write-ErrorMsg 'Git commit failed.'
         return $false
     }
-    Write-Success "Committed successfully."
+    Write-Success 'Committed successfully.'
 
     # 3. Git Push
-    Write-Step "Pushing commits to remote origin (git push)..."
+    Write-Step 'Pushing commits to remote origin (git push)...'
     git push
 
     if ($LASTEXITCODE -ne 0) {
-        Write-WarningMsg "Standard push failed. Attempting to push with current upstream branch tracking..."
+        Write-WarningMsg 'Standard push failed. Attempting to push with current upstream branch tracking...'
         $currentBranch = (git branch --show-current).Trim()
         git push origin $currentBranch
         if ($LASTEXITCODE -ne 0) {
-            Write-ErrorMsg "Git push failed. Please check network link and git branch credentials."
+            Write-ErrorMsg 'Git push failed. Please check network link and git branch credentials.'
             return $false
         }
     }
 
-    Write-Success "Repository successfully synchronized with GitHub remote."
+    Write-Success 'Repository successfully synchronized with GitHub remote.'
     return $true
 }
 
 # ==============================================================================
-# Main Interactive Flow
+# Main Execution
 # ==============================================================================
 
 Write-Banner
 
-# If target was not supplied as argument, prompt user
 if (-not $Target) {
-    Write-Host " Select Deployment Target:" -ForegroundColor White
-    Write-Host ""
-    Write-Host "   [1] Frontend Only " -ForegroundColor Green -NoNewline
-    Write-Host "--> (npm run build + firebase deploy --only hosting)" -ForegroundColor DarkGray
-    Write-Host "   [2] Backend / Git " -ForegroundColor Blue -NoNewline
-    Write-Host "--> (git add . + AI commit message + git push)" -ForegroundColor DarkGray
-    Write-Host "   [3] Full Stack    " -ForegroundColor Yellow -NoNewline
-    Write-Host "--> (Frontend Build & Deploy + Git Commit & Push)" -ForegroundColor DarkGray
-    Write-Host "   [4] Cancel / Exit " -ForegroundColor Gray
-    Write-Host ""
+    Write-Host ' Select Deployment Target:' -ForegroundColor White
+    Write-Host ''
+    Write-Host '   [1] Frontend Only  --> (npm run build + firebase deploy --only hosting)' -ForegroundColor Green
+    Write-Host '   [2] Backend / Git  --> (git add . + AI commit message + git push)' -ForegroundColor Blue
+    Write-Host '   [3] Full Stack     --> (Frontend Build & Deploy + Git Commit & Push)' -ForegroundColor Yellow
+    Write-Host '   [4] Cancel / Exit' -ForegroundColor Gray
+    Write-Host ''
 
-    $choice = Read-Host " Enter choice (1, 2, 3, or 4)"
+    $choice = Read-Host ' Enter choice (1, 2, 3, or 4)'
     switch ($choice) {
-        "1" { $Target = "frontend" }
-        "2" { $Target = "backend" }
-        "3" { $Target = "both" }
-        "frontend" { $Target = "frontend" }
-        "backend" { $Target = "backend" }
-        "both" { $Target = "both" }
+        '1' { $Target = 'frontend' }
+        '2' { $Target = 'backend' }
+        '3' { $Target = 'both' }
+        'frontend' { $Target = 'frontend' }
+        'backend' { $Target = 'backend' }
+        'both' { $Target = 'both' }
         default {
-            Write-Host "Operation cancelled. Exiting." -ForegroundColor DarkGray
+            Write-Host 'Operation cancelled. Exiting.' -ForegroundColor DarkGray
             exit 0
         }
     }
@@ -227,13 +206,13 @@ $startTime = Get-Date
 
 $res = $false
 switch ($Target) {
-    { $_ -in "frontend", "1" } {
+    { $_ -in 'frontend', '1' } {
         $res = Execute-FrontendDeploy
     }
-    { $_ -in "backend", "2" } {
+    { $_ -in 'backend', '2' } {
         $res = Execute-BackendSync
     }
-    { $_ -in "both", "3" } {
+    { $_ -in 'both', '3' } {
         $resFrontend = Execute-FrontendDeploy
         $resBackend = Execute-BackendSync
         $res = $resFrontend -and $resBackend
@@ -243,12 +222,12 @@ switch ($Target) {
 $elapsed = (Get-Date) - $startTime
 $sec = [math]::Round($elapsed.TotalSeconds, 1)
 
-Write-Host ""
-Write-Host "================================================================" -ForegroundColor Cyan
+Write-Host ''
+Write-Host '================================================================' -ForegroundColor Cyan
 if ($res) {
-    Write-Host " ✨ DEPLOYMENT COMPLETED SUCCESSFULLY IN ${sec}s ✨ " -ForegroundColor Green -BackgroundColor Black
+    Write-Host " DEPLOYMENT COMPLETED SUCCESSFULLY IN ${sec}s " -ForegroundColor Green
 } else {
-    Write-Host " ⚠️ DEPLOYMENT FINISHED WITH WARNINGS/ERRORS IN ${sec}s " -ForegroundColor Red -BackgroundColor Black
+    Write-Host " DEPLOYMENT FINISHED WITH WARNINGS/ERRORS IN ${sec}s " -ForegroundColor Red
 }
-Write-Host "================================================================" -ForegroundColor Cyan
-Write-Host ""
+Write-Host '================================================================' -ForegroundColor Cyan
+Write-Host ''
