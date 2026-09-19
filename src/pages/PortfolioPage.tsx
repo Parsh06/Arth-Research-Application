@@ -103,18 +103,75 @@ export default function PortfolioPage() {
                 </button>
               </>
             ) : (
-              <>
-                <div className="w-12 h-12 rounded-md bg-amber-500/10 text-amber-500 border border-amber-500/20 flex items-center justify-center mx-auto mb-4">
-                  <Clock className="w-6 h-6" />
+              <div className="space-y-6 text-left">
+                <div className="text-center pb-4 border-b border-border">
+                  <div className="w-12 h-12 rounded-md bg-amber-500/10 text-amber-500 border border-amber-500/20 flex items-center justify-center mx-auto mb-3">
+                    <Clock className="w-6 h-6 animate-pulse" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-foreground mb-1">
+                    Clearance in Progress: {userPortfolio?.planName}
+                  </h3>
+                  <p className="text-xs text-muted-foreground max-w-md mx-auto leading-relaxed font-mono">
+                    Your executed entries are currently undergoing factor integrity audit and weight-parity verification by our research team.
+                  </p>
+                  <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-md glass-panel-data text-xs font-mono font-medium text-amber-500 border border-amber-500/20">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>Clearance SLA: 24–48 Hours</span>
+                  </div>
                 </div>
-                <h3 className="text-lg font-semibold text-foreground mb-1.5">Verification in Progress</h3>
-                <p className="text-xs text-muted-foreground mb-6 leading-relaxed">
-                  Your executed portfolio entries for <span className="text-foreground font-semibold">{userPortfolio?.planName}</span> are currently undergoing validation by our research desk (SLA: 24–48 Hours).
-                </p>
-                <div className="inline-block px-3 py-1 rounded-md glass-panel-data text-xs font-mono font-medium text-amber-500 border border-amber-500/20">
-                  Status: Clearance Underway
+
+                {/* Submitted Holdings Table */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground font-semibold">
+                      Registered Execution Entries
+                    </span>
+                    <button
+                      onClick={() => navigate(`/setup-portfolio?planId=${userPortfolio?.planId || ''}&portfolioId=${userPortfolio?.id}`)}
+                      className="inline-flex items-center gap-1 text-[11px] font-mono text-primary hover:underline cursor-pointer"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      <span>Revise Entries</span>
+                    </button>
+                  </div>
+
+                  {valuation?.holdings && valuation.holdings.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left font-mono text-xs border-collapse">
+                        <thead>
+                          <tr className="text-[10px] uppercase text-muted-foreground border-b border-border">
+                            <th className="pb-2">Ticker</th>
+                            <th className="pb-2 text-right">Quantity</th>
+                            <th className="pb-2 text-right">Avg Price</th>
+                            <th className="pb-2 text-right">Total Capital</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/40">
+                          {valuation.holdings.map((h, i) => (
+                            <tr key={i} className="hover:bg-muted/30 transition-colors">
+                              <td className="py-2 font-semibold text-foreground">{h.symbol}</td>
+                              <td className="py-2 text-right text-muted-foreground">{h.quantity}</td>
+                              <td className="py-2 text-right text-muted-foreground">{formatINR(h.buyPriceMinor)}</td>
+                              <td className="py-2 text-right font-semibold text-foreground">{formatINR(h.quantity * h.buyPriceMinor)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="p-4 rounded-md glass-panel-data text-center font-mono text-xs text-muted-foreground">
+                      {userPortfolio?.stockCount || 0} Assets Registered • Total: {formatINR(userPortfolio?.totalInvestmentMinor || 0)}
+                    </div>
+                  )}
                 </div>
-              </>
+
+                <div className="p-3.5 rounded-md glass-panel-data text-xs font-mono text-muted-foreground border border-border flex items-start gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0 animate-ping" />
+                  <p className="text-[11px] leading-relaxed">
+                    Live telemetry, dynamic rebalancing triggers, and sector weight charts will unlock automatically once our desk clears your mandate.
+                  </p>
+                </div>
+              </div>
             )}
           </div>
         </div>
