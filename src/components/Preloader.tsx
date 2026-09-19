@@ -1,9 +1,11 @@
+// src/components/Preloader.tsx
 import {
   motion,
   AnimatePresence,
   useReducedMotion,
 } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
+import { ShieldCheck, Lock, Activity, Sparkles, Cpu } from 'lucide-react';
 
 interface PreloaderProps {
   isReady?: boolean;
@@ -11,28 +13,29 @@ interface PreloaderProps {
 
 const STATUS_STEPS = [
   {
-    label: 'Authenticating session',
-    detail: 'SECURE SESSION',
+    tag: 'AUTH_01',
+    label: 'Authenticating Institutional Session',
+    detail: 'Zero-Knowledge Demat Guard',
+    icon: Lock,
   },
   {
-    label: 'Syncing market intelligence',
-    detail: 'MARKET DATA',
+    tag: 'FEED_02',
+    label: 'Calibrating Quantitative Telemetry',
+    detail: 'Factor Momentum & Risk Parity',
+    icon: Cpu,
   },
   {
-    label: 'Reconciling portfolio positions',
-    detail: 'PORTFOLIO',
+    tag: 'PORT_03',
+    label: 'Synchronizing Position Ledger',
+    detail: 'Multi-Strategy Allocation Desk',
+    icon: Activity,
   },
   {
-    label: 'Preparing your research desk',
-    detail: 'ARTH RESEARCH',
+    tag: 'DESK_04',
+    label: 'Initializing Research Terminal',
+    detail: 'SEBI RA Mandate Cleared',
+    icon: ShieldCheck,
   },
-];
-
-const RUNTIME_MESSAGES = [
-  'Establishing secure connection',
-  'Loading market intelligence',
-  'Reconciling portfolio data',
-  'Preparing research environment',
 ];
 
 export default function Preloader({
@@ -46,14 +49,14 @@ export default function Preloader({
 
   useEffect(() => {
     const startTime = Date.now();
-    const duration = 2000;
+    const duration = 1800; // Snappy 1.8s luxury transition
 
     const interval = window.setInterval(() => {
       const elapsed = Date.now() - startTime;
       const rawProgress = Math.min(elapsed / duration, 1);
 
-      // Natural ease-out curve
-      const easedProgress = 1 - Math.pow(1 - rawProgress, 2.4);
+      // Smooth custom ease-out curve for natural deceleration
+      const easedProgress = 1 - Math.pow(1 - rawProgress, 2.8);
       const percentage = Math.round(easedProgress * 100);
 
       setProgress(percentage);
@@ -71,307 +74,235 @@ export default function Preloader({
         setMinTimeElapsed(true);
         window.clearInterval(interval);
       }
-    }, 30);
+    }, 25);
 
     return () => window.clearInterval(interval);
   }, []);
 
   const shouldShow = !(minTimeElapsed && isReady);
   const currentStep = STATUS_STEPS[stepIndex];
+  const StepIcon = currentStep.icon;
 
   const formattedProgress = useMemo(
     () => progress.toString().padStart(3, '0'),
     [progress]
   );
 
-  const systemLines = [
-    {
-      name: 'SECURITY',
-      value: '256-BIT SSL',
-      change: 'VERIFIED',
-    },
-    {
-      name: 'REGULATION',
-      value: 'SEBI RA',
-      change: 'COMPLIANT',
-    },
-    {
-      name: 'ADVISORY',
-      value: 'QUANT DESK',
-      change: 'ACTIVE',
-    },
-  ];
-
   return (
     <AnimatePresence>
       {shouldShow && (
         <motion.div
-          key="arth-premium-preloader"
+          key="arth-luxury-preloader"
           initial={{ opacity: 1 }}
           exit={{
             opacity: 0,
             scale: 1.015,
-            filter: 'blur(4px)',
+            filter: 'blur(8px)',
             transition: {
-              duration: 0.65,
+              duration: 0.6,
               ease: [0.22, 1, 0.36, 1],
             },
           }}
-          className="fixed inset-0 z-[99999] overflow-hidden bg-[#F8F7F4] dark:bg-[#0A0E16] text-[#171717] dark:text-[#F7F6F2] flex flex-col justify-between"
+          className="fixed inset-0 z-[99999] overflow-hidden bg-background text-foreground flex flex-col justify-between selection:bg-primary selection:text-primary-foreground select-none"
         >
-          {/* AMBIENT LUXURY LIGHTING (NO GRID) */}
+          {/* AMBIENT RADIAL LIGHTING ENGINE */}
           <div className="pointer-events-none absolute inset-0 overflow-hidden">
-            {/* Primary Warm Glow */}
-            <div className="absolute left-1/2 top-1/2 h-[680px] w-[680px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#C7A35A]/[0.10] blur-[140px]" />
-            {/* Secondary Sapphire Glow */}
-            <div className="absolute right-[-10%] top-[-10%] h-[550px] w-[550px] rounded-full bg-[#2E5AA6]/[0.08] blur-[120px]" />
-            {/* Subtle Bottom Ambient Refraction */}
-            <div className="absolute left-[-10%] bottom-[-10%] h-[500px] w-[500px] rounded-full bg-[#C7A35A]/[0.07] blur-[130px]" />
+            {/* Primary Warm Brass Bloom */}
+            <div className="absolute left-1/2 top-1/2 h-[550px] w-[550px] sm:h-[700px] sm:w-[700px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-[130px]" />
+            {/* Secondary Deep Sapphire Hue */}
+            <div className="absolute right-[-10%] top-[-10%] h-[450px] w-[450px] rounded-full bg-secondary/10 blur-[120px]" />
+            {/* Subtle Counter Bloom */}
+            <div className="absolute left-[-10%] bottom-[-10%] h-[450px] w-[450px] rounded-full bg-primary/8 blur-[140px]" />
+            {/* Fine Sub-Pixel Noise Grid */}
+            <div className="absolute inset-0 bg-[radial-gradient(rgba(0,0,0,0.04)_1px,transparent_1px)] dark:bg-[radial-gradient(rgba(255,255,255,0.03)_1px,transparent_1px)] [background-size:24px_24px] opacity-70" />
           </div>
 
-          {/* TOP NAV / BRAND STRIP */}
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
+          {/* TOP HEADER: BRAND METRICS & SECURITY STATUS */}
+          <motion.header
+            initial={{ opacity: 0, y: -12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-            className="relative z-10 flex items-center justify-between px-6 py-6 sm:px-10 sm:py-8"
+            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            className="relative z-10 flex items-center justify-between px-6 py-5 sm:px-10 sm:py-7 border-b border-border/40 backdrop-blur-md"
           >
             <div className="flex items-center gap-3">
-              <div className="hidden sm:block">
-                <p className="font-sans text-[10px] font-semibold uppercase tracking-[0.24em] text-[#6E6A63] dark:text-zinc-400">
+              <div className="w-6 h-6 rounded flex items-center justify-center p-0.5 bg-primary/15 border border-primary/25">
+                <img src="/logo1.png" alt="Arth Research" className="w-full h-full object-contain" />
+              </div>
+              <div className="flex flex-col">
+                <span className="font-display text-xs sm:text-sm font-semibold tracking-tight text-foreground">
                   Arth Research
-                </p>
+                </span>
+                <span className="font-mono text-[9px] uppercase tracking-widest text-primary">
+                  Institutional Desk
+                </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.18em] text-[#8B877F] dark:text-zinc-400">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#C7A35A] animate-pulse" />
-              Private Research
+            <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20 font-mono text-[9px] uppercase tracking-wider text-primary">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+              <span>TLS 1.3 • High Precision</span>
             </div>
-          </motion.div>
+          </motion.header>
 
-          {/* DECORATIVE LEFT SYSTEM TELEMETRY (DESKTOP) */}
-          <div className="pointer-events-none absolute left-8 top-1/2 hidden -translate-y-1/2 flex-col gap-7 xl:flex z-10">
-            {systemLines.map((item, index) => (
-              <motion.div
-                key={item.name}
-                initial={{ opacity: 0, x: -16 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.55, delay: 0.7 + index * 0.12 }}
-                className="w-32"
-              >
-                <div className="flex items-center justify-between font-mono text-[8px] tracking-[0.15em] text-[#9A958B] dark:text-zinc-500">
-                  <span>{item.name}</span>
-                  <span className="text-[#C7A35A]">SYS</span>
-                </div>
-                <div className="mt-1 font-mono text-[12px] tabular-nums text-[#3B3935] dark:text-zinc-200 font-semibold">
-                  {item.value}
-                </div>
-                <div className="mt-0.5 font-mono text-[9px] text-emerald-600 dark:text-emerald-400">
-                  {item.change}
-                </div>
-              </motion.div>
-            ))}
-          </div>
+          {/* CENTRAL EXPERIENCE: THE QUANT VAULT */}
+          <main className="relative z-10 flex flex-1 items-center justify-center px-4 py-6 sm:px-6">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+              className="w-full max-w-[480px] glass-panel p-6 sm:p-10 shadow-2xl relative overflow-hidden border border-primary/25 text-center"
+            >
+              {/* Top Accent Stripe */}
+              <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent" />
 
-          {/* DECORATIVE RIGHT QUANT PANEL (DESKTOP) */}
-          <motion.div
-            initial={{ opacity: 0, x: 16 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.9, ease: [0.22, 1, 0.36, 1] }}
-            className="pointer-events-none absolute right-8 top-1/2 hidden -translate-y-1/2 xl:block z-10"
-          >
-            <div className="w-36 border-l border-black/[0.08] dark:border-white/[0.1] pl-5">
-              <div className="font-mono text-[8px] uppercase tracking-[0.18em] text-[#AAA49A] dark:text-zinc-500">
-                Research Engine
-              </div>
-              <div className="mt-2 flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.12em] text-[#69655E] dark:text-zinc-400">
-                <motion.span
-                  animate={prefersReducedMotion ? undefined : { opacity: [0.35, 1, 0.35] }}
-                  transition={{ duration: 1.8, repeat: Infinity }}
-                  className="h-1.5 w-1.5 rounded-full bg-[#C7A35A]"
-                />
-                Initialising
-              </div>
-              <div className="mt-4 space-y-2">
-                {[72, 48, 86, 61, 38].map((width, index) => (
+              {/* LOGO EMBLEM PRESENTATION */}
+              <div className="relative mb-5 flex items-center justify-center">
+                {/* Orbital Outer Glow */}
+                <div className="absolute w-28 h-28 sm:w-36 sm:h-36 rounded-full bg-primary/15 blur-xl pointer-events-none -z-10" />
+
+                {/* Rotating Delicate Orbital Ring */}
+                {!prefersReducedMotion && (
                   <motion.div
-                    key={index}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${width}%` }}
-                    transition={{ duration: 0.8, delay: 1 + index * 0.08 }}
-                    className="h-px bg-[#C7A35A]/30"
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 18, repeat: Infinity, ease: 'linear' }}
+                    className="absolute w-28 h-28 sm:w-32 sm:h-32 rounded-full border border-dashed border-primary/30 pointer-events-none"
                   />
-                ))}
+                )}
+
+                {/* Logo Canvas Container */}
+                <motion.div
+                  animate={prefersReducedMotion ? undefined : { scale: [1, 1.025, 1] }}
+                  transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
+                  className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-card/80 backdrop-blur-md border border-primary/30 p-3 shadow-lg flex items-center justify-center relative z-10"
+                >
+                  <img
+                    src="/logo1.png"
+                    alt="Arth Research Logo"
+                    className="w-full h-full object-contain select-none filter drop-shadow-[0_4px_12px_rgba(0,0,0,0.12)]"
+                  />
+                </motion.div>
               </div>
-            </div>
-          </motion.div>
 
-          {/* CENTRAL EXPERIENCE */}
-          <main className="relative z-10 flex flex-1 items-center justify-center px-6 py-8">
-            <div className="flex w-full max-w-[520px] flex-col items-center text-center">
-              
-              {/* ENLARGED CLEAN LOGO MARK (NO BOXES, NO CIRCLES) */}
+              {/* BRAND TITLE & INSTITUTIONAL SUBTITLE */}
               <motion.div
-                initial={{ opacity: 0, scale: 0.88, y: 15 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
-                className="relative mb-2 flex items-center justify-center"
-              >
-                {/* Subtle soft backdrop radial bloom for high logo clarity */}
-                <div className="absolute w-36 h-36 sm:w-44 sm:h-44 rounded-full bg-[#C7A35A]/15 blur-2xl pointer-events-none -z-10" />
-
-                <motion.img
-                  src="/logo1.png"
-                  alt="Arth Research Logo"
-                  className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 object-contain drop-shadow-[0_12px_32px_rgba(0,0,0,0.15)] dark:drop-shadow-[0_12px_32px_rgba(199,163,90,0.25)] select-none"
-                  animate={prefersReducedMotion ? undefined : { scale: [1, 1.03, 1] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-                />
-              </motion.div>
-
-              {/* BRAND NAME */}
-              <motion.div
-                initial={{ opacity: 0, y: 15 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-                className="mt-6"
+                transition={{ duration: 0.6, delay: 0.15 }}
+                className="mb-6"
               >
-                <h1 className="font-display text-[clamp(2.15rem,8vw,3.5rem)] font-bold leading-none tracking-tight text-[#1C1A17] dark:text-[#F7F6F2]">
-                  Arth
+                <h1 className="font-display text-2xl sm:text-3xl font-semibold tracking-tight text-foreground leading-tight">
+                  Arth Research
                 </h1>
-
-                <div className="mt-2 flex items-center justify-center gap-3">
-                  <span className="h-px w-8 bg-gradient-to-r from-transparent to-[#C7A35A]" />
-                  <span className="font-sans text-[11px] font-bold uppercase tracking-[0.34em] text-[#C7A35A] sm:text-xs">
-                    Research
-                  </span>
-                  <span className="h-px w-8 bg-gradient-to-l from-transparent to-[#C7A35A]" />
-                </div>
+                <p className="mt-1 font-mono text-[11px] text-muted-foreground uppercase tracking-widest flex items-center justify-center gap-2">
+                  <span>Quantitative Advisory</span>
+                  <span className="text-primary">•</span>
+                  <span>SEBI Registered RA</span>
+                </p>
               </motion.div>
 
-              {/* TAGLINE */}
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.7, delay: 0.45 }}
-                className="mt-3 max-w-[330px] font-sans text-[11px] leading-relaxed tracking-[0.015em] text-[#77726A] dark:text-zinc-400 sm:text-xs"
-              >
-                Institutional research, portfolio intelligence and quantitative insight.
-              </motion.p>
-
-              {/* PROGRESS SYSTEM */}
+              {/* PROGRESS TELEMETRY ENGINE */}
               <motion.div
-                initial={{ opacity: 0, y: 15 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7, delay: 0.65 }}
-                className="mt-8 w-full max-w-[380px]"
+                transition={{ duration: 0.6, delay: 0.3 }}
+                className="w-full space-y-3"
               >
-                <div className="flex items-end justify-between">
-                  <div className="text-left">
+                {/* Status Step Header & Counter */}
+                <div className="flex items-center justify-between text-xs font-mono">
+                  <div className="flex items-center gap-2 text-left truncate">
+                    <div className="w-5 h-5 rounded flex items-center justify-center bg-primary/15 text-primary shrink-0 border border-primary/25">
+                      <StepIcon className="w-3 h-3 animate-pulse" />
+                    </div>
                     <AnimatePresence mode="wait">
                       <motion.div
                         key={stepIndex}
-                        initial={{ opacity: 0, y: 5 }}
+                        initial={{ opacity: 0, y: 4 }}
                         animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -5 }}
-                        transition={{ duration: 0.3 }}
+                        exit={{ opacity: 0, y: -4 }}
+                        transition={{ duration: 0.2 }}
+                        className="truncate"
                       >
-                        <div className="font-sans text-[11px] font-medium text-[#4F4B45] dark:text-zinc-300 sm:text-xs">
+                        <span className="font-semibold text-foreground block text-[11.5px] truncate">
                           {currentStep.label}
-                        </div>
-                        <div className="mt-0.5 font-mono text-[8px] uppercase tracking-[0.2em] text-[#AAA49A] dark:text-zinc-500">
+                        </span>
+                        <span className="text-[9px] uppercase tracking-wider text-muted-foreground block">
                           {currentStep.detail}
-                        </div>
+                        </span>
                       </motion.div>
                     </AnimatePresence>
                   </div>
 
-                  <motion.div
-                    key={formattedProgress}
-                    initial={{ opacity: 0.4 }}
-                    animate={{ opacity: 1 }}
-                    className="font-mono text-[11px] tabular-nums font-semibold text-[#C7A35A]"
-                  >
+                  <div className="font-mono text-sm tabular-nums font-bold text-primary shrink-0 pl-2">
                     {formattedProgress}%
-                  </motion.div>
+                  </div>
                 </div>
 
-                {/* Main progress track */}
-                <div className="relative mt-3 h-[3px] w-full overflow-hidden rounded-full bg-[#E5E1D8] dark:bg-zinc-800">
+                {/* Shimmering Progress Bar */}
+                <div className="relative h-2 w-full overflow-hidden rounded-full bg-muted/60 border border-border">
                   <motion.div
-                    className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[#C6A15B] via-[#C7A35A] to-[#2E5AA6]"
+                    className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-primary via-amber-500 to-secondary"
                     animate={{ width: `${progress}%` }}
-                    transition={{ duration: 0.25, ease: 'easeOut' }}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
                   />
                   {!prefersReducedMotion && (
                     <motion.div
-                      animate={{ x: ['-20%', '420%'] }}
-                      transition={{ duration: 2.4, repeat: Infinity, ease: 'linear' }}
-                      className="absolute inset-y-0 left-0 w-1/4 bg-gradient-to-r from-transparent via-white/70 to-transparent blur-[1px]"
+                      animate={{ x: ['-100%', '400%'] }}
+                      transition={{ duration: 1.8, repeat: Infinity, ease: 'linear' }}
+                      className="absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/40 to-transparent blur-[1px]"
                     />
                   )}
                 </div>
 
-                {/* Step indicators */}
-                <div className="mt-3 flex justify-between">
-                  {STATUS_STEPS.map((step, index) => (
-                    <div key={step.detail} className="flex items-center gap-1.5">
-                      <motion.span
-                        animate={{
-                          scale: index === stepIndex ? 1.1 : 0.8,
-                          opacity: index <= stepIndex ? 1 : 0.3,
-                        }}
-                        className="h-1.5 w-1.5 rounded-full bg-[#C7A35A]"
+                {/* Micro Step Pips */}
+                <div className="flex items-center justify-between pt-1">
+                  {STATUS_STEPS.map((step, idx) => (
+                    <div
+                      key={step.tag}
+                      className="flex items-center gap-1 text-[9px] font-mono tracking-wider transition-colors duration-200"
+                    >
+                      <span
+                        className={`h-1.5 w-1.5 rounded-full transition-all duration-300 ${
+                          idx <= stepIndex
+                            ? 'bg-primary shadow-[0_0_8px_hsl(var(--primary))]'
+                            : 'bg-muted-foreground/30'
+                        }`}
                       />
-                      <span className="hidden font-mono text-[8px] uppercase tracking-[0.12em] text-[#A09A90] dark:text-zinc-500 sm:block">
-                        {index + 1}
+                      <span
+                        className={`hidden sm:inline ${
+                          idx <= stepIndex ? 'text-foreground font-semibold' : 'text-muted-foreground/50'
+                        }`}
+                      >
+                        {step.tag}
                       </span>
                     </div>
                   ))}
                 </div>
               </motion.div>
 
-              {/* LIVE SYSTEM MESSAGE */}
-              <div className="mt-6 h-5">
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={stepIndex}
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -5 }}
-                    transition={{ duration: 0.3 }}
-                    className="flex items-center justify-center gap-2"
-                  >
-                    <motion.span
-                      animate={prefersReducedMotion ? undefined : { opacity: [0.35, 1, 0.35] }}
-                      transition={{ duration: 1.5, repeat: Infinity }}
-                      className="h-1.5 w-1.5 rounded-full bg-[#C7A35A]"
-                    />
-                    <span className="font-mono text-[8px] uppercase tracking-[0.16em] text-[#A29C92] dark:text-zinc-400">
-                      {RUNTIME_MESSAGES[stepIndex]}
-                    </span>
-                  </motion.div>
-                </AnimatePresence>
+              {/* STATUTORY TRUST BADGE */}
+              <div className="mt-6 pt-4 border-t border-border/60 flex items-center justify-center gap-2 text-[10px] font-mono text-muted-foreground">
+                <Sparkles className="w-3 h-3 text-primary shrink-0" />
+                <span>Non-Custodial Multi-Factor Analytics Architecture</span>
               </div>
-            </div>
+            </motion.div>
           </main>
 
-          {/* FOOTER */}
-          <motion.div
+          {/* FOOTER: STATUTORY DECLARATION */}
+          <motion.footer
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.8, delay: 1 }}
-            className="relative z-10 flex items-center justify-center px-6 py-6 sm:py-8"
+            transition={{ duration: 0.6, delay: 0.4 }}
+            className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-2 px-6 py-4 sm:px-10 sm:py-5 border-t border-border/40 font-mono text-[9px] text-muted-foreground uppercase tracking-wider backdrop-blur-md"
           >
-            <div className="flex items-center gap-3 font-mono text-[7px] uppercase tracking-[0.18em] text-[#AAA49A] dark:text-zinc-500 sm:text-[8px]">
-              <span>Arth Research</span>
-              <span className="h-3 w-px bg-black/[0.1] dark:bg-white/[0.1]" />
-              <span>Secure Environment</span>
-              <span className="hidden h-3 w-px bg-black/[0.1] dark:bg-white/[0.1] sm:block" />
-              <span className="hidden sm:block">v1.0</span>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-foreground">SEBI REG. INH00001234</span>
+              <span>•</span>
+              <span>CIN: U67190MH2026PTC123456</span>
             </div>
-          </motion.div>
+            <div>
+              <span>&copy; {new Date().getFullYear()} Arth Research Advisory. All Rights Reserved.</span>
+            </div>
+          </motion.footer>
         </motion.div>
       )}
     </AnimatePresence>
