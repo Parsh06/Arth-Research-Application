@@ -5,6 +5,72 @@ import { db } from '../config/firebase';
 import type { Plan } from '../types/models';
 import { toMinorUnits } from '../utils/money';
 
+export const DEFAULT_PLANS: Plan[] = [
+  {
+    id: "wealth-multiplier-pro",
+    name: "Wealth Multiplier Pro",
+    description: "Our flagship algorithmic portfolio designed for aggressive compounding. Hand-picked multi-bagger candidates with dynamic risk parity.",
+    price: 4999,
+    validityDays: 30,
+    features: [
+      "15-20 High Conviction Quant Stocks",
+      "Weekly Factor Rebalancing Signals",
+      "Dedicated Institutional RM Support",
+      "SEBI Statutory Research Audit Reports"
+    ],
+    category: 'equity',
+    riskLevel: 'High',
+    expectedCagr: 35,
+    minInvestment: 100000,
+    stockLimit: 20,
+    isActive: true,
+    isPopular: true,
+    recommendedStocks: ["HDFCBANK", "RELIANCE", "INFY", "TCS", "ICICIBANK"]
+  },
+  {
+    id: "momentum-alpha",
+    name: "Momentum Alpha",
+    description: "Ride structural market momentum with our proprietary systematic trend-following factor models.",
+    price: 2999,
+    validityDays: 30,
+    features: [
+      "10-15 Momentum Factor Stocks",
+      "Monthly Risk-Weighted Rebalancing",
+      "Real-time Signal Terminal Feed",
+      "Monthly Quantitative Strategy Briefings"
+    ],
+    category: 'equity',
+    riskLevel: 'Medium',
+    expectedCagr: 25,
+    minInvestment: 50000,
+    stockLimit: 15,
+    isActive: true,
+    isPopular: false,
+    recommendedStocks: ["ITC", "LT", "SBIN", "BHARTIARTL", "BAJFINANCE"]
+  },
+  {
+    id: "dividend-shield",
+    name: "Dividend Shield",
+    description: "Low-volatility, cash-flow generative dividend portfolio for conservative capital compounding and downside protection.",
+    price: 1999,
+    validityDays: 90,
+    features: [
+      "High Cash-Flow Dividend Champions",
+      "Quarterly Parity Rebalancing",
+      "Downside Risk Guard Reports",
+      "Comprehensive Yield Analytics"
+    ],
+    category: 'equity',
+    riskLevel: 'Low',
+    expectedCagr: 18,
+    minInvestment: 25000,
+    stockLimit: 10,
+    isActive: true,
+    isPopular: false,
+    recommendedStocks: ["ITC", "COALINDIA", "VEDL", "POWERGRID", "NTPC"]
+  }
+];
+
 interface PlanState {
   plans: Plan[];
   isLoadingPlans: boolean;
@@ -14,17 +80,22 @@ interface PlanState {
 }
 
 export const usePlanStore = create<PlanState>((set, get) => ({
-  plans: [],
+  plans: DEFAULT_PLANS,
   isLoadingPlans: false,
 
   fetchPlans: async () => {
-    set({ isLoadingPlans: true });
+    // Only show loading if we don't already have plans populated
+    if (get().plans.length === 0) {
+      set({ isLoadingPlans: true });
+    }
+    
     try {
       const plansRef = collection(db, 'plans');
       const snapshot = await getDocs(plansRef);
       
       if (snapshot.empty) {
-        await get().seedMockData();
+        // If Firestore is empty, use default institutional plans
+        set({ plans: DEFAULT_PLANS, isLoadingPlans: false });
         return;
       }
       
@@ -38,86 +109,37 @@ export const usePlanStore = create<PlanState>((set, get) => ({
           price: data.price || (priceMinor / 100),
           priceMinor,
           minInvestment: data.minInvestment || (minInvestmentMinor / 100),
-          minInvestmentMinor
+          minInvestmentMinor,
+          features: Array.isArray(data.features) ? data.features : []
         } as unknown as Plan;
       });
       
-      set({ plans: plansData, isLoadingPlans: false });
+      set({ plans: plansData.length > 0 ? plansData : DEFAULT_PLANS, isLoadingPlans: false });
     } catch (error) {
-      console.error("Error fetching plans:", error);
+      console.warn("Firestore plans fetch returned fallback:", error);
+      // Fallback to default institutional plans so users are never blocked
+      set({ plans: DEFAULT_PLANS, isLoadingPlans: false });
+    } finally {
       set({ isLoadingPlans: false });
     }
   },
 
   seedMockData: async () => {
     const now = new Date().toISOString();
-    const mockPlans = [
-      {
-        name: "Wealth Multiplier Pro",
-        description: "Our flagship algorithmic portfolio designed for aggressive growth. Hand-picked multi-bagger candidates.",
-        price: 4999,
-        priceMinor: 499900,
-        currency: 'INR',
-        validityDays: 30,
-        features: ["15-20 High Conviction Stocks", "Weekly Rebalancing Updates", "Dedicated RM Support", "Premium Research Reports"],
-        category: 'equity',
-        riskLevel: 'High',
-        expectedCagr: 35,
-        minInvestment: 100000,
-        minInvestmentMinor: 10000000,
-        stockLimit: 20,
-        isActive: true,
-        isPopular: true,
-        recommendedStocks: ["HDFCBANK", "RELIANCE", "INFY", "TCS", "ICICIBANK"],
-        createdAt: now
-      },
-      {
-        name: "Momentum Alpha",
-        description: "Ride the market momentum with our proprietary trend-following system.",
-        price: 2999,
-        priceMinor: 299900,
-        currency: 'INR',
-        validityDays: 30,
-        features: ["10-15 Momentum Stocks", "Monthly Rebalancing", "Email Support", "Monthly Newsletter"],
-        category: 'equity',
-        riskLevel: 'Medium',
-        expectedCagr: 25,
-        minInvestment: 50000,
-        minInvestmentMinor: 5000000,
-        stockLimit: 15,
-        isActive: true,
-        isPopular: false,
-        recommendedStocks: ["ITC", "LT", "SBIN", "BHARTIARTL", "BAJFINANCE"],
-        createdAt: now
-      },
-      {
-        name: "Dividend Shield",
-        description: "Low-volatility, cash-flow generative dividend portfolio for conservative capital compounding.",
-        price: 1999,
-        priceMinor: 199900,
-        currency: 'INR',
-        validityDays: 90,
-        features: ["High Dividend Yield Tickers", "Quarterly Rebalancing", "Risk Guard Reports"],
-        category: 'equity',
-        riskLevel: 'Low',
-        expectedCagr: 18,
-        minInvestment: 25000,
-        minInvestmentMinor: 2500000,
-        stockLimit: 10,
-        isActive: true,
-        isPopular: false,
-        recommendedStocks: ["ITC", "COALINDIA", "VEDL", "POWERGRID", "NTPC"],
-        createdAt: now
-      }
-    ];
-
     try {
-      for (const plan of mockPlans) {
-        await addDoc(collection(db, 'plans'), plan);
+      for (const plan of DEFAULT_PLANS) {
+        const { id, ...dataToSave } = plan;
+        await addDoc(collection(db, 'plans'), {
+          ...dataToSave,
+          priceMinor: toMinorUnits(plan.price),
+          minInvestmentMinor: toMinorUnits(plan.minInvestment),
+          createdAt: now
+        });
       }
       await get().fetchPlans();
     } catch (error) {
-      console.error("Error seeding plans:", error);
+      console.warn("Could not seed plans to Firestore:", error);
+      set({ plans: DEFAULT_PLANS, isLoadingPlans: false });
     }
   }
 }));
