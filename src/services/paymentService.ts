@@ -1,3 +1,4 @@
+// src/services/paymentService.ts
 import { getApiEndpoint } from '../config/api';
 
 declare global {
@@ -117,9 +118,24 @@ export const paymentService = {
     onSuccess: (payment: RazorpayPaymentSuccessPayload) => void;
     onFailure: (error: { code?: string; description?: string; reason?: string }) => void;
   }): Promise<void> {
+    // Single-shot settle guard to prevent multiple callbacks from firing on duplicate events
+    let isSettled = false;
+
+    const safeSuccess = (payment: RazorpayPaymentSuccessPayload) => {
+      if (isSettled) return;
+      isSettled = true;
+      options.onSuccess(payment);
+    };
+
+    const safeFailure = (error: { code?: string; description?: string; reason?: string }) => {
+      if (isSettled) return;
+      isSettled = true;
+      options.onFailure(error);
+    };
+
     const isLoaded = await this.loadRazorpayScript();
     if (!isLoaded || !window.Razorpay) {
-      options.onFailure({ description: 'Unable to initialize Razorpay payment gateway.' });
+      safeFailure({ description: 'Unable to initialize Razorpay payment gateway.' });
       return;
     }
 
@@ -133,7 +149,7 @@ export const paymentService = {
     });
 
     if (!orderRes.success || !orderRes.orderId) {
-      options.onFailure({ description: orderRes.error || 'Failed to initialize payment order.' });
+      safeFailure({ description: orderRes.error || 'Failed to initialize payment order.' });
       return;
     }
 
@@ -155,7 +171,7 @@ export const paymentService = {
       },
       modal: {
         ondismiss: () => {
-          options.onFailure({ reason: 'Payment window closed by investor.' });
+          safeFailure({ reason: 'Payment window closed by investor.' });
         }
       },
       handler: async (response: RazorpayPaymentSuccessPayload) => {
@@ -167,19 +183,19 @@ export const paymentService = {
           });
 
           if (verifyRes.success && verifyRes.verified) {
-            options.onSuccess(response);
+            safeSuccess(response);
           } else {
-            options.onFailure({ description: verifyRes.error || 'Signature verification failed.' });
+            safeFailure({ description: verifyRes.error || 'Signature verification failed.' });
           }
         } catch (vErr: any) {
-          options.onFailure({ description: vErr.message || 'Signature verification error.' });
+          safeFailure({ description: vErr.message || 'Signature verification error.' });
         }
       }
     };
 
     const rzpInstance = new window.Razorpay(razorpayOptions);
     rzpInstance.on('payment.failed', (resp: any) => {
-      options.onFailure(resp.error || { description: 'Payment declined.' });
+      safeFailure(resp.error || { description: 'Payment declined.' });
     });
 
     rzpInstance.open();

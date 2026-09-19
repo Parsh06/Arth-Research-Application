@@ -198,7 +198,10 @@ export default function CheckoutPage() {
           const failureMsg = err.description || err.reason || 'Payment processing was cancelled or declined.';
           console.warn('[CheckoutPage] Razorpay payment failure:', failureMsg);
 
-          if (user?.email && plan) {
+          const isUserDismissal = err.reason === 'Payment window closed by investor.' || failureMsg.includes('closed by investor');
+
+          // Only send payment failed email if it was an actual gateway failure, not a simple window close
+          if (!isUserDismissal && user?.email && plan) {
             import('../services/emailService').then(({ emailService }) => {
               emailService.sendPaymentFailedEmail(user.email!, {
                 userName: user.displayName || 'Valued Investor',
@@ -211,7 +214,7 @@ export default function CheckoutPage() {
             });
           }
 
-          if (err.reason !== 'Payment window closed by investor.') {
+          if (!isUserDismissal) {
             alert(`Payment Error: ${failureMsg}`);
           }
         }

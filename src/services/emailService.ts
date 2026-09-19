@@ -66,46 +66,73 @@ export interface EmailAuditLogEntry {
 }
 
 const AUDIT_STORAGE_KEY = 'arth_email_audit_logs';
+const DEDUPLICATION_WINDOW_MS = 10000; // 10 seconds deduplication lock
+const dispatchCache = new Map<string, { timestamp: number; promise: Promise<any> }>();
 
 export const emailService = {
   /**
    * Raw dispatch method sending HTML email through backend serverless API
+   * Enforces a 10-second deduplication lock per recipient and email template
    */
   async sendEmail(payload: EmailDispatchPayload): Promise<{ success: boolean; mocked?: boolean; messageId?: string; error?: string }> {
+    const cacheKey = `${payload.to.toLowerCase()}_${payload.templateId || payload.subject}`;
+    const now = Date.now();
+    const cached = dispatchCache.get(cacheKey);
+
+    // If an identical email dispatch was requested within the deduplication window, return existing promise
+    if (cached && (now - cached.timestamp) < DEDUPLICATION_WINDOW_MS) {
+      console.warn(`[EmailService] Deduplicating dispatch to ${payload.to} (${payload.templateId || payload.subject})`);
+      return cached.promise;
+    }
+
     const logId = 'LOG-' + Math.random().toString(36).substring(2, 9).toUpperCase();
     const timestamp = new Date().toISOString();
 
-    try {
-      const endpoint = getApiEndpoint('/send-email');
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          to: payload.to,
-          subject: payload.subject,
-          html: payload.html,
-          text: payload.text,
-          attachments: payload.attachments
-        })
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        this._recordAuditLog({
-          id: logId,
-          timestamp,
-          to: payload.to,
-          subject: payload.subject,
-          templateId: payload.templateId,
-          status: data.mocked ? 'SIMULATED' : 'SENT',
-          messageId: data.messageId
+    const dispatchPromise = (async () => {
+      try {
+        const endpoint = getApiEndpoint('/send-email');
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            to: payload.to,
+            subject: payload.subject,
+            html: payload.html,
+            text: payload.text,
+            attachments: payload.attachments
+          })
         });
-        return data;
-      } else {
-        const errorMsg = data.error || 'Server rejected email dispatch.';
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          this._recordAuditLog({
+            id: logId,
+            timestamp,
+            to: payload.to,
+            subject: payload.subject,
+            templateId: payload.templateId,
+            status: data.mocked ? 'SIMULATED' : 'SENT',
+            messageId: data.messageId
+          });
+          return data;
+        } else {
+          const errorMsg = data.error || 'Server rejected email dispatch.';
+          this._recordAuditLog({
+            id: logId,
+            timestamp,
+            to: payload.to,
+            subject: payload.subject,
+            templateId: payload.templateId,
+            status: 'FAILED',
+            errorMessage: errorMsg
+          });
+          return { success: false, error: errorMsg };
+        }
+      } catch (err: any) {
+        console.error('[EmailService] Dispatch failed:', err);
         this._recordAuditLog({
           id: logId,
           timestamp,
@@ -113,23 +140,14 @@ export const emailService = {
           subject: payload.subject,
           templateId: payload.templateId,
           status: 'FAILED',
-          errorMessage: errorMsg
+          errorMessage: err.message || 'Network / Fetch failed'
         });
-        return { success: false, error: errorMsg };
+        return { success: false, error: err.message || 'Failed to connect to email service' };
       }
-    } catch (err: any) {
-      console.error('[EmailService] Dispatch failed:', err);
-      this._recordAuditLog({
-        id: logId,
-        timestamp,
-        to: payload.to,
-        subject: payload.subject,
-        templateId: payload.templateId,
-        status: 'FAILED',
-        errorMessage: err.message || 'Network / Fetch failed'
-      });
-      return { success: false, error: err.message || 'Failed to connect to email service' };
-    }
+    })();
+
+    dispatchCache.set(cacheKey, { timestamp: now, promise: dispatchPromise });
+    return dispatchPromise;
   },
 
   // -----------------------------------------------------------------------------------------------
