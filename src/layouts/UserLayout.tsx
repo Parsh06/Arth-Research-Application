@@ -13,12 +13,17 @@ import {
   Search, 
   TrendingUp,
   Headphones,
-  Shield
+  Shield,
+  ArrowRight,
+  Sparkles,
+  CheckCircle2,
+  ShieldCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../stores/authStore';
 import { usePortfolioStore } from '../stores/portfolioStore';
 import ThemeToggle from '../components/ThemeToggle';
+import TopNavBar from '../components/TopNavBar';
 
 const sidebarNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -38,10 +43,10 @@ export default function UserLayout() {
 
   if (isAuthLoading || isLoadingPortfolio) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="min-h-screen bg-mesh bg-background flex items-center justify-center p-4">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-          <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Loading Terminal...</span>
+          <div className="w-9 h-9 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+          <span className="text-[11px] font-mono font-semibold uppercase tracking-widest text-muted-foreground">Loading Terminal...</span>
         </div>
       </div>
     );
@@ -54,31 +59,95 @@ export default function UserLayout() {
   // Access Control
   if (!isAdmin && !userPortfolio && location.pathname !== '/setup-portfolio') {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 text-center">
+      <div className="min-h-screen bg-mesh bg-background text-foreground flex flex-col justify-center items-center p-6 relative selection:bg-primary selection:text-primary-foreground transition-colors duration-200">
+        <TopNavBar backTo="/" label="Home" />
+
         <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="bg-slate-900 border border-slate-800 p-8 rounded-2xl shadow-2xl max-w-md w-full text-slate-100"
+          initial={{ opacity: 0, y: 15, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.35, ease: "easeOut" }}
+          className="max-w-lg w-full glass-panel p-8 sm:p-10 shadow-2xl relative z-10 text-center overflow-hidden border border-border mt-12"
         >
-          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mx-auto mb-5">
-            <ShieldAlert className="w-8 h-8 text-amber-400" />
+          {/* Ambient Glow Accent */}
+          <div className="absolute -top-24 -left-24 w-48 h-48 bg-primary/15 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-secondary/15 rounded-full blur-3xl pointer-events-none" />
+
+          {/* Institutional Badge / Crest */}
+          <div className="relative mx-auto mb-6 flex items-center justify-center">
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/25 flex items-center justify-center shadow-inner relative group">
+              <div className="absolute inset-0 bg-primary/20 rounded-2xl blur-md opacity-40 group-hover:opacity-70 transition-opacity" />
+              <img src="/logo1.png" alt="Arth Jain" className="w-8 h-8 object-contain relative z-10" />
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-card border border-primary/30 flex items-center justify-center text-primary shadow-sm">
+                <ShieldAlert className="w-3.5 h-3.5" />
+              </div>
+            </div>
           </div>
-          <h2 className="text-2xl font-bold tracking-tight mb-2">Advisory Access Required</h2>
-          <p className="text-sm text-slate-400 mb-6 leading-relaxed">
-            Please subscribe to an active research advisory plan to unlock institutional portfolio optimization and proprietary signals.
+
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-[11px] font-mono tracking-wider uppercase mb-3">
+            <Sparkles className="w-3 h-3 text-primary" />
+            <span>Advisory Membership Required</span>
+          </div>
+
+          <h1 className="text-2xl sm:text-3xl font-display font-semibold tracking-tight text-foreground mb-3 leading-tight">
+            Institutional Access Restricted
+          </h1>
+          
+          <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed mb-6 max-w-md mx-auto">
+            Your session is authenticated, but your account does not currently have an active quantitative research advisory allocation.
           </p>
-          <Link 
-            to="/plans" 
-            className="block w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm py-3.5 rounded-xl shadow-lg shadow-blue-600/25 transition-all"
-          >
-            Explore Advisory Plans
-          </Link>
-          <button 
-            onClick={logout} 
-            className="mt-4 text-xs font-medium text-slate-500 hover:text-slate-300 transition-colors"
-          >
-            Sign Out of Terminal
-          </button>
+
+          {/* Unlocked Capabilities Summary */}
+          <div className="glass-panel-data p-4 mb-6 text-left space-y-2.5 border border-border/80">
+            <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1">
+              Subscription Entitlements:
+            </div>
+            {[
+              "Proprietary Factor & Momentum Research Signals",
+              "Automated Demat Rebalance Telemetry & Alerts",
+              "SEBI-Compliant Quantitative Audit Ledger",
+              "Direct Priority Desk Support & Allocation Audits"
+            ].map((feature, i) => (
+              <div key={i} className="flex items-center gap-2.5 text-xs text-foreground/90">
+                <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0" />
+                <span className="leading-snug">{feature}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Primary Action CTA */}
+          <div className="space-y-3">
+            <Link 
+              to="/plans" 
+              className="w-full bg-primary hover:opacity-90 text-primary-foreground py-3.5 px-6 rounded-md font-semibold text-xs shadow-md transition-all flex items-center justify-center gap-2 tracking-wide uppercase group cursor-pointer"
+            >
+              <span>Explore Advisory Plans</span>
+              <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+            </Link>
+
+            <div className="pt-3 flex items-center justify-between border-t border-border text-xs">
+              <Link 
+                to="/setup-portfolio"
+                className="text-[11px] font-mono text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
+              >
+                <span>Initial Holdings Setup</span>
+                <span>&rarr;</span>
+              </Link>
+              
+              <button 
+                onClick={logout} 
+                className="text-[11px] font-mono text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Sign Out of Terminal</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Footer Security Badge */}
+          <div className="mt-6 pt-4 border-t border-border/60 flex items-center justify-center gap-2 text-[10px] font-mono text-muted-foreground">
+            <ShieldCheck className="w-3.5 h-3.5 text-[hsl(var(--success))] shrink-0" />
+            <span>SEBI Registered RA Research Integrity Standard</span>
+          </div>
         </motion.div>
       </div>
     );
