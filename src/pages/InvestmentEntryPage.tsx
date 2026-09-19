@@ -81,27 +81,25 @@ export default function InvestmentEntryPage() {
               id: Date.now().toString() + i,
               symbol: h.symbol,
               companyName: h.companyName || h.symbol,
-              quantity: '10',
-              buyPrice: h.recommendedPriceMinor ? toRupees(h.recommendedPriceMinor).toString() : '1000'
+              quantity: '',
+              buyPrice: ''
             })));
           } else if (plan && plan.recommendedStocks && plan.recommendedStocks.length > 0) {
             setStocks(plan.recommendedStocks.map((symbol: string, i: number) => ({
               id: Date.now().toString() + i,
               symbol,
               companyName: symbol,
-              quantity: '10',
-              buyPrice: '1000'
+              quantity: '',
+              buyPrice: ''
             })));
           } else {
             setStocks([
-              { id: '1', symbol: 'HDFCBANK', companyName: 'HDFC Bank Ltd', quantity: '10', buyPrice: '1650' },
-              { id: '2', symbol: 'RELIANCE', companyName: 'Reliance Industries', quantity: '10', buyPrice: '2950' }
+              { id: '1', symbol: '', companyName: '', quantity: '', buyPrice: '' }
             ]);
           }
         } else {
           setStocks([
-            { id: '1', symbol: 'HDFCBANK', companyName: 'HDFC Bank Ltd', quantity: '10', buyPrice: '1650' },
-            { id: '2', symbol: 'RELIANCE', companyName: 'Reliance Industries', quantity: '10', buyPrice: '2950' }
+            { id: '1', symbol: '', companyName: '', quantity: '', buyPrice: '' }
           ]);
         }
       } catch (err) {
@@ -129,8 +127,8 @@ export default function InvestmentEntryPage() {
         id: `custom_${Date.now()}`,
         symbol: '',
         companyName: '',
-        quantity: '10',
-        buyPrice: '1000'
+        quantity: '',
+        buyPrice: ''
       }
     ]);
   };

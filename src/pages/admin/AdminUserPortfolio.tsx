@@ -36,7 +36,7 @@ export default function AdminUserPortfolio() {
   }, [userPortfolio, holdings]);
 
   const handleAddStock = () => {
-    setStocks([...stocks, { symbol: '', companyName: '', quantity: 1, buyPrice: 100, currentPrice: 100 }]);
+    setStocks([...stocks, { symbol: '', companyName: '', quantity: 0, buyPrice: 0, currentPrice: 0 }]);
   };
 
   const handleRemoveStock = (index: number) => {

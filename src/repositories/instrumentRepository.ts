@@ -84,14 +84,13 @@ export const instrumentRepository = {
       // Fallback
     }
 
-    // Return deterministic simulated price if not yet populated in Firestore
     return {
       instrumentId,
       symbol: instrumentId.replace('NSE_EQ_', ''),
-      ltpMinor: fallbackPriceMinor > 0 ? fallbackPriceMinor : 150000, // ₹1,500.00
-      changeMinor: 2500,
-      changePercentBps: 169, // +1.69%
-      volume: 450000,
+      ltpMinor: fallbackPriceMinor,
+      changeMinor: 0,
+      changePercentBps: 0,
+      volume: 0,
       lastUpdated: new Date().toISOString()
     };
   }
