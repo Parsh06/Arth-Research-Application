@@ -1,0 +1,223 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Fraunces", "Newsreader", serif;
+  --font-sans: "Geist", "General Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+}
+
+@layer base {
+  :root {
+    /* Light mode (Alabaster base) */
+    --background: 40 20% 96%;           /* Alabaster #F7F6F2 */
+    --foreground: 222 30% 9%;           /* near-Obsidian text */
+    --card: 0 0% 100%;
+    --card-foreground: 222 30% 9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 30% 9%;
+
+    --primary: 38 45% 55%;              /* Brass #C6A15B */
+    --primary-foreground: 222 30% 9%;
+
+    --secondary: 216 47% 40%;           /* Sapphire #2E5AA6 */
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 40 15% 91%;
+    --muted-foreground: 222 12% 40%;
+
+    --accent: 38 45% 92%;               /* Brass tint for hover states */
+    --accent-foreground: 222 30% 9%;
+
+    --success: 152 65% 32%;             /* Gain Emerald #1E8E5A */
+    --success-foreground: 0 0% 100%;
+    --destructive: 348 60% 42%;         /* Loss Garnet #B3283F */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 222 15% 88%;
+    --input: 222 15% 88%;
+    --ring: 38 45% 55%;
+
+    /* Direct hex tokens */
+    --bg-main: #F7F6F2;
+    --bg-surface: #FFFFFF;
+    --bg-card: #FFFFFF;
+    --bg-subtle: #ECEAE4;
+    --border-color: rgba(15, 23, 42, 0.08);
+    --text-primary: #0A0E16;
+    --text-secondary: #4A5568;
+    --text-muted: #718096;
+
+    /* Glass tokens (light) */
+    --glass-fill: 0 0% 100% / 0.75;
+    --glass-border: 222 30% 9% / 0.08;
+    --glass-blur: 16px;
+
+    --radius: 0.5rem;          /* soft — marketing surfaces */
+    --radius-data: 0.25rem;    /* sharp — tables, holdings, admin grids */
+  }
+
+  .dark {
+    /* Dark mode (Obsidian base) */
+    --background: 222 32% 6%;           /* Obsidian #0A0E16 */
+    --foreground: 40 20% 94%;
+    --card: 222 28% 9%;
+    --card-foreground: 40 20% 94%;
+    --popover: 222 28% 9%;
+    --popover-foreground: 40 20% 94%;
+
+    --primary: 38 50% 60%;              /* Brass, slightly brighter for dark bg */
+    --primary-foreground: 222 32% 6%;
+
+    --secondary: 216 55% 62%;           /* Sapphire, lifted for dark bg */
+    --secondary-foreground: 222 32% 6%;
+
+    --muted: 222 20% 14%;
+    --muted-foreground: 222 10% 65%;
+
+    --accent: 222 24% 16%;
+    --accent-foreground: 40 20% 94%;
+
+    --success: 152 55% 46%;
+    --success-foreground: 222 32% 6%;
+    --destructive: 348 65% 58%;
+    --destructive-foreground: 222 32% 6%;
+
+    --border: 222 24% 18%;
+    --input: 222 24% 18%;
+    --ring: 38 50% 60%;
+
+    /* Direct hex tokens */
+    --bg-main: #0A0E16;
+    --bg-surface: #0E1420;
+    --bg-card: #121926;
+    --bg-subtle: #182234;
+    --border-color: rgba(247, 246, 242, 0.08);
+    --text-primary: #F7F6F2;
+    --text-secondary: #94A3B8;
+    --text-muted: #64748B;
+
+    /* Glass tokens (dark) */
+    --glass-fill: 222 28% 10% / 0.70;
+    --glass-border: 40 20% 94% / 0.10;
+    --glass-blur: 20px;
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: var(--font-sans);
+    letter-spacing: -0.01em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+/* Glassmorphism utilities */
+.glass-panel {
+  background: hsl(var(--glass-fill));
+  border: 1px solid hsl(var(--glass-border));
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border-radius: var(--radius);
+}
+
+.glass-panel-data {
+  /* for holdings tables / admin grids: sharper corners, less blur so numbers stay crisp */
+  background: hsl(var(--glass-fill));
+  border: 1px solid hsl(var(--glass-border));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: var(--radius-data);
+}
+
+.glass-card {
+  background: hsl(var(--glass-fill));
+  border: 1px solid hsl(var(--glass-border));
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+}
+
+.glass-nav {
+  background: hsl(var(--glass-fill));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid hsl(var(--glass-border));
+}
+
+/* Background mesh — sits behind glass panels */
+.bg-mesh {
+  background-color: hsl(var(--background));
+  background-image:
+    radial-gradient(circle at 15% 20%, hsl(var(--primary) / 0.08), transparent 40%),
+    radial-gradient(circle at 85% 0%, hsl(var(--secondary) / 0.10), transparent 45%),
+    radial-gradient(circle at 50% 100%, hsl(var(--primary) / 0.05), transparent 50%);
+}
+
+/* Tabular numerals for every financial figure — PnL, prices, quantities */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Typography roles */
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-sans {
+  font-family: var(--font-sans);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* Precision hairline scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Anti-Screen Capture & Anti-Print Protection */
+@media print {
+  html, body {
+    background: #000000 !important;
+    color: #ffffff !important;
+  }
+  body * {
+    visibility: hidden !important;
+    display: none !important;
+  }
+  body::before {
+    visibility: visible !important;
+    display: block !important;
+    content: "RESTRICTED FINANCIAL INFORMATION: Printing, physical reproduction, and external capture of quantitative advisory portfolios is strictly prohibited under statutory license.";
+    text-align: center;
+    padding: 100px 40px;
+    font-family: monospace;
+    font-size: 14pt;
+    font-weight: bold;
+    color: #ffffff;
+    background: #000000;
+  }
+}
+
+/* Asset Drag & Selection Protection */
+img, canvas, svg {
+  -webkit-user-drag: none;
+  user-drag: none;
+}

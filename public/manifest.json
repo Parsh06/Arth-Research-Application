@@ -1,0 +1,15 @@
+{
+  "short_name": "Arth Research",
+  "name": "Arth Research - Algorithmic Wealth Management",
+  "icons": [
+    {
+      "src": "/logo1.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#FFDF00",
+  "background_color": "#0f172a"
+}

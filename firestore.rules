@@ -1,0 +1,158 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // --------------------------------------------------------------------------------
+    // CRYPTOGRAPHIC RBAC & AUTH HELPERS
+    // --------------------------------------------------------------------------------
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'super_admin', 'research_admin'];
+    }
+
+    function isSupportOrAdmin() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'super_admin', 'support'];
+    }
+
+    // --------------------------------------------------------------------------------
+    // USER IDENTITY & DOMAIN SEGREGATION
+    // --------------------------------------------------------------------------------
+
+    // Public Profile
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // Private Personal Data (PAN, KYC, Phone)
+    match /userPrivate/{userId} {
+      allow read, write: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+    }
+
+    // SEBI Compliance & Risk Profiling
+    match /userCompliance/{userId} {
+      allow read, write: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+    }
+
+    // --------------------------------------------------------------------------------
+    // ADVISORY CATALOG & INSTRUMENTS
+    // --------------------------------------------------------------------------------
+
+    // Plans / Advisory Products
+    match /plans/{planId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Canonical Instruments & Equities
+    match /instruments/{instrumentId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // --------------------------------------------------------------------------------
+    // PORTFOLIO LIFECYCLE & IMMUTABLE VERSIONS
+    // --------------------------------------------------------------------------------
+
+    match /portfolios/{portfolioId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
+
+      // Version Snapshots Subcollection
+      match /versions/{versionId} {
+        allow read, write: if isAuthenticated();
+      }
+
+      // Holdings Subcollection
+      match /holdings/{holdingId} {
+        allow read, write: if isAuthenticated();
+      }
+    }
+
+    // --------------------------------------------------------------------------------
+    // COMMERCE, ORDERS, PAYMENTS & SUBSCRIPTIONS
+    // --------------------------------------------------------------------------------
+
+    match /orders/{orderId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /payments/{paymentId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || isAdmin());
+      allow update, delete: if isAdmin();
+    }
+
+    match /subscriptions/{subscriptionId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /entitlements/{entitlementId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // --------------------------------------------------------------------------------
+    // RESEARCH DESK & NOTIFICATIONS
+    // --------------------------------------------------------------------------------
+
+    match /researchCalls/{callId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead', 'readAt']);
+      allow write: if isAdmin();
+    }
+
+    // --------------------------------------------------------------------------------
+    // SUPPORT & HELPDESK
+    // --------------------------------------------------------------------------------
+
+    match /tickets/{ticketId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isSupportOrAdmin());
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isSupportOrAdmin());
+      allow delete: if isAdmin();
+
+      match /messages/{messageId} {
+        allow read, write: if isAuthenticated();
+      }
+    }
+
+    // --------------------------------------------------------------------------------
+    // SYSTEM GOVERNANCE & AUDIT LOGS
+    // --------------------------------------------------------------------------------
+
+    match /settings/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /auditLogs/{logId} {
+      allow read, create, delete: if isAdmin();
+      allow update: if false;
+    }
+  }
+}
+
