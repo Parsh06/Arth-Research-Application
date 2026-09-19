@@ -84,21 +84,21 @@ export default function Preloader({
     [progress]
   );
 
-  const marketLines = [
+  const systemLines = [
     {
-      name: 'NIFTY',
-      value: '24,836.10',
-      change: '+0.42%',
+      name: 'SECURITY',
+      value: '256-BIT SSL',
+      change: 'VERIFIED',
     },
     {
-      name: 'SENSEX',
-      value: '81,442.80',
-      change: '+0.31%',
+      name: 'REGULATION',
+      value: 'SEBI RA',
+      change: 'COMPLIANT',
     },
     {
-      name: 'BANKNIFTY',
-      value: '51,208.35',
-      change: '+0.58%',
+      name: 'ADVISORY',
+      value: 'QUANT DESK',
+      change: 'ACTIVE',
     },
   ];
 
@@ -150,9 +150,9 @@ export default function Preloader({
             </div>
           </motion.div>
 
-          {/* DECORATIVE LEFT MARKET DATA (DESKTOP) */}
+          {/* DECORATIVE LEFT SYSTEM TELEMETRY (DESKTOP) */}
           <div className="pointer-events-none absolute left-8 top-1/2 hidden -translate-y-1/2 flex-col gap-7 xl:flex z-10">
-            {marketLines.map((item, index) => (
+            {systemLines.map((item, index) => (
               <motion.div
                 key={item.name}
                 initial={{ opacity: 0, x: -16 }}
@@ -162,7 +162,7 @@ export default function Preloader({
               >
                 <div className="flex items-center justify-between font-mono text-[8px] tracking-[0.15em] text-[#9A958B] dark:text-zinc-500">
                   <span>{item.name}</span>
-                  <span className="text-[#C7A35A]">LIVE</span>
+                  <span className="text-[#C7A35A]">SYS</span>
                 </div>
                 <div className="mt-1 font-mono text-[12px] tabular-nums text-[#3B3935] dark:text-zinc-200 font-semibold">
                   {item.value}

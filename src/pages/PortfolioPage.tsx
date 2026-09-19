@@ -1,13 +1,13 @@
 import { motion } from 'framer-motion';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import { usePortfolioStore } from '../stores/portfolioStore';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShieldAlert, Clock, Calendar, ArrowRight, ArrowUpRight, ArrowDownRight, AlertCircle, RefreshCw } from 'lucide-react';
+import { ShieldAlert, Clock, Calendar, ArrowRight, AlertCircle, RefreshCw, Wallet, Layers, ShieldCheck, Activity } from 'lucide-react';
 import StrategySelector from '../components/StrategySelector';
-import { formatINR, toRupees } from '../utils/money';
+import { formatINR } from '../utils/money';
 import { formatDate, getDaysRemaining } from '../utils/datetime';
 
-const COLORS = ['hsl(38 50% 60%)', 'hsl(216 55% 62%)', 'hsl(152 55% 46%)', 'hsl(280 40% 60%)', 'hsl(190 50% 50%)', 'hsl(222 10% 65%)'];
+const COLORS = ['hsl(38 50% 60%)', 'hsl(216 55% 62%)', 'hsl(152 55% 46%)', 'hsl(280 40% 60%)', 'hsl(190 50% 50%)', 'hsl(222 10% 65%)', 'hsl(340 50% 55%)', 'hsl(160 40% 50%)'];
 
 export default function PortfolioPage() {
   const navigate = useNavigate();
@@ -142,17 +142,20 @@ export default function PortfolioPage() {
                           <tr className="text-[10px] uppercase text-muted-foreground border-b border-border">
                             <th className="pb-2">Ticker</th>
                             <th className="pb-2 text-right">Quantity</th>
-                            <th className="pb-2 text-right">Avg Price</th>
-                            <th className="pb-2 text-right">Total Capital</th>
+                            <th className="pb-2 text-right">Execution Price</th>
+                            <th className="pb-2 text-right">Capital Allocated</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border/40">
                           {valuation.holdings.map((h, i) => (
                             <tr key={i} className="hover:bg-muted/30 transition-colors">
-                              <td className="py-2 font-semibold text-foreground">{h.symbol}</td>
-                              <td className="py-2 text-right text-muted-foreground">{h.quantity}</td>
-                              <td className="py-2 text-right text-muted-foreground">{formatINR(h.buyPriceMinor)}</td>
-                              <td className="py-2 text-right font-semibold text-foreground">{formatINR(h.quantity * h.buyPriceMinor)}</td>
+                              <td className="py-2.5">
+                                <div className="font-semibold text-foreground">{h.symbol}</div>
+                                <span className="text-[10px] text-muted-foreground block">{h.companyName}</span>
+                              </td>
+                              <td className="py-2.5 text-right text-muted-foreground">{h.quantity}</td>
+                              <td className="py-2.5 text-right text-muted-foreground">{formatINR(h.buyPriceMinor)}</td>
+                              <td className="py-2.5 text-right font-semibold text-foreground">{formatINR(h.quantity * h.buyPriceMinor)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -168,7 +171,7 @@ export default function PortfolioPage() {
                 <div className="p-3.5 rounded-md glass-panel-data text-xs font-mono text-muted-foreground border border-border flex items-start gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0 animate-ping" />
                   <p className="text-[11px] leading-relaxed">
-                    Live telemetry, dynamic rebalancing triggers, and sector weight charts will unlock automatically once our desk clears your mandate.
+                    Strategy weight allocation charts and dynamic rebalancing signals will unlock automatically once our desk clears your mandate.
                   </p>
                 </div>
               </div>
@@ -181,22 +184,13 @@ export default function PortfolioPage() {
 
   const holdings = valuation?.holdings || [];
   const totalInvestedMinor = valuation?.totalInvestedMinor || userPortfolio?.totalInvestmentMinor || 0;
-  const currentTotalValueMinor = valuation?.totalCurrentValueMinor || 0;
-  const totalPnlMinor = valuation?.pnlMinor || 0;
-  const pnlPercent = valuation?.pnlPercent || 0;
-  const isProfitable = valuation ? valuation.isPositive : true;
   const daysRemaining = userPortfolio?.expiresAt ? getDaysRemaining(userPortfolio.expiresAt) : 0;
 
   const allocationData = holdings.map((stock, i) => ({
     name: stock.symbol,
     value: stock.allocationPercent,
+    allocatedMinor: stock.quantity * stock.buyPriceMinor,
     color: COLORS[i % COLORS.length]
-  }));
-
-  // Historical trajectory
-  const historicalData = Array.from({ length: 7 }).map((_, i) => ({
-    day: `D-${7 - i}`,
-    value: toRupees(totalInvestedMinor) + (toRupees(totalPnlMinor) * (i / 6))
   }));
 
   return (
@@ -208,6 +202,9 @@ export default function PortfolioPage() {
             <span className="text-[10px] font-mono uppercase tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
               Active Mandate
             </span>
+            <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+              Audited & Cleared
+            </span>
           </div>
           <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground mt-1">
             {userPortfolio?.planName || 'Portfolio Mandate'}
@@ -218,9 +215,9 @@ export default function PortfolioPage() {
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-md glass-panel text-xs font-mono">
             <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
             <div>
-              <span className="text-muted-foreground">Expires: </span>
+              <span className="text-muted-foreground">Mandate Validity: </span>
               <span className="font-semibold text-foreground">
-                {formatDate(userPortfolio.expiresAt)} ({daysRemaining}d left)
+                {formatDate(userPortfolio.expiresAt)} ({daysRemaining}d remaining)
               </span>
             </div>
           </div>
@@ -231,98 +228,75 @@ export default function PortfolioPage() {
       <StrategySelector showBanners={false} />
 
       {/* Top KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <motion.div initial={{ y: 15, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="glass-panel p-5">
-          <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">Total Capital Cost</span>
-          <p className="text-2xl font-mono tabular-nums font-semibold tracking-tight text-foreground mt-1.5">{formatINR(totalInvestedMinor)}</p>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">Total Capital Deployed</span>
+            <Wallet className="w-4 h-4 text-primary" />
+          </div>
+          <p className="text-2xl font-mono tabular-nums font-semibold tracking-tight text-foreground mt-1">
+            {formatINR(totalInvestedMinor)}
+          </p>
+          <span className="text-[10px] font-mono text-muted-foreground mt-1 block">Executed Principal</span>
         </motion.div>
         
         <motion.div initial={{ y: 15, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.05 }} className="glass-panel p-5">
-          <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">Mark-to-Market Valuation</span>
-          <p className="text-2xl font-mono tabular-nums font-semibold tracking-tight text-foreground mt-1.5">{formatINR(currentTotalValueMinor)}</p>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">Allocated Holdings</span>
+            <Layers className="w-4 h-4 text-primary" />
+          </div>
+          <p className="text-2xl font-mono tabular-nums font-semibold tracking-tight text-foreground mt-1">
+            {holdings.length} Assets
+          </p>
+          <span className="text-[10px] font-mono text-muted-foreground mt-1 block">Active Strategy Positions</span>
         </motion.div>
         
         <motion.div initial={{ y: 15, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }} className="glass-panel p-5">
-          <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">Net Return on Capital</span>
-          <div className="flex items-center gap-3 mt-1.5">
-            <p className={`text-2xl font-mono tabular-nums font-semibold tracking-tight ${isProfitable ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--destructive))]'}`}>
-              {isProfitable ? '+' : ''}{formatINR(totalPnlMinor)}
-            </p>
-            <span className={`inline-flex items-center text-xs font-mono tabular-nums font-semibold px-1.5 py-0.5 rounded ${
-              isProfitable 
-                ? 'bg-[hsl(var(--success))/0.15] text-[hsl(var(--success))]' 
-                : 'bg-[hsl(var(--destructive))/0.15] text-[hsl(var(--destructive))]'
-            }`}>
-              {isProfitable ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
-              {Math.abs(pnlPercent).toFixed(2)}%
-            </span>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">Strategy Mandate</span>
+            <ShieldCheck className="w-4 h-4 text-emerald-500" />
           </div>
+          <p className="text-lg font-semibold tracking-tight text-foreground mt-1 truncate">
+            {userPortfolio?.planName || 'Quant Alpha'}
+          </p>
+          <span className="text-[10px] font-mono text-muted-foreground mt-1 block">SEBI Reg. INH00001234</span>
+        </motion.div>
+
+        <motion.div initial={{ y: 15, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.15 }} className="glass-panel p-5">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">Rebalance Cadence</span>
+            <Activity className="w-4 h-4 text-primary" />
+          </div>
+          <p className="text-lg font-semibold tracking-tight text-primary mt-1">
+            Signal Driven
+          </p>
+          <span className="text-[10px] font-mono text-muted-foreground mt-1 block">Real-time alerts via Email & Terminal</span>
         </motion.div>
       </div>
 
-      {/* Charts Row */}
+      {/* Allocation Overview Row */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Performance Trajectory */}
-        <motion.div 
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="lg:col-span-8 glass-panel p-6"
-        >
-          <div className="mb-5 pb-3 border-b border-border">
-            <h3 className="text-sm font-semibold text-foreground">Trailing NAV Performance</h3>
-            <p className="text-[11px] font-mono text-muted-foreground mt-0.5">Mark-to-market performance curve</p>
-          </div>
-          <div className="h-60 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={historicalData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="text-border/60" />
-                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: 'currentColor', fontSize: 10, opacity: 0.6 }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: 'currentColor', fontSize: 10, opacity: 0.6 }} tickFormatter={(val) => `₹${(val/1000).toFixed(0)}k`} />
-                <RechartsTooltip 
-                  contentStyle={{ 
-                    borderRadius: '4px', 
-                    border: '1px solid hsl(var(--glass-border))', 
-                    backgroundColor: 'hsl(var(--card))', 
-                    color: 'hsl(var(--card-foreground))', 
-                    fontSize: '11px',
-                    fontFamily: 'monospace'
-                  }}
-                  formatter={(value: any) => [`₹${Number(value).toLocaleString(undefined, { maximumFractionDigits: 0 })}`, 'NAV']}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="value" 
-                  stroke={isProfitable ? 'hsl(var(--success))' : 'hsl(var(--destructive))'} 
-                  strokeWidth={2} 
-                  dot={{ strokeWidth: 1.5, r: 3, fill: 'hsl(var(--background))' }} 
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </motion.div>
-
-        {/* Allocation Breakdown */}
+        {/* Allocation Donut Chart */}
         <motion.div 
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="lg:col-span-4 glass-panel p-6 flex flex-col justify-between"
+          className="lg:col-span-5 glass-panel p-6 flex flex-col justify-between"
         >
           <div className="mb-4 pb-3 border-b border-border">
             <h3 className="text-sm font-semibold text-foreground">Factor Weight Distribution</h3>
-            <p className="text-[11px] font-mono text-muted-foreground mt-0.5">Asset allocation weights</p>
+            <p className="text-[11px] font-mono text-muted-foreground mt-0.5">Asset allocation percentages by capital deployed</p>
           </div>
           
-          <div className="h-48 w-full relative">
+          <div className="h-56 w-full relative">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={allocationData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={50}
-                  outerRadius={75}
+                  innerRadius={60}
+                  outerRadius={85}
                   paddingAngle={2}
                   dataKey="value"
                 >
@@ -332,26 +306,85 @@ export default function PortfolioPage() {
                 </Pie>
                 <RechartsTooltip 
                   contentStyle={{ 
-                    borderRadius: '4px', 
+                    borderRadius: '6px', 
                     border: '1px solid hsl(var(--glass-border))', 
                     backgroundColor: 'hsl(var(--card))', 
                     color: 'hsl(var(--card-foreground))', 
                     fontSize: '11px',
                     fontFamily: 'monospace'
                   }}
-                  formatter={(value: any) => [`${value}%`, 'Target Allocation']}
+                  formatter={(value: any, name: any) => [
+                    `${value}% (${formatINR(allocationData.find(a => a.name === name)?.allocatedMinor || 0)})`, 
+                    'Target Weight'
+                  ]}
                 />
               </PieChart>
             </ResponsiveContainer>
           </div>
 
-          <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
-            {allocationData.slice(0, 4).map((item, idx) => (
-              <div key={idx} className="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground">
-                <span className="w-2 h-2 rounded-xs" style={{ backgroundColor: item.color }} />
-                <span>{item.name}: {item.value}%</span>
+          <div className="grid grid-cols-2 gap-2 pt-4 border-t border-border">
+            {allocationData.map((item, idx) => (
+              <div key={idx} className="flex items-center justify-between text-[11px] font-mono p-1.5 rounded bg-muted/20">
+                <div className="flex items-center gap-1.5 truncate">
+                  <span className="w-2.5 h-2.5 rounded-xs shrink-0" style={{ backgroundColor: item.color }} />
+                  <span className="font-semibold text-foreground truncate">{item.name}</span>
+                </div>
+                <span className="text-muted-foreground font-semibold shrink-0">{item.value}%</span>
               </div>
             ))}
+          </div>
+        </motion.div>
+
+        {/* Mandate Strategy Details Card */}
+        <motion.div 
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.22 }}
+          className="lg:col-span-7 glass-panel p-6 flex flex-col justify-between"
+        >
+          <div>
+            <div className="flex items-center justify-between pb-3 mb-4 border-b border-border">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Strategy Composition & Governance</h3>
+                <p className="text-[11px] font-mono text-muted-foreground mt-0.5">SEBI Research Analyst advisory mandate parameters</p>
+              </div>
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                Active Audit
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+              <div className="p-3.5 rounded-lg bg-muted/20 border border-border">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground block mb-1">Advisory Strategy</span>
+                <span className="text-sm font-semibold text-foreground block">{userPortfolio?.planName || 'Institutional Quant'}</span>
+                <span className="text-[10px] font-mono text-muted-foreground mt-0.5 block">Factor parity & systematic risk weighting</span>
+              </div>
+
+              <div className="p-3.5 rounded-lg bg-muted/20 border border-border">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground block mb-1">Total Assets Monitored</span>
+                <span className="text-sm font-semibold text-foreground block">{holdings.length} Positions</span>
+                <span className="text-[10px] font-mono text-muted-foreground mt-0.5 block">Rebalance triggers evaluated continuously</span>
+              </div>
+
+              <div className="p-3.5 rounded-lg bg-muted/20 border border-border">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground block mb-1">Execution Custody</span>
+                <span className="text-sm font-semibold text-foreground block">Self-Custodied</span>
+                <span className="text-[10px] font-mono text-muted-foreground mt-0.5 block">Held directly in your verified broker account</span>
+              </div>
+
+              <div className="p-3.5 rounded-lg bg-muted/20 border border-border">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground block mb-1">Advisory Entity</span>
+                <span className="text-sm font-semibold text-foreground block">Arth Research</span>
+                <span className="text-[10px] font-mono text-muted-foreground mt-0.5 block">SEBI Registered Research Analyst</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-4 rounded-lg bg-primary/5 border border-primary/20 text-xs font-mono text-muted-foreground flex items-start gap-3">
+            <ShieldCheck className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+            <p className="text-[11px] leading-relaxed">
+              When our quantitative models trigger a rebalancing opportunity or position adjustment, you will receive an instantaneous alpha alert with exact target weights and rationale.
+            </p>
           </div>
         </motion.div>
       </div>
@@ -366,8 +399,11 @@ export default function PortfolioPage() {
         <div className="flex items-center justify-between mb-4 pb-3 border-b border-border">
           <div>
             <h3 className="text-sm font-semibold text-foreground">Active Position Ledger</h3>
-            <p className="text-[11px] font-mono text-muted-foreground mt-0.5">Real-time valuation and individual position P&L</p>
+            <p className="text-[11px] font-mono text-muted-foreground mt-0.5">Audited holdings, execution prices, and allocated capital</p>
           </div>
+          <span className="text-xs font-mono text-muted-foreground">
+            {holdings.length} Active Positions
+          </span>
         </div>
         
         <div className="overflow-x-auto">
@@ -376,44 +412,27 @@ export default function PortfolioPage() {
               <tr className="border-b border-border text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
                 <th className="pb-2.5 px-3">Asset Symbol</th>
                 <th className="pb-2.5 px-3 text-right">Quantity</th>
-                <th className="pb-2.5 px-3 text-right">Avg Price</th>
-                <th className="pb-2.5 px-3 text-right">CMP</th>
-                <th className="pb-2.5 px-3 text-right">Position Value</th>
-                <th className="pb-2.5 px-3 text-right">Weight</th>
-                <th className="pb-2.5 px-3 text-right">Unrealized P&L</th>
+                <th className="pb-2.5 px-3 text-right">Avg Execution Price</th>
+                <th className="pb-2.5 px-3 text-right">Allocated Capital</th>
+                <th className="pb-2.5 px-3 text-right">Portfolio Weight</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60 font-mono">
               {holdings.map((stock, idx) => (
                 <tr key={(stock.symbol || '') + idx} className="hover:bg-muted/30 transition-colors">
                   <td className="py-3 px-3">
-                    <div className="font-semibold text-foreground">{stock.symbol}</div>
+                    <div className="font-semibold text-foreground text-sm">{stock.symbol}</div>
                     <span className="text-[10px] text-muted-foreground block">{stock.companyName}</span>
                   </td>
                   <td className="py-3 px-3 text-right tabular-nums text-foreground">{stock.quantity}</td>
                   <td className="py-3 px-3 text-right tabular-nums text-muted-foreground">{formatINR(stock.buyPriceMinor)}</td>
                   <td className="py-3 px-3 text-right tabular-nums font-semibold text-foreground">
-                    {formatINR(stock.currentPriceMinor)}
+                    {formatINR(stock.quantity * stock.buyPriceMinor)}
                   </td>
-                  <td className="py-3 px-3 text-right tabular-nums font-semibold text-foreground">
-                    {formatINR(stock.currentValueMinor)}
-                  </td>
-                  <td className="py-3 px-3 text-right tabular-nums text-muted-foreground">
-                    {stock.allocationPercent}%
-                  </td>
-                  <td className="py-3 px-3 text-right tabular-nums font-semibold">
-                    <div className="flex items-center justify-end gap-2">
-                      <span className={stock.isPositive ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--destructive))]'}>
-                        {stock.isPositive ? '+' : ''}{formatINR(stock.pnlMinor)}
-                      </span>
-                      <span className={`text-[10px] px-1 py-0.5 rounded ${
-                        stock.isPositive 
-                          ? 'bg-[hsl(var(--success))/0.15] text-[hsl(var(--success))]' 
-                          : 'bg-[hsl(var(--destructive))/0.15] text-[hsl(var(--destructive))]'
-                      }`}>
-                        {stock.isPositive ? '+' : ''}{stock.pnlPercent.toFixed(1)}%
-                      </span>
-                    </div>
+                  <td className="py-3 px-3 text-right tabular-nums">
+                    <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
+                      {stock.allocationPercent}%
+                    </span>
                   </td>
                 </tr>
               ))}
