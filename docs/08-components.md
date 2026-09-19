@@ -2,7 +2,7 @@
 
 ## Layout Components
 *   **UserLayout**: Wraps authenticated user pages. Includes sidebar navigation with Logo and Neo-brutalist styling. Enforces auth guard.
-*   **AdminLayout**: Wraps superadmin pages. Includes admin sidebar navigation. Enforces strict admin auth guard.
+*   **AdminLayout**: Wraps super_admin / admin pages. Includes admin sidebar navigation. Enforces strict admin auth guard.
 
 ## UI Components
 *   **Preloader**: Full-screen entrance animation component using Framer Motion. Spinning logo and text reveal.

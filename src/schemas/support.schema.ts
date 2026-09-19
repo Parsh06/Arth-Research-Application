@@ -4,7 +4,7 @@ export const SupportMessageSchema = z.object({
   id: z.string().min(1),
   ticketId: z.string().min(1),
   senderId: z.string().min(1),
-  senderRole: z.enum(['user', 'admin', 'support']),
+  senderRole: z.enum(['user', 'admin', 'support_admin', 'super_admin']),
   senderName: z.string().min(1),
   message: z.string().min(1),
   createdAt: z.union([z.string(), z.number()])

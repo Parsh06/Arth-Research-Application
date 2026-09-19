@@ -13,6 +13,16 @@ import { db } from '../config/firebase';
 import { SupportTicketSchema, SupportMessageSchema } from '../schemas/support.schema';
 import type { SupportTicket, SupportMessage } from '../schemas/support.schema';
 
+/**
+ * Generates an institutional unique ticket ID: TCK-[TIMESTAMP_BASE36]-[RANDOM_4DIGIT]
+ * High entropy, non-colliding, sorted chronologically.
+ */
+function generateUniqueTicketId(): string {
+  const timestampPart = Date.now().toString(36).toUpperCase();
+  const randomPart = Math.floor(1000 + Math.random() * 9000);
+  return `TCK-${timestampPart}-${randomPart}`;
+}
+
 export const supportRepository = {
   /**
    * Create a new support ticket and its initial message atomically
@@ -26,12 +36,13 @@ export const supportRepository = {
     priority?: 'low' | 'medium' | 'high' | 'urgent';
     message: string;
   }): Promise<string> {
-    const ticketRef = doc(collection(db, 'tickets'));
-    const messageRef = doc(collection(db, 'tickets', ticketRef.id, 'messages'));
+    const ticketId = generateUniqueTicketId();
+    const ticketRef = doc(db, 'tickets', ticketId);
+    const messageRef = doc(collection(db, 'tickets', ticketId, 'messages'));
     const now = new Date().toISOString();
 
     const ticketData: SupportTicket = SupportTicketSchema.parse({
-      id: ticketRef.id,
+      id: ticketId,
       userId: data.userId,
       userEmail: data.userEmail,
       userName: data.userName,
@@ -46,7 +57,7 @@ export const supportRepository = {
 
     const messageData: SupportMessage = SupportMessageSchema.parse({
       id: messageRef.id,
-      ticketId: ticketRef.id,
+      ticketId: ticketId,
       senderId: data.userId,
       senderRole: 'user',
       senderName: data.userName,
@@ -59,7 +70,7 @@ export const supportRepository = {
       txn.set(messageRef, messageData);
     });
 
-    return ticketRef.id;
+    return ticketId;
   },
 
   /**
@@ -136,7 +147,7 @@ export const supportRepository = {
   async sendMessage(params: {
     ticketId: string;
     senderId: string;
-    senderRole: 'user' | 'admin' | 'support';
+    senderRole: 'user' | 'admin' | 'support_admin' | 'super_admin';
     senderName: string;
     message: string;
   }): Promise<void> {

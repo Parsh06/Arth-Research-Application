@@ -144,12 +144,77 @@ export default function PlansPage() {
           </div>
         </div>
 
-        {/* Plans Grid */}
+        {/* Plans Grid / Empty State */}
         {isLoadingPlans ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
             <span className="text-xs font-mono tracking-wider text-muted-foreground">Loading Strategies...</span>
           </div>
+        ) : plans.length === 0 ? (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-panel p-8 sm:p-12 max-w-3xl mx-auto text-center relative overflow-hidden mb-16 shadow-2xl border-primary/20"
+          >
+            {/* Background Glow */}
+            <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-[11px] font-mono uppercase tracking-wider mb-5">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Pipeline Calibration & SEBI Audit</span>
+            </div>
+
+            <h2 className="text-2xl sm:text-3xl font-display font-semibold tracking-tight text-foreground mb-3">
+              New Quantitative Strategies Launching Soon
+            </h2>
+
+            <p className="text-sm text-muted-foreground leading-relaxed max-w-xl mx-auto mb-8 font-mono">
+              Our quantitative research desk is currently stress-testing, factor-auditing, and calibrating the next cohort of algorithmic advisory models.
+            </p>
+
+            {/* Upcoming Features Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 text-left">
+              <div className="glass-panel-data p-4 rounded-lg">
+                <div className="w-7 h-7 rounded bg-primary/10 text-primary flex items-center justify-center mb-2.5">
+                  <Activity className="w-4 h-4" />
+                </div>
+                <h4 className="text-xs font-semibold text-foreground">Factor Momentum</h4>
+                <p className="text-[11px] text-muted-foreground mt-1">Multi-factor trend filtering with regime switching.</p>
+              </div>
+
+              <div className="glass-panel-data p-4 rounded-lg">
+                <div className="w-7 h-7 rounded bg-primary/10 text-primary flex items-center justify-center mb-2.5">
+                  <Shield className="w-4 h-4" />
+                </div>
+                <h4 className="text-xs font-semibold text-foreground">Dynamic Risk Parity</h4>
+                <p className="text-[11px] text-muted-foreground mt-1">Downside tail-risk guards and automated rebalancing.</p>
+              </div>
+
+              <div className="glass-panel-data p-4 rounded-lg">
+                <div className="w-7 h-7 rounded bg-primary/10 text-primary flex items-center justify-center mb-2.5">
+                  <Award className="w-4 h-4" />
+                </div>
+                <h4 className="text-xs font-semibold text-foreground">Direct Execution</h4>
+                <p className="text-[11px] text-muted-foreground mt-1">100% non-custodial broker portfolio synchronization.</p>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <button
+                onClick={() => navigate('/login')}
+                className="w-full sm:w-auto bg-primary hover:opacity-90 text-primary-foreground text-xs font-semibold px-6 py-2.5 rounded-md shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>Access Research Dashboard</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => navigate('/portfolio')}
+                className="w-full sm:w-auto glass-panel text-foreground hover:bg-muted/50 text-xs font-mono px-5 py-2.5 rounded-md transition-colors cursor-pointer"
+              >
+                View Portfolio Terminal
+              </button>
+            </div>
+          </motion.div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-16 items-stretch">
             {plans.map((plan, idx) => {
@@ -168,7 +233,7 @@ export default function PlansPage() {
                   }`}
                 >
                   {plan.isPopular && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[10px] font-mono uppercase tracking-wider px-3 py-0.5 rounded-full shadow-sm flex items-center gap-1">
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[10px] font-mono uppercase tracking-wider px-3 py-0.5 rounded-full shadow-sm flex items-center gap-1 z-10">
                       <Award className="w-3 h-3" />
                       <span>Most Subscribed</span>
                     </div>

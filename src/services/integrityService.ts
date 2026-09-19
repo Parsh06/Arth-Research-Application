@@ -1,6 +1,6 @@
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { holdingsRepository } from '../repositories/holdingsRepository';
+import { portfolioRepository } from '../repositories/portfolioRepository';
 
 export interface IntegrityAuditReport {
   timestamp: string;
@@ -24,7 +24,7 @@ export const integrityService = {
 
     for (const port of portfolios) {
       try {
-        const holdings = await holdingsRepository.getHoldingsForPortfolio(port.id);
+        const holdings = await portfolioRepository.getHoldings(port.id);
         holdingsScanned += holdings.length;
 
         if (holdings.length > 0) {

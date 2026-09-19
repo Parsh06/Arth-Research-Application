@@ -5,7 +5,7 @@ export const RoleEnum = z.enum([
   'user',
   'admin',
   'super_admin',
-  'support',
+  'support_admin',
   'finance',
   'research_admin'
 ]);

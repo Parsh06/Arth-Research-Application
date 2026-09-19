@@ -1,6 +1,7 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { SubscriptionStatus } from '../types/models';
+import { isPathAllowedForRole, getDefaultAdminRoute } from '../utils/rbac';
 
 interface AuthGuardProps {
   requireAuth?: boolean;
@@ -40,9 +41,20 @@ export default function AuthGuard({
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
-  // 3. Require Admin Check
-  if (requireAdmin && !isAdmin) {
-    return <Navigate to="/dashboard" replace />;
+  // 3. Require Admin Check & Role-Based Sub-Path Validation
+  if (requireAdmin) {
+    if (!isAdmin) {
+      return <Navigate to="/dashboard" replace />;
+    }
+
+    // Role-Based Path Validation
+    const role = dbUser?.role || 'user';
+    if (!isPathAllowedForRole(location.pathname, role)) {
+      const defaultRoute = getDefaultAdminRoute(role);
+      if (location.pathname !== defaultRoute) {
+        return <Navigate to={defaultRoute} replace />;
+      }
+    }
   }
 
   // 4. Require Subscription Check (Approved & Not Expired)
@@ -64,7 +76,8 @@ export default function AuthGuard({
   // 5. Guest Only / Redirect Logged-In Users from Login/Landing
   if (!requireAuth && user && !requireAdmin) {
     if (location.pathname === '/login') {
-      const from = location.state?.from || (isAdmin ? '/admin/dashboard' : '/dashboard');
+      const defaultAdmin = getDefaultAdminRoute(dbUser?.role);
+      const from = location.state?.from || (isAdmin ? defaultAdmin : '/dashboard');
       return <Navigate to={from} replace />;
     }
   }

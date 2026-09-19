@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { MessageSquare, Send, ChevronRight, AlertCircle, Headphones, ArrowLeft } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { MessageSquare, Send, ChevronRight, AlertCircle, Headphones, ArrowLeft, ShieldCheck } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { supportRepository } from '../repositories/supportRepository';
 import type { SupportTicket, SupportMessage } from '../schemas/support.schema';
 import { useToastStore } from '../stores/toastStore';
 import { formatDateTime } from '../utils/datetime';
+import { emailService } from '../services/emailService';
 
 export default function SupportPage() {
   const { user } = useAuthStore();
@@ -27,6 +28,23 @@ export default function SupportPage() {
   const [replyText, setReplyText] = useState('');
   const [isSendingReply, setIsSendingReply] = useState(false);
 
+  // Scroll ref for chat container
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to bottom when messages change
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    messagesEndRef.current?.scrollIntoView({ behavior, block: 'end' });
+  };
+
+  useEffect(() => {
+    scrollToBottom('auto');
+  }, [selectedTicket?.id]);
+
+  useEffect(() => {
+    scrollToBottom('smooth');
+  }, [messages]);
+
   // Subscribe to user tickets
   useEffect(() => {
     if (!user?.uid) return;
@@ -41,7 +59,7 @@ export default function SupportPage() {
     });
 
     return () => unsubscribe();
-  }, [user?.uid]);
+  }, [user?.uid, selectedTicket?.id]);
 
   // Subscribe to messages when ticket is selected
   useEffect(() => {
@@ -65,33 +83,49 @@ export default function SupportPage() {
     }
 
     setIsSubmitting(true);
+    const ticketSubject = subject.trim();
+    const ticketMessage = message.trim();
+    const userName = user.displayName || 'Investor';
+    const userEmail = user.email || 'investor@arth.app';
+
     try {
       const ticketId = await supportRepository.createTicket({
         userId: user.uid,
-        userEmail: user.email || 'investor@arth.app',
-        userName: user.displayName || 'Investor',
-        subject: subject.trim(),
+        userEmail,
+        userName,
+        subject: ticketSubject,
         category,
         priority,
-        message: message.trim()
+        message: ticketMessage
       });
 
-      // Dispatch Support Ticket Logged Email
+      // 1. Dispatch Support Ticket Logged Email to Client
       if (user.email) {
-        import('../services/emailService').then(({ emailService }) => {
-          emailService.sendTicketLoggedEmail(user.email!, {
-            userName: user.displayName || 'Investor',
-            ticketId: ticketId.slice(0, 8).toUpperCase(),
-            subject: subject.trim(),
-            category: category.toUpperCase(),
-            priority: (priority.toUpperCase() as any) || 'MEDIUM',
-            messageSnippet: message.trim(),
-            ticketUrl: window.location.origin + '/support'
-          }).catch(e => console.warn('[SupportPage] Ticket logged email error:', e));
-        });
+        emailService.sendTicketLoggedEmail(user.email, {
+          userName,
+          ticketId,
+          subject: ticketSubject,
+          category: category.toUpperCase(),
+          priority: (priority.toUpperCase() as any) || 'MEDIUM',
+          messageSnippet: ticketMessage,
+          ticketUrl: `${window.location.origin}/support`
+        }).catch(err => console.warn('[SupportPage] Client ticket email warning:', err));
       }
 
-      addToast('Support ticket dispatched to advisory desk.', 'success');
+      // 2. Dispatch Real-Time Alert to Super Admin & Desk Team
+      const adminEmail = emailService.getAdminEmail();
+      emailService.sendAdminNewTicketAlertEmail(adminEmail, {
+        userName,
+        userEmail,
+        ticketId,
+        subject: ticketSubject,
+        category: category.toUpperCase(),
+        priority: (priority.toUpperCase() as any) || 'MEDIUM',
+        messageSnippet: ticketMessage,
+        adminPortalUrl: `${window.location.origin}/admin/support`
+      }).catch(err => console.warn('[SupportPage] Admin new ticket alert error:', err));
+
+      addToast(`Ticket #${ticketId} created and dispatched to research desk.`, 'success');
       setSubject('');
       setMessage('');
       setCategory('general');
@@ -100,13 +134,13 @@ export default function SupportPage() {
       const newTicket: SupportTicket = {
         id: ticketId,
         userId: user.uid,
-        userEmail: user.email || 'investor@arth.app',
-        userName: user.displayName || 'Investor',
-        subject: subject.trim(),
+        userEmail,
+        userName,
+        subject: ticketSubject,
         category,
         priority,
         status: 'open',
-        lastMessageSnippet: message.trim().slice(0, 100),
+        lastMessageSnippet: ticketMessage.slice(0, 100),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -123,15 +157,29 @@ export default function SupportPage() {
     e.preventDefault();
     if (!user || !selectedTicket || !replyText.trim()) return;
 
+    const replyContent = replyText.trim();
     setIsSendingReply(true);
+
     try {
       await supportRepository.sendMessage({
         ticketId: selectedTicket.id,
         senderId: user.uid,
         senderName: user.displayName || 'Investor',
         senderRole: 'user',
-        message: replyText.trim()
+        message: replyContent
       });
+
+      // Dispatch Alert to Super Admin & Advisory Desk
+      const adminEmail = emailService.getAdminEmail();
+      emailService.sendAdminUserReplyAlertEmail(adminEmail, {
+        userName: user.displayName || 'Investor',
+        userEmail: user.email || 'investor@arth.app',
+        ticketId: selectedTicket.id,
+        subject: selectedTicket.subject,
+        replySnippet: replyContent,
+        adminPortalUrl: `${window.location.origin}/admin/support`
+      }).catch(err => console.warn('[SupportPage] Admin reply alert error:', err));
+
       setReplyText('');
     } catch (err: any) {
       console.error('Failed to send reply:', err);
@@ -178,7 +226,7 @@ export default function SupportPage() {
                   type="text" 
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
-                  className="w-full glass-panel-data px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary font-medium" 
+                  className="w-full glass-panel-data px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary font-medium rounded-md" 
                   placeholder="e.g. Allocation rebalance clarification" 
                   required
                 />
@@ -190,13 +238,13 @@ export default function SupportPage() {
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value as any)}
-                    className="w-full glass-panel-data px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary capitalize font-mono"
+                    className="w-full bg-background dark:bg-[#121926] border border-border rounded-md px-2.5 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary capitalize font-mono"
                   >
-                    <option value="portfolio">Portfolio</option>
-                    <option value="advisory">Advisory</option>
-                    <option value="billing">Billing</option>
-                    <option value="technical">Technical</option>
-                    <option value="general">General</option>
+                    <option className="bg-background dark:bg-[#121926] text-foreground" value="portfolio">Portfolio</option>
+                    <option className="bg-background dark:bg-[#121926] text-foreground" value="advisory">Advisory</option>
+                    <option className="bg-background dark:bg-[#121926] text-foreground" value="billing">Billing</option>
+                    <option className="bg-background dark:bg-[#121926] text-foreground" value="technical">Technical</option>
+                    <option className="bg-background dark:bg-[#121926] text-foreground" value="general">General</option>
                   </select>
                 </div>
 
@@ -205,12 +253,12 @@ export default function SupportPage() {
                   <select
                     value={priority}
                     onChange={(e) => setPriority(e.target.value as any)}
-                    className="w-full glass-panel-data px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary capitalize font-mono"
+                    className="w-full bg-background dark:bg-[#121926] border border-border rounded-md px-2.5 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary capitalize font-mono"
                   >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="urgent">Urgent</option>
+                    <option className="bg-background dark:bg-[#121926] text-foreground" value="low">Low</option>
+                    <option className="bg-background dark:bg-[#121926] text-foreground" value="medium">Medium</option>
+                    <option className="bg-background dark:bg-[#121926] text-foreground" value="high">High</option>
+                    <option className="bg-background dark:bg-[#121926] text-foreground" value="urgent">Urgent</option>
                   </select>
                 </div>
               </div>
@@ -221,7 +269,7 @@ export default function SupportPage() {
                   rows={4} 
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  className="w-full glass-panel-data p-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary leading-relaxed font-sans" 
+                  className="w-full glass-panel-data p-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary leading-relaxed font-sans rounded-md" 
                   placeholder="Provide complete context to expedite analyst resolution..." 
                   required
                 />
@@ -251,150 +299,200 @@ export default function SupportPage() {
 
         {/* Right Column: Ticket List & Thread (7 cols) */}
         <div className="lg:col-span-7">
-          {selectedTicket ? (
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="glass-panel p-6 shadow-sm flex flex-col h-[560px]"
-            >
-              {/* Thread Header */}
-              <div className="border-b border-border pb-3 mb-4 flex items-start justify-between">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-muted text-muted-foreground">
-                      #{selectedTicket.id.slice(0, 6).toUpperCase()}
-                    </span>
-                    <span className={`text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.2 rounded ${
-                      selectedTicket.status === 'open' ? 'bg-primary/15 text-primary' :
-                      selectedTicket.status === 'in_progress' ? 'bg-secondary/15 text-secondary' :
-                      selectedTicket.status === 'resolved' ? 'bg-[hsl(var(--success))/0.15] text-[hsl(var(--success))]' : 'bg-muted text-muted-foreground'
-                    }`}>
-                      {selectedTicket.status.replace('_', ' ')}
-                    </span>
-                    <span className="text-[10px] font-mono uppercase text-muted-foreground">
-                      {selectedTicket.category}
-                    </span>
-                  </div>
-                  <h3 className="text-sm font-semibold text-foreground">{selectedTicket.subject}</h3>
-                </div>
-                
-                <button
-                  onClick={() => setSelectedTicket(null)}
-                  className="glass-panel text-muted-foreground hover:text-foreground px-2 py-1 rounded transition-colors flex items-center gap-1 text-xs font-mono cursor-pointer"
-                >
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>All Inquiries</span>
-                </button>
-              </div>
-
-              {/* Messages Feed */}
-              <div className="flex-1 overflow-y-auto space-y-3 pr-1 mb-3">
-                {messages.length === 0 ? (
-                  <div className="text-center py-16 text-xs font-mono text-muted-foreground">Loading conversation history...</div>
-                ) : (
-                  messages.map((m) => {
-                    const isMe = m.senderId === user?.uid;
-                    return (
-                      <div key={m.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                        <div className="flex items-center gap-1.5 mb-1 text-[10px] font-mono text-muted-foreground">
-                          <span>{isMe ? 'You' : `${m.senderName} (${m.senderRole.toUpperCase()})`}</span>
-                          <span>•</span>
-                          <span>{formatDateTime(m.createdAt)}</span>
-                        </div>
-                        <div className={`max-w-[85%] p-3 rounded text-xs leading-relaxed ${
-                          isMe 
-                            ? 'bg-primary text-primary-foreground font-medium' 
-                            : 'glass-panel-data text-foreground'
-                        }`}>
-                          {m.message}
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-
-              {/* Reply Form */}
-              {selectedTicket.status !== 'closed' ? (
-                <form onSubmit={handleSendReply} className="flex gap-2 pt-3 border-t border-border">
-                  <input
-                    type="text"
-                    value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
-                    placeholder="Type your response to the analyst desk..."
-                    className="flex-1 glass-panel-data px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary font-mono"
-                    disabled={isSendingReply}
-                  />
-                  <button
-                    type="submit"
-                    disabled={isSendingReply || !replyText.trim()}
-                    className="bg-primary hover:opacity-90 text-primary-foreground px-3.5 py-1.5 rounded text-xs font-semibold transition-colors disabled:opacity-50 flex items-center gap-1 cursor-pointer"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                  </button>
-                </form>
-              ) : (
-                <div className="p-2.5 glass-panel-data rounded text-center text-xs font-mono text-muted-foreground">
-                  This inquiry is resolved and closed.
-                </div>
-              )}
-            </motion.div>
-          ) : (
-            /* Ticket List View */
-            <div className="glass-panel p-6 shadow-sm space-y-3">
-              <div className="flex items-center justify-between pb-3 border-b border-border">
-                <h3 className="text-sm font-semibold text-foreground">
-                  Active Inquiries ({tickets.length})
-                </h3>
-              </div>
-
-              {loadingTickets ? (
-                <div className="py-12 text-center text-xs font-mono text-muted-foreground animate-pulse">
-                  Loading tickets...
-                </div>
-              ) : tickets.length === 0 ? (
-                <div className="py-10 text-center space-y-2">
-                  <AlertCircle className="w-6 h-6 mx-auto text-muted-foreground" />
-                  <p className="font-semibold text-xs text-foreground">No Open Tickets</p>
-                  <p className="text-[11px] font-mono text-muted-foreground">
-                    Use the inquiry form on the left to reach our research and compliance teams.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {tickets.map((t) => (
-                    <div
-                      key={t.id}
-                      onClick={() => setSelectedTicket(t)}
-                      className="p-3.5 rounded glass-panel-data hover:bg-muted/40 transition-all cursor-pointer flex items-center justify-between gap-4 group"
-                    >
-                      <div className="space-y-1 min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className={`text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.2 rounded ${
-                            t.status === 'open' ? 'bg-primary/15 text-primary' :
-                            t.status === 'in_progress' ? 'bg-secondary/15 text-secondary' :
-                            t.status === 'resolved' ? 'bg-[hsl(var(--success))/0.15] text-[hsl(var(--success))]' : 'bg-muted text-muted-foreground'
-                          }`}>
-                            {t.status.replace('_', ' ')}
-                          </span>
-                          <span className="text-[10px] font-mono text-muted-foreground uppercase">
-                            {t.category}
-                          </span>
-                        </div>
-                        <h4 className="font-semibold text-xs text-foreground truncate">
-                          {t.subject}
-                        </h4>
-                        <p className="text-[11px] text-muted-foreground truncate">
-                          {t.lastMessageSnippet || 'No responses yet.'}
-                        </p>
-                      </div>
-                      <ChevronRight className="w-3.5 h-3.5 text-muted-foreground group-hover:translate-x-0.5 transition-transform shrink-0" />
+          <AnimatePresence mode="wait">
+            {selectedTicket ? (
+              <motion.div 
+                key="ticket-chat"
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                className="glass-panel p-5 sm:p-6 shadow-sm flex flex-col h-[620px]"
+              >
+                {/* Thread Header */}
+                <div className="border-b border-border pb-3.5 mb-3 flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-muted text-muted-foreground border border-border">
+                        #{selectedTicket.id}
+                      </span>
+                      <span className={`text-[10px] font-mono uppercase tracking-wider font-semibold px-2 py-0.5 rounded border ${
+                        selectedTicket.status === 'open' ? 'bg-primary/15 text-primary border-primary/25' :
+                        selectedTicket.status === 'in_progress' ? 'bg-amber-500/15 text-amber-500 border-amber-500/25' :
+                        selectedTicket.status === 'resolved' ? 'bg-[hsl(var(--success))/0.15] text-[hsl(var(--success))] border-[hsl(var(--success))/0.25]' : 
+                        'bg-muted text-muted-foreground border-border'
+                      }`}>
+                        {selectedTicket.status.replace('_', ' ')}
+                      </span>
+                      <span className="text-[10px] font-mono uppercase text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
+                        {selectedTicket.category}
+                      </span>
                     </div>
-                  ))}
+                    <h3 className="text-sm font-semibold text-foreground truncate">{selectedTicket.subject}</h3>
+                  </div>
+                  
+                  <button
+                    onClick={() => setSelectedTicket(null)}
+                    className="glass-panel text-muted-foreground hover:text-foreground px-2.5 py-1.5 rounded transition-colors flex items-center gap-1.5 text-xs font-mono cursor-pointer shrink-0"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <span>All Inquiries</span>
+                  </button>
                 </div>
-              )}
-            </div>
-          )}
+
+                {/* Scrollable Messages Thread Container */}
+                <div 
+                  ref={chatContainerRef}
+                  className="flex-1 overflow-y-auto space-y-4 p-3.5 rounded-lg glass-panel-data border border-border/40 scrollbar-thin scrollbar-thumb-muted-foreground/20"
+                >
+                  {messages.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-center py-16 text-xs font-mono text-muted-foreground">
+                      <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center mb-2 animate-pulse">
+                        <MessageSquare className="w-4 h-4 text-muted-foreground" />
+                      </div>
+                      <span>Loading conversation history...</span>
+                    </div>
+                  ) : (
+                    messages.map((m) => {
+                      // Distinction logic: Admin/Support messages go LEFT, Client (User) messages go RIGHT
+                      const isAdminMsg = m.senderRole === 'admin' || m.senderRole === 'support_admin' || m.senderRole === 'super_admin';
+                      const isClientMsg = !isAdminMsg;
+
+                      return (
+                        <div 
+                          key={m.id} 
+                          className={`flex flex-col ${isClientMsg ? 'items-end' : 'items-start'}`}
+                        >
+                          {/* Message Sender Header */}
+                          <div className="flex items-center gap-1.5 mb-1 text-[10px] font-mono text-muted-foreground">
+                            {isClientMsg ? (
+                              <>
+                                <span className="font-semibold text-primary">You (Investor)</span>
+                                <span>•</span>
+                                <span>{formatDateTime(m.createdAt)}</span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="inline-flex items-center gap-1 font-bold text-amber-500 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                                  <ShieldCheck className="w-3 h-3 text-amber-500" />
+                                  <span>Arth Research Desk &bull; {m.senderName}</span>
+                                </span>
+                                <span>•</span>
+                                <span>{formatDateTime(m.createdAt)}</span>
+                              </>
+                            )}
+                          </div>
+
+                          {/* Message Content Bubble */}
+                          <div className={`p-3.5 rounded-2xl text-xs leading-relaxed max-w-[85%] shadow-xs break-words ${
+                            isClientMsg 
+                              ? 'bg-primary text-primary-foreground font-medium rounded-tr-xs ml-8' 
+                              : 'bg-card dark:bg-[#121926] border border-border text-foreground font-normal rounded-tl-xs mr-8'
+                          }`}>
+                            {m.message}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                  {/* Invisible anchor to ensure smooth scrolling to bottom */}
+                  <div ref={messagesEndRef} />
+                </div>
+
+                {/* Reply Form */}
+                <div className="pt-3">
+                  {selectedTicket.status !== 'closed' ? (
+                    <form onSubmit={handleSendReply} className="flex gap-2">
+                      <input
+                        type="text"
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        placeholder="Type your response to the analyst desk..."
+                        className="flex-1 bg-card dark:bg-[#121926] border border-border px-3.5 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary font-mono rounded-md"
+                        disabled={isSendingReply}
+                      />
+                      <button
+                        type="submit"
+                        disabled={isSendingReply || !replyText.trim()}
+                        className="bg-primary hover:opacity-90 text-primary-foreground px-4 py-2 rounded-md text-xs font-semibold transition-all disabled:opacity-50 flex items-center gap-1.5 cursor-pointer shadow-xs font-mono"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        <span>{isSendingReply ? 'Sending...' : 'Send'}</span>
+                      </button>
+                    </form>
+                  ) : (
+                    <div className="p-3 bg-muted/40 border border-border rounded-md text-center text-xs font-mono text-muted-foreground">
+                      This inquiry is resolved and closed. Open a new ticket if you need additional assistance.
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            ) : (
+              /* Ticket List View */
+              <motion.div 
+                key="ticket-list"
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                className="glass-panel p-6 shadow-sm space-y-3"
+              >
+                <div className="flex items-center justify-between pb-3 border-b border-border">
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Active Inquiries ({tickets.length})
+                  </h3>
+                </div>
+
+                {loadingTickets ? (
+                  <div className="py-12 text-center text-xs font-mono text-muted-foreground animate-pulse">
+                    Loading tickets...
+                  </div>
+                ) : tickets.length === 0 ? (
+                  <div className="py-12 text-center space-y-2">
+                    <AlertCircle className="w-6 h-6 mx-auto text-muted-foreground" />
+                    <p className="font-semibold text-xs text-foreground">No Open Tickets</p>
+                    <p className="text-[11px] font-mono text-muted-foreground">
+                      Use the inquiry form on the left to reach our research and compliance teams.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5 max-h-[500px] overflow-y-auto pr-1">
+                    {tickets.map((t) => (
+                      <div
+                        key={t.id}
+                        onClick={() => setSelectedTicket(t)}
+                        className="p-4 rounded-md glass-panel-data hover:bg-muted/40 border border-border/60 transition-all cursor-pointer flex items-center justify-between gap-4 group"
+                      >
+                        <div className="space-y-1.5 min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-mono font-bold text-muted-foreground">
+                              #{t.id}
+                            </span>
+                            <span className={`text-[9px] font-mono uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded border ${
+                              t.status === 'open' ? 'bg-primary/15 text-primary border-primary/25' :
+                              t.status === 'in_progress' ? 'bg-amber-500/15 text-amber-500 border-amber-500/25' :
+                              t.status === 'resolved' ? 'bg-[hsl(var(--success))/0.15] text-[hsl(var(--success))] border-[hsl(var(--success))/0.25]' : 
+                              'bg-muted text-muted-foreground border-border'
+                            }`}>
+                              {t.status.replace('_', ' ')}
+                            </span>
+                            <span className="text-[10px] font-mono text-muted-foreground uppercase bg-muted/40 px-1 rounded">
+                              {t.category}
+                            </span>
+                          </div>
+                          <h4 className="font-semibold text-xs text-foreground truncate">
+                            {t.subject}
+                          </h4>
+                          <p className="text-[11px] text-muted-foreground truncate font-sans">
+                            {t.lastMessageSnippet || 'No responses yet.'}
+                          </p>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform shrink-0" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>

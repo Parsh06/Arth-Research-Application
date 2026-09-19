@@ -232,13 +232,40 @@ export default function AdminSubscriptions() {
             Configure pricing, risk parameters, target CAGR, and manage recommended stock allocations.
           </p>
         </div>
-        <button
-          onClick={openCreateModal}
-          className="bg-primary hover:opacity-90 text-primary-foreground text-xs font-semibold px-4 py-2 rounded-md shadow-xs transition-all flex items-center gap-1.5 self-start sm:self-auto cursor-pointer"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>Create Strategy Tier</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          {plans.length > 0 && (
+            <button
+              onClick={async () => {
+                if (window.confirm("Are you sure you want to delete ALL plans from the Firestore database? The public Plans page will show the upcoming strategies state.")) {
+                  setIsDeleting(true);
+                  try {
+                    for (const p of plans) {
+                      await planRepository.deletePlan(p.id);
+                    }
+                    setPlans([]);
+                    addToast("All plans purged from database.", "success");
+                  } catch (e: any) {
+                    addToast(e.message || "Failed to purge plans", "error");
+                  } finally {
+                    setIsDeleting(false);
+                  }
+                }
+              }}
+              disabled={isDeleting}
+              className="glass-panel text-destructive hover:bg-destructive/10 text-xs font-semibold px-3 py-2 rounded-md transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Purge All ({plans.length})</span>
+            </button>
+          )}
+          <button
+            onClick={openCreateModal}
+            className="bg-primary hover:opacity-90 text-primary-foreground text-xs font-semibold px-4 py-2 rounded-md shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Create Strategy Tier</span>
+          </button>
+        </div>
       </div>
 
       {/* Empty State */}
@@ -276,11 +303,11 @@ export default function AdminSubscriptions() {
               transition={{ delay: idx * 0.05 }}
               className={`glass-panel p-5 flex flex-col justify-between relative ${p.isPopular ? 'border-primary' : ''}`}
             >
-              {/* Featured Badge */}
+              {/* Most Subscribed Badge */}
               {p.isPopular && (
-                <div className="absolute top-4 right-4 bg-primary text-primary-foreground text-[9px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full shadow-xs flex items-center gap-1">
+                <div className="absolute top-4 right-4 bg-primary text-primary-foreground text-[9px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full shadow-xs flex items-center gap-1 z-10">
                   <Award className="w-3 h-3" />
-                  <span>Featured</span>
+                  <span>Most Subscribed</span>
                 </div>
               )}
 
@@ -681,7 +708,7 @@ export default function AdminSubscriptions() {
                       onChange={(e) => setIsPopular(e.target.checked)}
                       className="rounded border-border text-primary focus:ring-primary w-4 h-4"
                     />
-                    <span className="text-xs font-medium text-foreground">Highlight as Featured Strategy</span>
+                    <span className="text-xs font-medium text-foreground">Enable "Most Subscribed" Badge (Can be toggled on multiple plans)</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input

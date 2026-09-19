@@ -1,11 +1,13 @@
 import { motion } from 'framer-motion';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import { usePortfolioStore } from '../stores/portfolioStore';
+import { useAuthStore } from '../stores/authStore';
 import { Link, useNavigate } from 'react-router-dom';
 import { ShieldAlert, Clock, Calendar, ArrowRight, AlertCircle, RefreshCw, Wallet, Layers, ShieldCheck, Activity } from 'lucide-react';
 import StrategySelector from '../components/StrategySelector';
 import { formatINR } from '../utils/money';
 import { formatDate, getDaysRemaining } from '../utils/datetime';
+import { getTerminalTitle, getDefaultAdminRoute } from '../utils/rbac';
 
 const COLORS = ['hsl(38 50% 60%)', 'hsl(216 55% 62%)', 'hsl(152 55% 46%)', 'hsl(280 40% 60%)', 'hsl(190 50% 50%)', 'hsl(222 10% 65%)', 'hsl(340 50% 55%)', 'hsl(160 40% 50%)'];
 
@@ -193,6 +195,11 @@ export default function PortfolioPage() {
     color: COLORS[i % COLORS.length]
   }));
 
+  const { dbUser } = useAuthStore();
+  const role = dbUser?.role || 'user';
+  const terminalTitle = getTerminalTitle(role);
+  const defaultAdminRoute = getDefaultAdminRoute(role);
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto py-2">
       {/* Header section */}
@@ -211,17 +218,30 @@ export default function PortfolioPage() {
           </h1>
         </div>
 
-        {userPortfolio?.expiresAt && (
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-md glass-panel text-xs font-mono">
-            <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-            <div>
-              <span className="text-muted-foreground">Mandate Validity: </span>
-              <span className="font-semibold text-foreground">
-                {formatDate(userPortfolio.expiresAt)} ({daysRemaining}d remaining)
-              </span>
+        <div className="flex flex-wrap items-center gap-3">
+          {terminalTitle && (
+            <Link
+              to={defaultAdminRoute}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md glass-panel text-xs font-mono font-semibold text-primary border border-primary/25 hover:bg-primary/10 transition-all shadow-xs"
+              title={`Switch to ${terminalTitle}`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>{terminalTitle}</span>
+            </Link>
+          )}
+
+          {userPortfolio?.expiresAt && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md glass-panel text-xs font-mono">
+              <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+              <div>
+                <span className="text-muted-foreground">Mandate Validity: </span>
+                <span className="font-semibold text-foreground">
+                  {formatDate(userPortfolio.expiresAt)} ({daysRemaining}d remaining)
+                </span>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Multi-Plan Strategy Selector */}

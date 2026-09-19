@@ -14,14 +14,19 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
+    function isSuperAdmin() {
+      return isAuthenticated() &&
+             getUserData().role == 'super_admin';
+    }
+
     function isAdmin() {
       return isAuthenticated() &&
-             getUserData().role in ['admin', 'super_admin', 'research_admin'];
+             getUserData().role in ['super_admin', 'admin', 'research_admin', 'support_admin'];
     }
 
     function isSupportOrAdmin() {
       return isAuthenticated() &&
-             getUserData().role in ['admin', 'super_admin', 'support', 'research_admin'];
+             getUserData().role in ['super_admin', 'admin', 'support_admin', 'research_admin'];
     }
 
     // Checks if a user has a specific active, non-expired feature entitlement
@@ -320,14 +325,21 @@ service cloud.firestore {
     // ============================================================================
 
     match /auditLogs/{logId} {
-      // Only admin can read audit logs
+      // Admin can read audit logs
       allow read: if isAdmin();
-      // Only admin or system can create audit log entries
-      allow create: if isAdmin();
-      // Audit logs are IMMUTABLE — no updates or deletes permitted by any client
-      // (Firebase Admin SDK used server-side bypasses these rules for system ops)
+      // Admin or authenticated actions can create audit log entries
+      allow create: if isAuthenticated();
+      // Audit logs cannot be modified
       allow update: if false;
-      allow delete: if false;
+      // Admin can purge audit logs
+      allow delete: if isAdmin();
+    }
+
+    match /audit_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update: if false;
+      allow delete: if isAdmin();
     }
   }
 }

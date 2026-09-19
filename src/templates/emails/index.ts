@@ -12,7 +12,13 @@ import { buildWelcomeOrientationEmail, buildPasswordResetEmail, buildSecurityAle
 import { buildPaymentConfirmationEmail, buildPaymentFailedEmail, buildSubscriptionExpiryWarningEmail, buildSubscriptionExpiredEmail } from './billingTemplates';
 import { buildHoldingsSubmittedEmail, buildPortfolioClearanceEmail, buildHoldingsRevisionEmail } from './portfolioTemplates';
 import { buildRebalanceAlertEmail, buildAlphaSignalEmail, buildMonthlyDigestEmail } from './advisoryTemplates';
-import { buildTicketLoggedEmail, buildAnalystReplyEmail } from './supportTemplates';
+import { 
+  buildTicketLoggedEmail, 
+  buildAnalystReplyEmail, 
+  buildAdminNewTicketAlertEmail, 
+  buildAdminUserReplyAlertEmail, 
+  buildTicketStatusUpdateEmail 
+} from './supportTemplates';
 import { buildAccountRevokedEmail, buildAccountReactivatedEmail } from './governanceTemplates';
 
 export interface EmailTemplateDefinition {
@@ -337,10 +343,69 @@ export const EMAIL_TEMPLATES_CATALOG: EmailTemplateDefinition[] = [
     })
   },
 
-  // 16. [Governance] Account Access Revoked (with Supervisor Basis)
+  // 16. [Support] Admin Desk Alert on New Ticket
+  {
+    id: 'support_admin_new_ticket',
+    number: 16,
+    category: 'Support',
+    title: 'Admin Desk Alert: New Ticket Created',
+    description: 'Real-time dispatch to Super Admin & Desk whenever an investor submits a ticket.',
+    badgeColor: 'garnet',
+    defaultRecipient: 'support@arthadvisory.com',
+    generateSample: (_email = 'support@arthadvisory.com') => buildAdminNewTicketAlertEmail({
+      userName: 'Vikramaditya Singhania',
+      userEmail: 'investor@example.com',
+      ticketId: 'TCK-8924',
+      subject: 'Clarification regarding Dixon Technologies position sizing',
+      category: 'Model Portfolio Advisory',
+      priority: 'HIGH',
+      messageSnippet: 'Could you advise if I should execute the Dixon allocation in tranches or as a single bulk order at current market depth?',
+      adminPortalUrl: `${typeof window !== 'undefined' ? window.location.origin : 'https://arthresearch.com'}/admin/support`
+    })
+  },
+
+  // 17. [Support] Admin Desk Alert on Client Reply
+  {
+    id: 'support_admin_client_reply',
+    number: 17,
+    category: 'Support',
+    title: 'Admin Desk Alert: Client Reply Received',
+    description: 'Real-time alert when investor adds a comment or response to their support thread.',
+    badgeColor: 'sapphire',
+    defaultRecipient: 'support@arthadvisory.com',
+    generateSample: (_email = 'support@arthadvisory.com') => buildAdminUserReplyAlertEmail({
+      userName: 'Vikramaditya Singhania',
+      userEmail: 'investor@example.com',
+      ticketId: 'TCK-8924',
+      subject: 'Clarification regarding Dixon Technologies position sizing',
+      replySnippet: 'Understood. I will execute the 60% tranche at market open tomorrow. Thank you!',
+      adminPortalUrl: `${typeof window !== 'undefined' ? window.location.origin : 'https://arthresearch.com'}/admin/support`
+    })
+  },
+
+  // 18. [Support] Ticket Status Update Notification
+  {
+    id: 'support_status_update',
+    number: 18,
+    category: 'Support',
+    title: 'Ticket Status Update Notification',
+    description: 'Notifies client when ticket status is changed to In Progress, Resolved, or Closed.',
+    badgeColor: 'emerald',
+    defaultRecipient: 'investor@example.com',
+    generateSample: (_email = 'investor@example.com') => buildTicketStatusUpdateEmail({
+      userName: 'Vikramaditya Singhania',
+      ticketId: 'TCK-8924',
+      subject: 'Clarification regarding Dixon Technologies position sizing',
+      status: 'resolved',
+      analystRemarks: 'All advisory questions clarified. Execution tranches confirmed.',
+      ticketUrl: `${typeof window !== 'undefined' ? window.location.origin : 'https://arthresearch.com'}/support`
+    })
+  },
+
+  // 19. [Governance] Account Access Revoked (with Supervisor Basis)
   {
     id: 'governance_account_revoked',
-    number: 16,
+    number: 19,
     category: 'Governance',
     title: 'Account Access Revoked (with Supervisor Basis)',
     description: 'Mandatory compliance notice containing the exact supervisory reason and appeal protocol.',
@@ -357,10 +422,10 @@ export const EMAIL_TEMPLATES_CATALOG: EmailTemplateDefinition[] = [
     })
   },
 
-  // 17. [Governance] Account Reactivated Notice
+  // 20. [Governance] Account Reactivated Notice
   {
     id: 'governance_account_reactivated',
-    number: 17,
+    number: 20,
     category: 'Governance',
     title: 'Account Reactivated Notice',
     description: 'Notice that account access and quantitative data streams have been restored.',
@@ -375,3 +440,4 @@ export const EMAIL_TEMPLATES_CATALOG: EmailTemplateDefinition[] = [
     })
   }
 ];
+

@@ -14,6 +14,9 @@ import {
   buildMonthlyDigestEmail,
   buildTicketLoggedEmail,
   buildAnalystReplyEmail,
+  buildAdminNewTicketAlertEmail,
+  buildAdminUserReplyAlertEmail,
+  buildTicketStatusUpdateEmail,
   buildAccountRevokedEmail,
   buildAccountReactivatedEmail,
   type WelcomeEmailData,
@@ -31,6 +34,9 @@ import {
   type MonthlyDigestEmailData,
   type TicketLoggedEmailData,
   type AnalystReplyEmailData,
+  type AdminNewTicketAlertEmailData,
+  type AdminUserReplyAlertEmailData,
+  type TicketStatusUpdateEmailData,
   type AccountRevokedEmailData,
   type AccountReactivatedEmailData
 } from '../templates/emails';
@@ -66,22 +72,31 @@ export interface EmailAuditLogEntry {
 }
 
 const AUDIT_STORAGE_KEY = 'arth_email_audit_logs';
-const DEDUPLICATION_WINDOW_MS = 10000; // 10 seconds deduplication lock
+const DEDUPLICATION_WINDOW_MS = 2000; // 2 seconds safety window for duplicate button double-clicks
 const dispatchCache = new Map<string, { timestamp: number; promise: Promise<any> }>();
 
 export const emailService = {
   /**
+   * Return configured admin or advisory desk email
+   */
+  getAdminEmail(): string {
+    return import.meta.env.VITE_ADMIN_EMAIL || 'support@arthadvisory.com';
+  },
+
+  /**
    * Raw dispatch method sending HTML email through backend serverless API
-   * Enforces a 10-second deduplication lock per recipient and email template
+   * Prevents accidental double-clicks using precise per-payload cache key
    */
   async sendEmail(payload: EmailDispatchPayload): Promise<{ success: boolean; mocked?: boolean; messageId?: string; error?: string }> {
-    const cacheKey = `${payload.to.toLowerCase()}_${payload.templateId || payload.subject}`;
+    // Precise cache key including recipient, subject, templateId, and unique content signature
+    const contentSig = (payload.text || payload.html || '').slice(0, 100);
+    const cacheKey = `${payload.to.toLowerCase()}_${payload.templateId || 'custom'}_${payload.subject}_${contentSig}`;
     const now = Date.now();
     const cached = dispatchCache.get(cacheKey);
 
-    // If an identical email dispatch was requested within the deduplication window, return existing promise
+    // If an identical email dispatch was requested within 2 seconds, return existing promise
     if (cached && (now - cached.timestamp) < DEDUPLICATION_WINDOW_MS) {
-      console.warn(`[EmailService] Deduplicating dispatch to ${payload.to} (${payload.templateId || payload.subject})`);
+      console.warn(`[EmailService] Deduplicating identical click dispatch to ${payload.to} (${payload.templateId || payload.subject})`);
       return cached.promise;
     }
 
@@ -242,25 +257,43 @@ export const emailService = {
     return this.sendEmail({ to, subject, html, templateId: 'advisory_monthly_digest' });
   },
 
-  // 14. [Support] Ticket Logged
+  // 14. [Support] Ticket Logged (To Client)
   async sendTicketLoggedEmail(to: string, data: TicketLoggedEmailData) {
     const { subject, html } = buildTicketLoggedEmail(data);
-    return this.sendEmail({ to, subject, html, templateId: 'support_ticket_logged' });
+    return this.sendEmail({ to, subject, html, templateId: `support_ticket_logged_${data.ticketId}` });
   },
 
-  // 15. [Support] Analyst Reply
+  // 15. [Support] Analyst Reply (To Client)
   async sendAnalystReplyEmail(to: string, data: AnalystReplyEmailData) {
     const { subject, html } = buildAnalystReplyEmail(data);
-    return this.sendEmail({ to, subject, html, templateId: 'support_analyst_reply' });
+    return this.sendEmail({ to, subject, html, templateId: `support_analyst_reply_${data.ticketId}` });
   },
 
-  // 16. [Governance] Account Revoked (Mandatory Supervisor Reason)
+  // 16. [Support] Alert to Admin on New Ticket (To Admin Desk)
+  async sendAdminNewTicketAlertEmail(to: string, data: AdminNewTicketAlertEmailData) {
+    const { subject, html } = buildAdminNewTicketAlertEmail(data);
+    return this.sendEmail({ to, subject, html, templateId: `admin_new_ticket_${data.ticketId}` });
+  },
+
+  // 17. [Support] Alert to Admin on Client Reply (To Admin Desk)
+  async sendAdminUserReplyAlertEmail(to: string, data: AdminUserReplyAlertEmailData) {
+    const { subject, html } = buildAdminUserReplyAlertEmail(data);
+    return this.sendEmail({ to, subject, html, templateId: `admin_user_reply_${data.ticketId}` });
+  },
+
+  // 18. [Support] Ticket Status Update Notice (To Client)
+  async sendTicketStatusUpdateEmail(to: string, data: TicketStatusUpdateEmailData) {
+    const { subject, html } = buildTicketStatusUpdateEmail(data);
+    return this.sendEmail({ to, subject, html, templateId: `support_status_update_${data.ticketId}_${data.status}` });
+  },
+
+  // 19. [Governance] Account Revoked (Mandatory Supervisor Reason)
   async sendAccountRevokedEmail(to: string, data: AccountRevokedEmailData) {
     const { subject, html } = buildAccountRevokedEmail(data);
     return this.sendEmail({ to, subject, html, templateId: 'governance_account_revoked' });
   },
 
-  // 17. [Governance] Account Reactivated
+  // 20. [Governance] Account Reactivated
   async sendAccountReactivatedEmail(to: string, data: AccountReactivatedEmailData) {
     const { subject, html } = buildAccountReactivatedEmail(data);
     return this.sendEmail({ to, subject, html, templateId: 'governance_account_reactivated' });

@@ -19,6 +19,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../stores/authStore';
 import { usePortfolioStore } from '../stores/portfolioStore';
 import ThemeToggle from '../components/ThemeToggle';
+import { getTerminalTitle, getDefaultAdminRoute } from '../utils/rbac';
 
 const sidebarNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -32,7 +33,7 @@ const sidebarNavigation = [
 
 export default function UserLayout() {
   const location = useLocation();
-  const { user, dbUser, isAdmin, isInitializing: isAuthLoading, logout } = useAuthStore();
+  const { user, dbUser, isInitializing: isAuthLoading, logout } = useAuthStore();
   const { isLoading: isLoadingPortfolio } = usePortfolioStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -50,6 +51,10 @@ export default function UserLayout() {
   if (!user) {
     return <Navigate to="/login" replace />;
   }
+
+  const role = dbUser?.role || 'user';
+  const terminalTitle = getTerminalTitle(role);
+  const defaultAdminRoute = getDefaultAdminRoute(role);
 
   const isItemActive = (href: string) => {
     if (href === '/dashboard') {
@@ -109,15 +114,15 @@ export default function UserLayout() {
           })}
         </nav>
 
-        {/* User Card & Logout in Sidebar */}
+        {/* User Card & Dynamic Terminal Option in Sidebar */}
         <div className="p-4 border-t border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.4)] space-y-3">
-          {isAdmin && (
+          {terminalTitle && (
             <Link
-              to="/admin/dashboard"
-              className="flex items-center justify-center gap-2 w-full py-2 px-3 rounded-md text-xs font-mono font-semibold bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 transition-all"
+              to={defaultAdminRoute}
+              className="flex items-center justify-center gap-2 w-full py-2 px-3 rounded-md text-xs font-mono font-semibold bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 transition-all shadow-xs"
             >
               <Shield className="h-3.5 w-3.5" />
-              <span>Admin Terminal</span>
+              <span>{terminalTitle}</span>
             </Link>
           )}
 
@@ -246,9 +251,9 @@ export default function UserLayout() {
                   </div>
                 </div>
 
-                {isAdmin && (
+                {terminalTitle && (
                   <Link
-                    to="/admin/dashboard"
+                    to={defaultAdminRoute}
                     onClick={() => setMobileMenuOpen(false)}
                     className="flex items-center justify-center gap-2 w-full py-2.5 px-3 rounded-xl text-xs font-mono font-semibold transition-all"
                     style={{
@@ -258,7 +263,7 @@ export default function UserLayout() {
                     }}
                   >
                     <Shield className="h-3.5 w-3.5" />
-                    <span>Admin Terminal</span>
+                    <span>{terminalTitle}</span>
                   </Link>
                 )}
 
@@ -308,16 +313,16 @@ export default function UserLayout() {
             </div>
           </div>
           
-          {/* Right Action Icons: Admin Terminal Pill, Theme Toggle, Notifications, Avatar */}
+          {/* Right Action Icons: Dynamic Terminal Pill, Theme Toggle, Notifications, Avatar */}
           <div className="flex items-center gap-3">
-            {isAdmin && (
+            {terminalTitle && (
               <Link
-                to="/admin/dashboard"
+                to={defaultAdminRoute}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-mono font-semibold bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 transition-all shadow-xs"
-                title="Return to Admin Governance Terminal"
+                title={`Open ${terminalTitle}`}
               >
                 <Shield className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Admin Terminal</span>
+                <span className="hidden sm:inline">{terminalTitle}</span>
               </Link>
             )}
 

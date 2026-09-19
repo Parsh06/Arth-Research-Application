@@ -171,7 +171,7 @@ erDiagram
 | `email` | `string` | User's Google Account email |
 | `displayName` | `string` | Full name |
 | `photoURL` | `string` (optional) | Profile avatar URL |
-| `role` | `enum` | `'user' \| 'admin' \| 'super_admin' \| 'support' \| 'finance' \| 'research_admin'` |
+| `role` | `enum` | `'user' \| 'admin' \| 'super_admin' \| 'support_admin' \| 'finance' \| 'research_admin'` |
 | `status` | `'active' \| 'suspended'` | Account active state |
 | `emailVerified` | `boolean` | Email verification flag |
 | `createdAt` | `string` (ISO) | Registration timestamp |

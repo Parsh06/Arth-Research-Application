@@ -1,36 +1,17 @@
 import { useState } from 'react';
 import { Link, Outlet, useLocation, Navigate } from 'react-router-dom';
 import {
-  LayoutDashboard,
-  Users,
-  CreditCard,
-  ShieldCheck,
-  Settings,
   LogOut,
-  FileText,
   Menu,
   X,
-  TrendingUp,
-  Headphones,
   PieChart,
-  Mail,
+  ShieldCheck,
   ChevronRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../stores/authStore';
 import ThemeToggle from '../components/ThemeToggle';
-
-const adminNavigation = [
-  { name: 'Terminal Overview', href: '/admin/dashboard', icon: LayoutDashboard },
-  { name: 'User Directory', href: '/admin/users', icon: Users },
-  { name: 'Portfolio Approvals', href: '/admin/approvals', icon: ShieldCheck },
-  { name: 'Advisory Plans', href: '/admin/subscriptions', icon: CreditCard },
-  { name: 'Research Signals', href: '/admin/content', icon: TrendingUp },
-  { name: 'Email Hub', href: '/admin/emails', icon: Mail },
-  { name: 'Support Desk', href: '/admin/support', icon: Headphones },
-  { name: 'CMS & Governance', href: '/admin/cms', icon: FileText },
-  { name: 'Platform Settings', href: '/admin/settings', icon: Settings },
-];
+import { getNavItemsForRole, getTerminalTitle } from '../utils/rbac';
 
 export default function AdminLayout() {
   const location = useLocation();
@@ -52,6 +33,10 @@ export default function AdminLayout() {
     return <Navigate to="/login" replace />;
   }
 
+  const role = dbUser?.role || 'user';
+  const terminalTitle = getTerminalTitle(role) || 'Admin Terminal';
+  const roleNavigation = getNavItemsForRole(role);
+
   return (
     <div className="min-h-screen bg-mesh bg-background text-foreground flex transition-colors duration-300">
 
@@ -63,14 +48,14 @@ export default function AdminLayout() {
               <img src="/logo1.png" alt="Arth Research Logo" className="w-full h-full object-contain" />
             </div>
             <div>
-              <span className="font-semibold text-xs tracking-tight text-foreground block leading-tight">Admin Terminal</span>
-              <span className="text-[10px] font-mono text-primary tracking-widest uppercase">Governance</span>
+              <span className="font-semibold text-xs tracking-tight text-foreground block leading-tight">{terminalTitle}</span>
+              <span className="text-[10px] font-mono text-primary tracking-widest uppercase">{role.replace('_', ' ')}</span>
             </div>
           </div>
         </div>
 
         <nav className="flex-1 px-3 py-5 space-y-0.5 overflow-y-auto">
-          {adminNavigation.map((item) => {
+          {roleNavigation.map((item) => {
             const isActive = location.pathname === item.href || (item.href !== '/admin/dashboard' && location.pathname.startsWith(item.href));
             return (
               <Link
@@ -154,8 +139,8 @@ export default function AdminLayout() {
                     <img src="/logo1.png" alt="Arth Research Logo" className="w-full h-full object-contain" />
                   </div>
                   <div>
-                    <span className="font-semibold text-sm block leading-tight" style={{ color: 'hsl(var(--foreground))' }}>Admin Terminal</span>
-                    <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: 'hsl(var(--primary))' }}>Governance</span>
+                    <span className="font-semibold text-sm block leading-tight" style={{ color: 'hsl(var(--foreground))' }}>{terminalTitle}</span>
+                    <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: 'hsl(var(--primary))' }}>{role.replace('_', ' ')}</span>
                   </div>
                 </div>
                 <button
@@ -170,7 +155,7 @@ export default function AdminLayout() {
 
               {/* Navigation Items */}
               <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto" style={{ backgroundColor: 'hsl(var(--card))' }}>
-                {adminNavigation.map((item) => {
+                {roleNavigation.map((item) => {
                   const isActive = location.pathname === item.href || (item.href !== '/admin/dashboard' && location.pathname.startsWith(item.href));
                   return (
                     <Link
@@ -263,7 +248,7 @@ export default function AdminLayout() {
             </button>
             <div>
               <h1 className="text-sm font-display font-semibold text-foreground capitalize tracking-wide">
-                {location.pathname.split('/').pop()?.replace('-', ' ') || 'Admin Dashboard'}
+                {location.pathname.split('/').pop()?.replace('-', ' ') || 'Dashboard'}
               </h1>
             </div>
           </div>
@@ -280,7 +265,7 @@ export default function AdminLayout() {
 
             <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-xl border border-primary/30 bg-primary/10 text-primary text-[11px] font-mono uppercase tracking-wider">
               <ShieldCheck className="w-3.5 h-3.5" />
-              <span>{dbUser?.role || 'super_admin'}</span>
+              <span>{role.replace('_', ' ')}</span>
             </div>
 
             <ThemeToggle />

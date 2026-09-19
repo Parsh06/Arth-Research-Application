@@ -3,8 +3,9 @@ import { type User as FirebaseUser, signInWithPopup, GoogleAuthProvider, signOut
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 import { portfolioRepository } from '../repositories/portfolioRepository';
+import { SubscriptionStatus } from '../types/models';
 
-import { SubscriptionStatus, Role } from '../types/models';
+const ADMIN_ROLES = ['super_admin', 'admin', 'research_admin', 'support_admin'];
 
 interface AuthState {
   user: FirebaseUser | null;
@@ -69,19 +70,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         }
       }
 
-      // Trigger Security Login Alert
-      if (user.email) {
-        import('../services/emailService').then(({ emailService }) => {
-          emailService.sendSecurityAlertEmail(user.email!, {
-            userName: user.displayName || dbUser?.displayName || 'Client',
-            userEmail: user.email!,
-            device: navigator.userAgent || 'Web Browser',
-            ipAddress: 'Authorized Client Session',
-            location: 'India Standard Time',
-            timestamp: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) + ' IST'
-          }).catch(e => console.warn('[AuthStore] Security email error:', e));
-        });
-      }
+
 
       if (dbUser?.theme) {
         import('./themeStore').then(({ useThemeStore }) => {
@@ -89,10 +78,13 @@ export const useAuthStore = create<AuthState>((set) => ({
         });
       }
 
+      const role = dbUser?.role?.toLowerCase() || 'user';
+      const isAdminUser = ADMIN_ROLES.includes(role);
+
       set({ 
         user, 
         dbUser, 
-        isAdmin: dbUser?.role === 'admin' || dbUser?.role === Role.SUPER_ADMIN 
+        isAdmin: isAdminUser 
       });
     } catch (error) {
       console.error("Login failed:", error);
@@ -146,7 +138,16 @@ export const useAuthStore = create<AuthState>((set) => ({
             }
           }
 
-          set({ user, dbUser, isAdmin: dbUser?.role === 'admin' || dbUser?.role === Role.SUPER_ADMIN, subscriptionStatus: subStatus, isInitializing: false });
+          const role = dbUser?.role?.toLowerCase() || 'user';
+          const isAdminUser = ADMIN_ROLES.includes(role);
+
+          set({ 
+            user, 
+            dbUser, 
+            isAdmin: isAdminUser, 
+            subscriptionStatus: subStatus, 
+            isInitializing: false 
+          });
         } catch (err) {
           console.error("Auth listener error", err);
           set({ isInitializing: false });
