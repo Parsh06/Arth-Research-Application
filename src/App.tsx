@@ -39,9 +39,8 @@ const WatchlistPage = lazy(() => import('./pages/WatchlistPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
 const PageLoader = () => (
-  <div className="min-h-screen bg-slate-50 dark:bg-[#090D16] flex flex-col items-center justify-center gap-3 transition-colors duration-200">
-    <div className="w-10 h-10 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
-    <span className="text-[11px] font-semibold tracking-widest text-slate-400 uppercase">Loading Module...</span>
+  <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-3 transition-colors duration-200">
+    <div className="w-8 h-8 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
   </div>
 );
 

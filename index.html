@@ -1,39 +1,179 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <meta name="theme-color" content="#FFDF00" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="theme-color" content="#06090F" />
+    <meta name="color-scheme" content="dark light" />
     
-    <!-- SEO Meta Tags -->
-    <title>Arth Research For Wealth Management</title>
-    <meta name="description" content="Institutional-grade algorithmic trading systems. Engineered for precision, built for scale, designed for those who demand absolute performance." />
-    <meta name="keywords" content="algorithmic trading, wealth management, finance, quantitative analysis, stocks, nifty50" />
-    
-    <!-- Open Graph / Facebook / LinkedIn -->
+    <!-- Primary SEO Meta Tags -->
+    <title>Arth Research | Institutional Quantitative Equities Advisory & Wealth Management</title>
+    <meta name="title" content="Arth Research | Institutional Quantitative Equities Advisory & Wealth Management" />
+    <meta name="description" content="India's premier quantitative equities research and factor investing advisory. Institutional-grade alpha models, dynamic risk parity, real-time market signals, and 100% non-custodial capital protection in your verified broker Demat." />
+    <meta name="keywords" content="Arth Research, quantitative research analyst, SEBI research analyst, quant trading India, quantitative advisory, factor investing, momentum portfolio, non-custodial wealth management, stock recommendations, risk parity, Nifty 50 alpha, Parsh Jain, algorithmic trading systems, portfolio rebalancing" />
+    <meta name="author" content="Arth Research Quantitative Advisory Desk" />
+    <meta name="publisher" content="Arth Research" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+    <meta name="bingbot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+    <link rel="canonical" href="https://arthresearch.web.app/" />
+
+    <!-- Geo & Regional Meta Tags -->
+    <meta name="geo.region" content="IN" />
+    <meta name="geo.placename" content="India" />
+    <meta name="geo.position" content="28.6139;77.2090" />
+    <meta name="ICBM" content="28.6139, 77.2090" />
+    <meta name="rating" content="general" />
+    <meta name="distribution" content="global" />
+    <meta name="revisit-after" content="1 days" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- Open Graph / Facebook / LinkedIn / WhatsApp Preview -->
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="Arth Research | Algorithmic Wealth Management" />
-    <meta property="og:description" content="Institutional-grade algorithmic trading systems. Engineered for precision, built for scale." />
-    <meta property="og:image" content="/og-image.png" />
-    
-    <!-- Twitter -->
+    <meta property="og:url" content="https://arthresearch.web.app/" />
+    <meta property="og:site_name" content="Arth Research" />
+    <meta property="og:title" content="Arth Research | Quantitative Equities Advisory & Wealth Management" />
+    <meta property="og:description" content="Institutional-grade quantitative factor models, real-time research signals, and 100% non-custodial capital safety in your personal broker Demat." />
+    <meta property="og:image" content="https://arthresearch.web.app/og-image.png" />
+    <meta property="og:image:secure_url" content="https://arthresearch.web.app/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Arth Research Quantitative Equities Advisory Terminal" />
+    <meta property="og:locale" content="en_IN" />
+    <meta property="og:locale:alternate" content="en_US" />
+
+    <!-- Twitter / X Card Preview -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Arth Research | Algorithmic Wealth Management" />
-    <meta name="twitter:description" content="Institutional-grade algorithmic trading systems." />
-    <meta name="twitter:image" content="/og-image.png" />
-    
+    <meta name="twitter:url" content="https://arthresearch.web.app/" />
+    <meta name="twitter:site" content="@arthresearch" />
+    <meta name="twitter:creator" content="@arthresearch" />
+    <meta name="twitter:title" content="Arth Research | Quantitative Equities Advisory & Wealth Management" />
+    <meta name="twitter:description" content="Disciplined quantitative factor strategies, dynamic risk parity allocations, and non-custodial portfolio advisory for serious investors." />
+    <meta name="twitter:image" content="https://arthresearch.web.app/og-image.png" />
+    <meta name="twitter:image:alt" content="Arth Research Quantitative Equities Advisory Terminal" />
+
+    <!-- Mobile & PWA Web App Capabilities -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Arth Research" />
+    <meta name="application-name" content="Arth Research" />
+    <meta name="msapplication-TileColor" content="#06090F" />
+    <meta name="msapplication-TileImage" content="/logo1.png" />
+
+    <!-- DNS Prefetch & Preconnect for High-Speed Performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="dns-prefetch" href="https://firestore.googleapis.com" />
+    <link rel="dns-prefetch" href="https://identitytoolkit.googleapis.com" />
+
     <!-- Google Fonts for Design System v2 -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..800;1,9..144,400..700&family=Geist+Mono:wght@300;400;500;600;700&family=Geist:wght@300;400;500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..800;1,9..144,400..700&family=Geist+Mono:wght@300;400;500;600;700&family=Geist:wght@300;400;500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&display=swap" rel="stylesheet" />
     
-    <!-- Icons & PWA -->
+    <!-- Icons & Manifest -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" href="/logo1.png" />
     <link rel="apple-touch-icon" href="/logo1.png" />
     <link rel="manifest" href="/manifest.json" />
+
+    <!-- JSON-LD Structured Data Schema for Google Search Rich Results -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "FinancialService",
+          "@id": "https://arthresearch.web.app/#organization",
+          "name": "Arth Research",
+          "alternateName": "Arth Research Quantitative Advisory",
+          "url": "https://arthresearch.web.app/",
+          "logo": "https://arthresearch.web.app/logo1.png",
+          "image": "https://arthresearch.web.app/og-image.png",
+          "description": "SEBI-compliant quantitative equities research, algorithmic portfolio advisory, multi-factor models, and 100% non-custodial wealth management.",
+          "areaServed": [
+            {
+              "@type": "Country",
+              "name": "India"
+            }
+          ],
+          "serviceType": [
+            "Quantitative Equities Research",
+            "Multi-Factor Portfolio Advisory",
+            "Algorithmic Risk Parity Models",
+            "Non-Custodial Wealth Advisory",
+            "Real-Time Research Signals"
+          ],
+          "currenciesAccepted": "INR",
+          "paymentAccepted": "UPI, Credit Card, Debit Card, Net Banking"
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://arthresearch.web.app/#website",
+          "url": "https://arthresearch.web.app/",
+          "name": "Arth Research",
+          "description": "Institutional-grade quantitative equities advisory and factor research platform.",
+          "publisher": {
+            "@id": "https://arthresearch.web.app/#organization"
+          }
+        },
+        {
+          "@type": "WebApplication",
+          "@id": "https://arthresearch.web.app/#webapp",
+          "name": "Arth Research Advisory Terminal",
+          "url": "https://arthresearch.web.app/",
+          "applicationCategory": "FinanceApplication",
+          "operatingSystem": "All modern web browsers (Chrome, Edge, Safari, Firefox, Opera)",
+          "browserRequirements": "Requires JavaScript. Requires HTML5.",
+          "offers": {
+            "@type": "AggregateOffer",
+            "priceCurrency": "INR",
+            "lowPrice": "0",
+            "offerCount": "3"
+          }
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://arthresearch.web.app/#faq",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "What is Arth Research?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Arth Research is an institutional-grade quantitative equities research advisory platform that builds disciplined factor models and risk parity strategies for individual and institutional investors in India."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is my capital non-custodial and safe?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes, 100%. Arth Research never holds or pools your capital. All trades and portfolio allocations are executed directly within your personal verified broker Demat account."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How do quantitative research recommendations work?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Subscribed members receive real-time research signals with target entry prices, stop-loss benchmarks, factor conviction ratings, and risk-weighted rebalancing allocations directly on their advisory terminal."
+              }
+            }
+          ]
+        }
+      ]
+    }
+    </script>
   </head>
-  <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
+  <body class="bg-[#06090F] text-[#F0F4F8] antialiased selection:bg-[#D4AF37]/30 selection:text-[#FFFDF5]">
+    <noscript>
+      <div style="padding: 24px; text-align: center; background-color: #06090F; color: #F0F4F8; font-family: sans-serif;">
+        <h2>JavaScript Required</h2>
+        <p>You need to enable JavaScript to experience the Arth Research Quantitative Advisory Terminal.</p>
+      </div>
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

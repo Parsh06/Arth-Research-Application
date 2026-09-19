@@ -18,14 +18,7 @@ export default function AuthGuard({
   const location = useLocation();
 
   if (isInitializing) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mb-3"></div>
-        <div className="text-xs font-mono tracking-wider text-muted-foreground uppercase">
-          Initializing Session...
-        </div>
-      </div>
-    );
+    return null;
   }
 
   // 1. Check if user account is suspended or revoked by Super Admin

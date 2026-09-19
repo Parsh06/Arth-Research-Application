@@ -1,15 +1,19 @@
 {
   "short_name": "Arth Research",
-  "name": "Arth Research - Algorithmic Wealth Management",
+  "name": "Arth Research - Quantitative Equities & Wealth Advisory",
+  "description": "Institutional-grade quantitative equities research, factor models, and non-custodial advisory.",
   "icons": [
     {
       "src": "/logo1.png",
       "sizes": "192x192 512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ],
   "start_url": "/",
   "display": "standalone",
-  "theme_color": "#FFDF00",
-  "background_color": "#0f172a"
+  "orientation": "portrait-primary",
+  "theme_color": "#06090F",
+  "background_color": "#06090F",
+  "categories": ["finance", "business", "productivity"]
 }
