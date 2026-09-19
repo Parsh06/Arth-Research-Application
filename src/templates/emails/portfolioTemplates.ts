@@ -26,25 +26,29 @@ export interface HoldingsSubmittedEmailData {
 }
 
 export function buildHoldingsSubmittedEmail(data: any): { subject: string; html: string } {
-  const portalUrl = data.portalUrl || 'https://arthresearch.com/portfolio-pending';
+  const portalUrl = data.portalUrl || 'https://arthresearch.web.app/portfolio-pending';
   const planName = data.mandateName || data.planName || 'Institutional Strategy';
-  const holdingsList = data.holdingsList || [
-    { ticker: 'RELIANCE', quantity: 25, avgPriceFormatted: '₹2,980.00', totalValueFormatted: '₹74,500.00' },
-    { ticker: 'TCS', quantity: 15, avgPriceFormatted: '₹4,250.00', totalValueFormatted: '₹63,750.00' },
-    { ticker: 'HDFCBANK', quantity: 40, avgPriceFormatted: '₹1,660.00', totalValueFormatted: '₹66,400.00' }
-  ];
-  const totalInvestmentFormatted = data.totalPortfolioValue || data.totalInvestmentFormatted || '₹84,50,000.00';
+  const holdingsList: HoldingEntryItem[] = (data.holdingsList && data.holdingsList.length > 0)
+    ? data.holdingsList
+    : [];
+  const totalInvestmentFormatted = data.totalPortfolioValue || data.totalInvestmentFormatted || '₹0.00';
   const holdingsCount = data.totalHoldingsCount || data.holdingsCount || holdingsList.length;
   const portfolioId = data.portfolioId || 'PORT-SUBMITTED';
 
-  const holdingsRows = holdingsList.slice(0, 6).map((h: any, i: number) => `
+  const holdingsRows = holdingsList.length > 0 ? holdingsList.map((h: any, i: number) => `
     <tr style="border-bottom: 1px solid #1E293B; ${i % 2 === 1 ? 'background-color: #0E1420;' : ''}">
       <td style="padding: 8px 12px; font-family: 'Courier New', monospace; font-size: 11px; font-weight: 700; color: #F8FAFC;">${h.ticker || h.symbol}</td>
       <td style="padding: 8px 12px; font-family: 'Courier New', monospace; font-size: 11px; color: #CBD5E1; text-align: right;">${h.quantity}</td>
       <td style="padding: 8px 12px; font-family: 'Courier New', monospace; font-size: 11px; color: #94A3B8; text-align: right;">${h.avgPriceFormatted || h.buyPrice || '₹1,000.00'}</td>
-      <td style="padding: 8px 12px; font-family: 'Courier New', monospace; font-size: 11px; font-weight: 600; color: #C6A15B; text-align: right;">${h.totalValueFormatted || '₹25,000.00'}</td>
+      <td style="padding: 8px 12px; font-family: 'Courier New', monospace; font-size: 11px; font-weight: 600; color: #C6A15B; text-align: right;">${h.totalValueFormatted || '₹0.00'}</td>
     </tr>
-  `).join('');
+  `).join('') : `
+    <tr>
+      <td colspan="4" style="padding: 12px; text-align: center; color: #94A3B8; font-family: 'Courier New', monospace; font-size: 11px;">
+        ${holdingsCount} Holdings Logged for Clearance
+      </td>
+    </tr>
+  `;
 
   const bodyHtml = `
     <p style="margin-top: 0;">Dear <strong style="color: #F8FAFC;">${data.userName}</strong>,</p>

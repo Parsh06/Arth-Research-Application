@@ -201,16 +201,24 @@ export default function InvestmentEntryPage() {
         });
       }
 
-      // Dispatch Holdings Submitted Confirmation Email
+      // Dispatch Holdings Submitted Confirmation Email with actual submitted holdings
       if (user.email) {
         import('../services/emailService').then(({ emailService }) => {
           import('../utils/money').then(({ formatINR }) => {
+            const formattedTotal = formatINR(calculateTotalInvestmentMinor());
             emailService.sendHoldingsSubmittedEmail(user.email!, {
               userName: user.displayName || 'Valued Investor',
               mandateName: activePlan?.name || 'Institutional Advisory Mandate',
               submissionDate: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) + ' IST',
               totalHoldingsCount: formattedHoldings.length,
-              totalPortfolioValue: formatINR(calculateTotalInvestmentMinor()),
+              totalPortfolioValue: formattedTotal,
+              totalInvestmentFormatted: formattedTotal,
+              holdingsList: formattedHoldings.map(h => ({
+                ticker: h.symbol,
+                quantity: h.quantity,
+                avgPriceFormatted: formatINR(h.buyPriceMinor),
+                totalValueFormatted: formatINR(h.quantity * h.buyPriceMinor)
+              })),
               portalUrl: window.location.origin + '/portfolio-pending'
             }).catch(e => console.warn('[InvestmentEntryPage] Holdings email error:', e));
           });
