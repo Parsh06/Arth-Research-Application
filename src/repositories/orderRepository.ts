@@ -112,6 +112,7 @@ export const orderRepository = {
       userEmail?: string;
       userName?: string;
       userPhone?: string;
+      // Instrument
       paymentMode?: string;
       paymentMethod?: string;
       bank?: string;
@@ -119,6 +120,21 @@ export const orderRepository = {
       vpa?: string;
       cardNetwork?: string;
       cardLast4?: string;
+      cardName?: string;
+      cardIssuer?: string;
+      cardType?: string;
+      cardSubType?: string;
+      cardInternational?: boolean;
+      emiDuration?: number;
+      international?: boolean;
+      // Razorpay gateway fees
+      razorpayFeeMinor?: number;
+      razorpayTaxMinor?: number;
+      // Acquirer telemetry
+      acquirerAuthCode?: string;
+      acquirerBankTxnId?: string;
+      acquirerRrn?: string;
+      acquirerUpiTxnId?: string;
     }
   ): Promise<{ paymentId: string; subscriptionId: string }> {
     const now = new Date().toISOString();
@@ -148,6 +164,19 @@ export const orderRepository = {
       vpa: paymentDetails.vpa || '',
       cardNetwork: paymentDetails.cardNetwork || '',
       cardLast4: paymentDetails.cardLast4 || '',
+      cardName: paymentDetails.cardName || '',
+      cardIssuer: paymentDetails.cardIssuer || '',
+      cardType: paymentDetails.cardType || '',
+      cardSubType: paymentDetails.cardSubType || '',
+      cardInternational: paymentDetails.cardInternational || false,
+      emiDuration: paymentDetails.emiDuration || null,
+      international: paymentDetails.international || false,
+      razorpayFeeMinor: paymentDetails.razorpayFeeMinor || 0,
+      razorpayTaxMinor: paymentDetails.razorpayTaxMinor || 0,
+      acquirerAuthCode: paymentDetails.acquirerAuthCode || '',
+      acquirerBankTxnId: paymentDetails.acquirerBankTxnId || '',
+      acquirerRrn: paymentDetails.acquirerRrn || '',
+      acquirerUpiTxnId: paymentDetails.acquirerUpiTxnId || '',
       status: 'captured',
       paidAt: now,
       createdAt: now
@@ -171,10 +200,24 @@ export const orderRepository = {
       vpa: paymentDetails.vpa || '',
       cardNetwork: paymentDetails.cardNetwork || '',
       cardLast4: paymentDetails.cardLast4 || '',
+      cardName: paymentDetails.cardName || '',
+      cardIssuer: paymentDetails.cardIssuer || '',
+      cardType: paymentDetails.cardType || '',
+      cardSubType: paymentDetails.cardSubType || '',
+      cardInternational: paymentDetails.cardInternational || false,
+      emiDuration: paymentDetails.emiDuration || null,
+      international: paymentDetails.international || false,
+      razorpayFeeMinor: paymentDetails.razorpayFeeMinor || 0,
+      razorpayTaxMinor: paymentDetails.razorpayTaxMinor || 0,
+      acquirerAuthCode: paymentDetails.acquirerAuthCode || '',
+      acquirerBankTxnId: paymentDetails.acquirerBankTxnId || '',
+      acquirerRrn: paymentDetails.acquirerRrn || '',
+      acquirerUpiTxnId: paymentDetails.acquirerUpiTxnId || '',
       paidAt: now,
       updatedAt: now
     };
     batch.update(orderRef, sanitizeForFirestore(orderUpdatePayload));
+
 
     // 3. Create Subscription Record
     const subscriptionRef = doc(collection(db, COLLECTION_SUBSCRIPTIONS));
@@ -313,5 +356,55 @@ export const orderRepository = {
       console.error('[orderRepository] Realtime orders listener error:', err);
       callback([]);
     });
+  },
+
+  /**
+   * Atomically marks an order and its associated payment record as refunded.
+   * Called after a successful Razorpay refund API call.
+   */
+  async markOrderRefunded(
+    orderId: string,
+    gatewayPaymentId: string,
+    refundDetails: {
+      refundId: string;
+      refundAmountMinor: number;
+      refundStatus: 'pending' | 'processed' | 'failed';
+    }
+  ): Promise<void> {
+    const now = new Date().toISOString();
+    const batch = writeBatch(db);
+
+    // 1. Update the Order document
+    const orderRef = doc(db, COLLECTION_ORDERS, orderId);
+    batch.update(orderRef, sanitizeForFirestore({
+      status: 'refunded',
+      refundId: refundDetails.refundId,
+      refundAmountMinor: refundDetails.refundAmountMinor,
+      refundStatus: refundDetails.refundStatus,
+      refundedAt: now,
+      updatedAt: now
+    }));
+
+    // 2. Update the Payment document (find by gatewayPaymentId)
+    try {
+      const paymentsQ = query(
+        collection(db, COLLECTION_PAYMENTS),
+        where('gatewayPaymentId', '==', gatewayPaymentId)
+      );
+      const paymentSnap = await getDocs(paymentsQ);
+      paymentSnap.docs.forEach(payDoc => {
+        batch.update(payDoc.ref, sanitizeForFirestore({
+          status: 'refunded',
+          refundId: refundDetails.refundId,
+          refundAmountMinor: refundDetails.refundAmountMinor,
+          refundStatus: refundDetails.refundStatus,
+          refundedAt: now
+        }));
+      });
+    } catch (err) {
+      console.warn('[orderRepository] Could not update payment record during refund:', err);
+    }
+
+    await batch.commit();
   }
 };

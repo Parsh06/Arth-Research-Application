@@ -12,13 +12,61 @@ import {
   Check, 
   ExternalLink, 
   X,
-  Phone
+  Phone,
+  RotateCcw,
+  ShieldAlert
 } from 'lucide-react';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { orderRepository } from '../../repositories/orderRepository';
 import type { Order } from '../../schemas/subscription.schema';
 import { formatINR } from '../../utils/money';
 import { downloadInvoicePdf } from '../../utils/invoicePdfGenerator';
+import { paymentService } from '../../services/paymentService';
+import { useToastStore } from '../../stores/toastStore';
+
+// ─── AuditCell ─────────────────────────────────────────────────────────────────
+// Reusable cell for the audit modal — renders a labelled field with copy support
+interface AuditCellProps {
+  label: string;
+  value: string;
+  bold?: boolean;
+  accent?: boolean;
+  breakAll?: boolean;
+  copyable?: boolean;
+  monospace?: boolean;
+  wide?: boolean;
+}
+
+function AuditCell({ label, value, bold, accent, breakAll, copyable, monospace, wide }: AuditCellProps) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(value).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    });
+  }, [value]);
+
+  return (
+    <div className={`bg-slate-100 dark:bg-[#121926] border border-slate-200 dark:border-white/10 p-3 rounded-xl space-y-0.5 shadow-2xs ${wide ? 'sm:col-span-2' : ''}`}>
+      <div className="flex items-center justify-between gap-1">
+        <span className="text-[9px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider">{label}</span>
+        {copyable && value && value !== 'N/A' && (
+          <button
+            onClick={handleCopy}
+            className="text-slate-400 hover:text-primary transition-colors cursor-pointer"
+            title="Copy"
+          >
+            {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+          </button>
+        )}
+      </div>
+      <span className={`block text-[11px] ${bold ? 'font-bold' : 'font-semibold'} ${accent ? 'text-primary' : 'text-slate-900 dark:text-slate-100'} ${breakAll ? 'break-all' : 'truncate'} ${monospace ? 'font-mono' : ''}`}>
+        {value}
+      </span>
+    </div>
+  );
+}
 
 export default function AdminPayments() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -29,6 +77,12 @@ export default function AdminPayments() {
   const [sortBy, setSortBy] = useState<'date_desc' | 'date_asc' | 'amount_desc' | 'amount_asc'>('date_desc');
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+
+  // Refund state
+  const [refundOrder, setRefundOrder] = useState<Order | null>(null);
+  const [refundReason, setRefundReason] = useState<'duplicate' | 'fraudulent' | 'order_change' | 'customer_request' | 'other'>('customer_request');
+  const [isRefunding, setIsRefunding] = useState(false);
+  const { addToast } = useToastStore();
 
   useEffect(() => {
     setIsLoading(true);
@@ -44,6 +98,46 @@ export default function AdminPayments() {
     navigator.clipboard.writeText(text);
     setCopiedField(fieldId);
     setTimeout(() => setCopiedField(null), 2000);
+  };
+
+  /**
+   * Initiates a refund via Razorpay backend, then marks the order as refunded in Firestore.
+   */
+  const handleRefund = async (order: Order) => {
+    if (!order.gatewayPaymentId) {
+      addToast('No gateway payment ID found — cannot initiate refund.', 'error');
+      return;
+    }
+    setIsRefunding(true);
+    try {
+      const result = await paymentService.initiateRefund({
+        paymentId: order.gatewayPaymentId,
+        reason: refundReason
+      });
+
+      if (result.success && result.refundId) {
+        // Mark refunded in Firestore atomically
+        await orderRepository.markOrderRefunded(
+          order.id,
+          order.gatewayPaymentId,
+          {
+            refundId: result.refundId,
+            refundAmountMinor: result.amountMinor ?? order.totalMinor ?? 0,
+            refundStatus: (result.status === 'processed' ? 'processed' : 'pending') as 'pending' | 'processed' | 'failed'
+          }
+        );
+        addToast(`Refund initiated successfully. Refund ID: ${result.refundId}`, 'success');
+        setRefundOrder(null);
+        setSelectedOrder(null);
+      } else {
+        addToast(result.error || 'Refund failed. Check gateway console.', 'error');
+      }
+    } catch (err: any) {
+      console.error('[AdminPayments] handleRefund error:', err);
+      addToast(err.message || 'An unexpected error occurred during refund.', 'error');
+    } finally {
+      setIsRefunding(false);
+    }
   };
 
   // Extract distinct plan names for filter
@@ -665,112 +759,232 @@ export default function AdminPayments() {
                 </div>
               ) : null}
 
-              {/* Detail Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-mono">
-                <div className="bg-slate-100 dark:bg-[#121926] border border-slate-200 dark:border-white/10 p-3.5 rounded-xl space-y-1 shadow-2xs">
-                  <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider block">Investor Name</span>
-                  <span className="font-bold text-slate-900 dark:text-slate-100 text-xs">{selectedOrder.userName || 'Investor'}</span>
+              {/* ── SECTION 1: Investor Details ─────────────────────────────── */}
+              <div className="space-y-2">
+                <h4 className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-primary/30 border border-primary/40 inline-block" />
+                  Investor Details
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs font-mono">
+                  <AuditCell label="Investor Name" value={selectedOrder.userName || 'Investor'} bold />
+                  <AuditCell label="Investor Email" value={selectedOrder.userEmail || 'N/A'} breakAll />
+                  <AuditCell label="Contact / Phone" value={selectedOrder.userPhone || 'Not Provided'} />
+                  <AuditCell label="Strategy Mandate" value={selectedOrder.planName || 'Quant Strategy'} accent />
+                  <AuditCell label="Validity" value={selectedOrder.validityDays ? `${selectedOrder.validityDays} Days` : '30 Days'} />
+                  <AuditCell label="Tax Invoice" value={selectedOrder.invoiceNumber || 'Pending Issuance'} />
                 </div>
+              </div>
 
-                <div className="bg-slate-100 dark:bg-[#121926] border border-slate-200 dark:border-white/10 p-3.5 rounded-xl space-y-1 shadow-2xs">
-                  <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider block">Investor Email</span>
-                  <span className="font-semibold text-slate-900 dark:text-slate-100 text-xs break-all">{selectedOrder.userEmail || 'N/A'}</span>
+              {/* ── SECTION 2: Gateway IDs ────────────────────────────────────── */}
+              <div className="space-y-2">
+                <h4 className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-blue-500/30 border border-blue-500/40 inline-block" />
+                  Gateway Reference IDs
+                </h4>
+                <div className="grid grid-cols-1 gap-2.5 text-xs font-mono">
+                  <AuditCell label="Razorpay Payment ID" value={selectedOrder.gatewayPaymentId || 'N/A'} copyable monospace />
+                  <AuditCell label="Razorpay Order ID" value={selectedOrder.gatewayOrderId || 'N/A'} copyable monospace />
                 </div>
+              </div>
 
-                <div className="bg-slate-100 dark:bg-[#121926] border border-slate-200 dark:border-white/10 p-3.5 rounded-xl space-y-1 shadow-2xs">
-                  <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider block">Investor Phone (Contact)</span>
-                  <span className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5 text-xs">
-                    <Phone className="w-3 h-3 text-primary shrink-0" />
-                    {selectedOrder.userPhone || 'Not Provided'}
-                  </span>
-                </div>
-
-                <div className="bg-slate-100 dark:bg-[#121926] border border-slate-200 dark:border-white/10 p-3.5 rounded-xl space-y-1 shadow-2xs">
-                  <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider block">Strategy Mandate</span>
-                  <span className="font-bold text-primary text-xs">{selectedOrder.planName || 'Quant Strategy'}</span>
-                </div>
-
-                <div className="bg-slate-100 dark:bg-[#121926] border border-slate-200 dark:border-white/10 p-3.5 rounded-xl space-y-1 shadow-2xs">
-                  <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider block">Validity Duration</span>
-                  <span className="font-semibold text-slate-900 dark:text-slate-100 text-xs">{selectedOrder.validityDays ? `${selectedOrder.validityDays} Days` : '30 Days'}</span>
-                </div>
-
-                <div className="bg-slate-100 dark:bg-[#121926] border border-slate-200 dark:border-white/10 p-3.5 rounded-xl space-y-1 shadow-2xs">
-                  <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider block">Payment Mode & Instrument</span>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="px-2 py-0.5 rounded bg-primary/20 text-primary font-bold border border-primary/30 text-[10px] uppercase">
+              {/* ── SECTION 3: Payment Instrument ────────────────────────────── */}
+              <div className="space-y-2">
+                <h4 className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-purple-500/30 border border-purple-500/40 inline-block" />
+                  Payment Instrument
+                </h4>
+                <div className="bg-slate-100 dark:bg-[#121926] border border-slate-200 dark:border-white/10 p-4 rounded-xl space-y-3 shadow-2xs">
+                  {/* Mode badge + method label */}
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <span className={`px-2.5 py-1 rounded-lg font-bold text-[11px] uppercase tracking-wider ${
+                      (selectedOrder.paymentMode || '').includes('CARD')
+                        ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                        : (selectedOrder.paymentMode || '').includes('NET')
+                        ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                        : (selectedOrder.paymentMode || '').includes('WALLET')
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                        : (selectedOrder.paymentMode || '').includes('EMI')
+                        ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                        : 'bg-sky-500/20 text-sky-400 border border-sky-500/30'
+                    }`}>
                       {selectedOrder.paymentMode || 'UPI'}
                     </span>
-                    <span className="text-slate-900 dark:text-slate-100 text-[11px] font-semibold truncate">
+                    <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                       {selectedOrder.paymentMethod || selectedOrder.vpa || 'Direct Payment'}
                     </span>
+                    {(selectedOrder as any).international && (
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-orange-500/15 text-orange-400 border border-orange-500/25">
+                        International
+                      </span>
+                    )}
                   </div>
+
+                  {/* UPI specific */}
                   {selectedOrder.vpa && (
-                    <span className="text-[10px] text-slate-600 dark:text-slate-400 block mt-0.5">VPA: {selectedOrder.vpa}</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
+                      <AuditCell label="UPI VPA / Handle" value={selectedOrder.vpa} copyable />
+                      {(selectedOrder as any).acquirerUpiTxnId && (
+                        <AuditCell label="UPI Transaction ID" value={(selectedOrder as any).acquirerUpiTxnId} copyable monospace />
+                      )}
+                    </div>
                   )}
+
+                  {/* Card specific */}
                   {selectedOrder.cardLast4 && (
-                    <span className="text-[10px] text-slate-600 dark:text-slate-400 block mt-0.5">Card: •••• {selectedOrder.cardLast4} ({selectedOrder.cardNetwork || 'Card'})</span>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs font-mono">
+                      <AuditCell label="Card Network" value={selectedOrder.cardNetwork || 'N/A'} />
+                      <AuditCell label="Last 4 Digits" value={`•••• ${selectedOrder.cardLast4}`} />
+                      {(selectedOrder as any).cardType && (
+                        <AuditCell label="Card Type" value={(selectedOrder as any).cardType} />
+                      )}
+                      {(selectedOrder as any).cardIssuer && (
+                        <AuditCell label="Issuing Bank" value={(selectedOrder as any).cardIssuer} />
+                      )}
+                      {(selectedOrder as any).cardName && (
+                        <AuditCell label="Card Holder" value={(selectedOrder as any).cardName} />
+                      )}
+                      {(selectedOrder as any).cardSubType && (
+                        <AuditCell label="Card Sub-Type" value={(selectedOrder as any).cardSubType} />
+                      )}
+                    </div>
                   )}
-                  {selectedOrder.bank && (
-                    <span className="text-[10px] text-slate-600 dark:text-slate-400 block mt-0.5">Bank: {selectedOrder.bank}</span>
+
+                  {/* Netbanking specific */}
+                  {selectedOrder.bank && !selectedOrder.cardLast4 && (
+                    <AuditCell label="Bank" value={selectedOrder.bank} />
                   )}
-                </div>
 
-                <div className="bg-slate-100 dark:bg-[#121926] border border-slate-200 dark:border-white/10 p-3.5 rounded-xl space-y-1 shadow-2xs">
-                  <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider block">Tax Invoice Number</span>
-                  <span className="font-semibold text-slate-900 dark:text-slate-100 truncate block text-xs">{selectedOrder.invoiceNumber || 'Pending Issuance'}</span>
-                </div>
+                  {/* Wallet specific */}
+                  {selectedOrder.wallet && (
+                    <AuditCell label="Wallet Provider" value={selectedOrder.wallet} />
+                  )}
 
-                <div className="bg-slate-100 dark:bg-[#121926] border border-slate-200 dark:border-white/10 p-3.5 rounded-xl space-y-1 shadow-2xs">
-                  <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider block">Gateway Payment ID</span>
-                  <span className="font-semibold text-slate-900 dark:text-slate-100 truncate block text-xs">{selectedOrder.gatewayPaymentId || 'N/A'}</span>
-                </div>
-
-                <div className="bg-slate-100 dark:bg-[#121926] border border-slate-200 dark:border-white/10 p-3.5 rounded-xl space-y-1 shadow-2xs sm:col-span-2">
-                  <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider block">Gateway Order ID</span>
-                  <span className="font-semibold text-slate-900 dark:text-slate-100 truncate block text-xs">{selectedOrder.gatewayOrderId || 'N/A'}</span>
+                  {/* EMI specific */}
+                  {(selectedOrder as any).emiDuration && (
+                    <AuditCell label="EMI Duration" value={`${(selectedOrder as any).emiDuration} months`} />
+                  )}
                 </div>
               </div>
 
-              {/* Financial Calculation Breakdown */}
-              <div className="bg-slate-100 dark:bg-[#121926] border border-slate-200 dark:border-white/10 p-4 rounded-xl space-y-2.5 text-xs font-mono shadow-2xs">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-white/10 font-bold text-slate-900 dark:text-slate-100">
-                  <span>Ledger Item</span>
-                  <span>Amount (INR)</span>
-                </div>
-                <div className="flex justify-between text-slate-600 dark:text-slate-400 font-medium">
-                  <span>Base Plan Fee</span>
-                  <span className="text-slate-900 dark:text-slate-200 font-semibold">{formatINR(selectedOrder.priceMinor || 0)}</span>
-                </div>
-                {selectedOrder.discountMinor ? (
-                  <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium">
-                    <span>Voucher Discount</span>
-                    <span>- {formatINR(selectedOrder.discountMinor)}</span>
+              {/* ── SECTION 4: Financial Breakdown ───────────────────────────── */}
+              <div className="space-y-2">
+                <h4 className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-emerald-500/30 border border-emerald-500/40 inline-block" />
+                  Financial Ledger Breakdown
+                </h4>
+                <div className="bg-slate-100 dark:bg-[#121926] border border-slate-200 dark:border-white/10 p-4 rounded-xl space-y-2 text-xs font-mono shadow-2xs">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-white/10 font-bold text-slate-900 dark:text-slate-100 text-[11px]">
+                    <span>Ledger Item</span>
+                    <span>Amount (INR)</span>
                   </div>
-                ) : null}
-                <div className="flex justify-between text-slate-600 dark:text-slate-400 font-medium">
-                  <span>GST (18% Statutory Rate)</span>
-                  <span className="text-slate-900 dark:text-slate-200 font-semibold">{formatINR(selectedOrder.taxMinor || 0)}</span>
-                </div>
-                <div className="flex justify-between text-slate-600 dark:text-slate-400 font-medium">
-                  <span>Payment Gateway Surcharge (3%)</span>
-                  <span className="text-slate-900 dark:text-slate-200 font-semibold">{formatINR(selectedOrder.gatewayFeeMinor || 0)}</span>
-                </div>
-                <div className="flex justify-between pt-2.5 border-t border-slate-200 dark:border-white/10 font-bold text-sm text-slate-900 dark:text-white">
-                  <span>Net Total Amount</span>
-                  <span className="text-primary font-extrabold">{formatINR(selectedOrder.totalMinor || 0)}</span>
+                  <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                    <span>Base Plan Fee</span>
+                    <span className="text-slate-900 dark:text-slate-200 font-semibold">{formatINR(selectedOrder.priceMinor || 0)}</span>
+                  </div>
+                  {(selectedOrder.discountMinor ?? 0) > 0 && (
+                    <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+                      <span>Voucher Discount{selectedOrder.couponCode ? ` (${selectedOrder.couponCode})` : ''}</span>
+                      <span>− {formatINR(selectedOrder.discountMinor || 0)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                    <span>GST (18% Statutory)</span>
+                    <span className="text-slate-900 dark:text-slate-200 font-semibold">{formatINR(selectedOrder.taxMinor || 0)}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                    <span>Payment Gateway Surcharge (3%)</span>
+                    <span className="text-slate-900 dark:text-slate-200 font-semibold">{formatINR(selectedOrder.gatewayFeeMinor || 0)}</span>
+                  </div>
+                  <div className="flex justify-between pt-2 border-t border-slate-200 dark:border-white/10 font-bold text-sm text-slate-900 dark:text-white">
+                    <span>Net Total Invoiced</span>
+                    <span className="text-primary font-extrabold">{formatINR(selectedOrder.totalMinor || 0)}</span>
+                  </div>
+
+                  {/* Razorpay's own processing fee — separate from our 3% */}
+                  {((selectedOrder as any).razorpayFeeMinor > 0 || (selectedOrder as any).razorpayTaxMinor > 0) && (
+                    <div className="pt-2 mt-1 border-t border-slate-200/60 dark:border-white/5 space-y-1.5 text-[10px] text-slate-500 dark:text-slate-500">
+                      <div className="flex justify-between">
+                        <span>Razorpay Platform Fee (incl. GST)</span>
+                        <span>{formatINR((selectedOrder as any).razorpayFeeMinor || 0)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>GST on Platform Fee</span>
+                        <span>{formatINR((selectedOrder as any).razorpayTaxMinor || 0)}</span>
+                      </div>
+                      <p className="text-[9.5px] text-slate-400/70">* Razorpay fees are settled separately by Razorpay. Net settlement = Total − Platform Fee.</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Gateway Cryptographic Signature */}
+              {/* ── SECTION 5: Acquirer / Bank Telemetry ─────────────────────── */}
+              {((selectedOrder as any).acquirerAuthCode || (selectedOrder as any).acquirerRrn || (selectedOrder as any).acquirerBankTxnId || (selectedOrder as any).acquirerUpiTxnId) && (
+                <div className="space-y-2">
+                  <h4 className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-amber-500/30 border border-amber-500/40 inline-block" />
+                    Acquirer & Bank Telemetry
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
+                    {(selectedOrder as any).acquirerAuthCode && (
+                      <AuditCell label="Auth Code" value={(selectedOrder as any).acquirerAuthCode} copyable monospace />
+                    )}
+                    {(selectedOrder as any).acquirerRrn && (
+                      <AuditCell label="Retrieval Reference No. (RRN)" value={(selectedOrder as any).acquirerRrn} copyable monospace />
+                    )}
+                    {(selectedOrder as any).acquirerBankTxnId && (
+                      <AuditCell label="Bank Transaction ID" value={(selectedOrder as any).acquirerBankTxnId} copyable monospace />
+                    )}
+                    {(selectedOrder as any).acquirerUpiTxnId && !selectedOrder.vpa && (
+                      <AuditCell label="UPI Transaction ID" value={(selectedOrder as any).acquirerUpiTxnId} copyable monospace />
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ── SECTION 6: Error Diagnostics (failed only) ───────────────── */}
+              {selectedOrder.status === 'failed' && (
+                <div className="space-y-2">
+                  <h4 className="text-[10px] uppercase font-bold text-red-500/80 tracking-wider flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-red-500/30 border border-red-500/40 inline-block" />
+                    Failure Diagnostics
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
+                    {selectedOrder.failureReason && <AuditCell label="Failure Reason" value={selectedOrder.failureReason} />}
+                    {selectedOrder.errorCode && <AuditCell label="Error Code" value={selectedOrder.errorCode} />}
+                    {(selectedOrder as any).errorDescription && <AuditCell label="Error Description" value={(selectedOrder as any).errorDescription} wide />}
+                    {(selectedOrder as any).errorSource && <AuditCell label="Error Source" value={(selectedOrder as any).errorSource} />}
+                    {(selectedOrder as any).errorStep && <AuditCell label="Error Step" value={(selectedOrder as any).errorStep} />}
+                    {(selectedOrder as any).errorReason && <AuditCell label="Error Reason" value={(selectedOrder as any).errorReason} />}
+                  </div>
+                </div>
+              )}
+
+              {/* ── SECTION 7: Refund Info (if refunded) ─────────────────────── */}
+              {selectedOrder.status === 'refunded' && (
+                <div className="space-y-2">
+                  <h4 className="text-[10px] uppercase font-bold text-purple-500/80 tracking-wider flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-purple-500/30 border border-purple-500/40 inline-block" />
+                    Refund Record
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
+                    {selectedOrder.refundId && <AuditCell label="Refund ID" value={selectedOrder.refundId} copyable monospace />}
+                    {selectedOrder.refundAmountMinor !== undefined && <AuditCell label="Refunded Amount" value={formatINR(selectedOrder.refundAmountMinor || 0)} />}
+                    {selectedOrder.refundStatus && <AuditCell label="Refund Status" value={selectedOrder.refundStatus} />}
+                    {selectedOrder.refundedAt && <AuditCell label="Refunded At" value={new Date(selectedOrder.refundedAt).toLocaleString('en-IN')} />}
+                  </div>
+                </div>
+              )}
+
+              {/* ── SECTION 8: HMAC Signature ─────────────────────────────────── */}
               {selectedOrder.gatewaySignature && (
-                <div className="bg-slate-100 dark:bg-[#121926] border border-slate-200 dark:border-white/10 p-3.5 rounded-xl space-y-1.5 text-xs font-mono shadow-2xs">
-                  <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider block">Cryptographic HMAC Signature</span>
-                  <p className="text-[10px] text-slate-700 dark:text-slate-300 break-all bg-white dark:bg-[#0A0E16] p-2.5 rounded-lg border border-slate-200 dark:border-white/10 font-mono">
+                <div className="space-y-2">
+                  <h4 className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider">Cryptographic HMAC Signature</h4>
+                  <p className="text-[10px] text-slate-700 dark:text-slate-300 break-all bg-slate-100 dark:bg-[#0A0E16] p-2.5 rounded-lg border border-slate-200 dark:border-white/10 font-mono">
                     {selectedOrder.gatewaySignature}
                   </p>
                 </div>
               )}
+
 
               <div className="pt-2 flex justify-between items-center gap-2">
                 {selectedOrder.status === 'completed' ? (
@@ -802,11 +1016,130 @@ export default function AdminPayments() {
                   </button>
                 ) : <div />}
 
+                {/* Issue Refund button — only for completed orders with a gateway payment ID */}
+                {selectedOrder.status === 'completed' && selectedOrder.gatewayPaymentId && (
+                  <button
+                    onClick={() => {
+                      setRefundOrder(selectedOrder);
+                    }}
+                    className="px-4 py-2.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500 hover:text-white text-xs font-mono font-bold cursor-pointer transition-all flex items-center gap-1.5 shadow-xs"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Issue Refund</span>
+                  </button>
+                )}
+
                 <button
                   onClick={() => setSelectedOrder(null)}
                   className="px-4 py-2.5 rounded-lg bg-slate-200 hover:bg-slate-300 dark:bg-[#182234] dark:hover:bg-[#202C42] border border-slate-300 dark:border-white/10 text-slate-800 dark:text-slate-200 text-xs font-mono font-semibold cursor-pointer transition-colors"
                 >
                   Close Audit
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ═══════════════════════════════════════════════════════
+          REFUND CONFIRMATION MODAL
+      ══════════════════════════════════════════════════════════ */}
+      <AnimatePresence>
+        {refundOrder && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/70 dark:bg-black/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white dark:bg-[#0E1420] text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-5"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-white/10">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-red-500/15 text-red-500 flex items-center justify-center border border-red-500/30">
+                    <ShieldAlert className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Initiate Refund</h3>
+                    <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400">This action cannot be undone.</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setRefundOrder(null)}
+                  disabled={isRefunding}
+                  className="w-7 h-7 rounded-md text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 flex items-center justify-center cursor-pointer transition-colors disabled:opacity-50"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Refund Summary */}
+              <div className="p-4 rounded-xl bg-red-500/8 border border-red-500/25 space-y-2 text-xs font-mono">
+                <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                  <span>Investor</span>
+                  <span className="font-semibold text-slate-900 dark:text-slate-100">{refundOrder.userName || 'Investor'}</span>
+                </div>
+                <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                  <span>Plan</span>
+                  <span className="font-semibold text-primary">{refundOrder.planName}</span>
+                </div>
+                <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                  <span>Gateway Payment ID</span>
+                  <span className="font-semibold text-slate-900 dark:text-slate-100 text-[10px] truncate max-w-[180px]">{refundOrder.gatewayPaymentId}</span>
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t border-red-500/20 font-bold text-sm">
+                  <span className="text-slate-700 dark:text-slate-300">Full Refund Amount</span>
+                  <span className="text-red-500 font-extrabold">{formatINR(refundOrder.totalMinor || 0)}</span>
+                </div>
+              </div>
+
+              {/* Reason Selector */}
+              <div className="space-y-1.5">
+                <label className="block text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider">Refund Reason</label>
+                <select
+                  value={refundReason}
+                  onChange={(e) => setRefundReason(e.target.value as any)}
+                  disabled={isRefunding}
+                  className="w-full bg-white dark:bg-[#121926] border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2.5 text-xs text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer disabled:opacity-60"
+                >
+                  <option value="customer_request">Customer Request</option>
+                  <option value="duplicate">Duplicate Payment</option>
+                  <option value="fraudulent">Fraudulent Transaction</option>
+                  <option value="order_change">Order / Plan Change</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              {/* Warning notice */}
+              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-[11px] font-mono text-amber-700 dark:text-amber-400 leading-relaxed">
+                ⚠ A full refund of <strong>{formatINR(refundOrder.totalMinor || 0)}</strong> will be initiated via Razorpay. Settlement typically takes 5–7 business days. This cannot be reversed.
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-1">
+                <button
+                  onClick={() => setRefundOrder(null)}
+                  disabled={isRefunding}
+                  className="flex-1 px-4 py-2.5 rounded-lg bg-slate-200 hover:bg-slate-300 dark:bg-[#182234] dark:hover:bg-[#202C42] border border-slate-300 dark:border-white/10 text-slate-800 dark:text-slate-200 text-xs font-mono font-semibold cursor-pointer transition-colors disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleRefund(refundOrder)}
+                  disabled={isRefunding}
+                  className="flex-1 px-4 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-mono font-bold cursor-pointer transition-colors flex items-center justify-center gap-2 disabled:opacity-60 shadow-xs"
+                >
+                  {isRefunding ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      <span>Processing Refund...</span>
+                    </>
+                  ) : (
+                    <>
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Confirm Refund</span>
+                    </>
+                  )}
                 </button>
               </div>
             </motion.div>

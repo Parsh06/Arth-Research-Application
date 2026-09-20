@@ -22,6 +22,70 @@ export interface RazorpayPaymentSuccessPayload {
   razorpay_signature: string;
 }
 
+export interface RazorpayPaymentDetails {
+  success: boolean;
+  paymentId: string;
+  method: string;           // raw: 'card' | 'upi' | 'netbanking' | 'wallet' | 'emi'
+  paymentMode: string;      // normalised: 'CARD' | 'UPI' | 'NETBANKING' | 'WALLET' | 'EMI'
+  paymentMethod: string;    // human label: 'Visa •••• 4242 (credit)' etc.
+  status: string;
+  captured?: boolean;
+  international?: boolean;
+  amountMinor: number;
+  amountRefundedMinor?: number;
+  refundStatus?: string;    // null | 'partial' | 'full'
+  currency: string;
+  // Customer
+  customerEmail?: string;
+  customerContact?: string; // phone from Razorpay
+  // Instrument-specific
+  bank?: string;
+  wallet?: string;
+  vpa?: string;
+  cardNetwork?: string;
+  cardLast4?: string;
+  cardName?: string;
+  cardIssuer?: string;
+  cardType?: string;        // 'credit' | 'debit' | 'prepaid'
+  cardSubType?: string;     // 'consumer' | 'corporate'
+  cardInternational?: boolean;
+  cardEmi?: boolean;
+  emiDuration?: number | null;
+  emiPlan?: { issuer: string; duration: number; interest: number; type: string } | null;
+  // Razorpay gateway fees
+  razorpayFeeMinor?: number;
+  razorpayTaxMinor?: number;
+  // Acquirer data
+  acquirerData?: {
+    authCode?: string;
+    bankTransactionId?: string;
+    rrn?: string;
+    upiTransactionId?: string;
+    vpaTxnId?: string;
+  };
+  // Error diagnostics
+  errorCode?: string;
+  errorDescription?: string;
+  errorSource?: string;
+  errorStep?: string;
+  errorReason?: string;
+  // Timestamps
+  razorpayCreatedAt?: string;
+  error?: string;
+}
+
+export interface RazorpayRefundResponse {
+  success: boolean;
+  refundId?: string;
+  paymentId?: string;
+  amountMinor?: number;
+  currency?: string;
+  status?: string;         // 'processed' | 'pending' | 'failed'
+  speed?: string;
+  createdAt?: string;
+  error?: string;
+}
+
 export const paymentService = {
   /**
    * Loads the official Razorpay Checkout.js SDK dynamically
@@ -199,5 +263,82 @@ export const paymentService = {
     });
 
     rzpInstance.open();
+  },
+
+  /**
+   * Fetches the actual payment instrument details from Razorpay via our backend.
+   * Called AFTER signature verification to get the real method (card, UPI, etc.).
+   */
+  async fetchPaymentDetails(paymentId: string): Promise<RazorpayPaymentDetails> {
+    try {
+      const endpoint = getApiEndpoint(`/razorpay/fetch-payment?paymentId=${encodeURIComponent(paymentId)}`);
+      const response = await fetch(endpoint, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        return {
+          success: false,
+          paymentId,
+          method: 'unknown',
+          paymentMode: 'UNKNOWN',
+          paymentMethod: 'Unknown',
+          status: 'unknown',
+          amountMinor: 0,
+          currency: 'INR',
+          error: data.error || 'Failed to fetch payment details'
+        };
+      }
+      return data as RazorpayPaymentDetails;
+    } catch (err: any) {
+      console.error('[PaymentService] fetchPaymentDetails failed:', err);
+      return {
+        success: false,
+        paymentId,
+        method: 'unknown',
+        paymentMode: 'UNKNOWN',
+        paymentMethod: 'Unknown',
+        status: 'unknown',
+        amountMinor: 0,
+        currency: 'INR',
+        error: err.message || 'Failed to fetch payment details'
+      };
+    }
+  },
+
+  /**
+   * Initiates a full or partial refund via our backend.
+   */
+  async initiateRefund(params: {
+    paymentId: string;
+    amountMinor?: number;
+    reason?: 'duplicate' | 'fraudulent' | 'order_change' | 'customer_request' | 'other';
+    notes?: Record<string, string>;
+  }): Promise<RazorpayRefundResponse> {
+    try {
+      const endpoint = getApiEndpoint('/razorpay/refund');
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        return {
+          success: false,
+          error: data.error || 'Refund request failed'
+        };
+      }
+      return data as RazorpayRefundResponse;
+    } catch (err: any) {
+      console.error('[PaymentService] initiateRefund failed:', err);
+      return {
+        success: false,
+        error: err.message || 'Failed to initiate refund'
+      };
+    }
   }
 };

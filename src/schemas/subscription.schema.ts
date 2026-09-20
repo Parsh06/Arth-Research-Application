@@ -27,20 +27,44 @@ export const OrderSchema = z.object({
   totalMinor: z.number().int().nonnegative(),
   couponCode: z.string().optional(),
   status: z.enum(['created', 'processing', 'completed', 'failed', 'cancelled', 'refunded']).default('created'),
+  refundId: z.string().optional(),
+  refundedAt: z.string().optional(),
+  refundStatus: z.enum(['pending', 'processed', 'failed']).optional(),
+  refundAmountMinor: z.number().int().nonnegative().optional(),
   currency: z.string().default('INR'),
   failureReason: z.string().optional(),
   errorCode: z.string().optional(),
+  errorDescription: z.string().optional(),
+  errorSource: z.string().optional(),      // 'business' | 'bank' | 'gateway' | 'customer'
+  errorStep: z.string().optional(),         // payment_initiation | payment_authentication | payment_authorization
+  errorReason: z.string().optional(),
   gatewayPaymentId: z.string().optional(),
   gatewayOrderId: z.string().optional(),
   gatewaySignature: z.string().optional(),
   invoiceNumber: z.string().optional(),
-  paymentMode: z.string().optional(), // 'UPI', 'CARD', 'NETBANKING', 'WALLET', etc.
-  paymentMethod: z.string().optional(),
+  // ── Payment instrument ──────────────────────────────────────────
+  paymentMode: z.string().optional(),       // 'UPI' | 'CARD' | 'NETBANKING' | 'WALLET' | 'EMI'
+  paymentMethod: z.string().optional(),     // human-readable label e.g. 'Visa •••• 4242'
   bank: z.string().optional(),
   wallet: z.string().optional(),
   vpa: z.string().optional(),
   cardNetwork: z.string().optional(),
   cardLast4: z.string().optional(),
+  cardName: z.string().optional(),
+  cardIssuer: z.string().optional(),
+  cardType: z.string().optional(),          // 'credit' | 'debit' | 'prepaid'
+  cardSubType: z.string().optional(),       // 'consumer' | 'corporate'
+  cardInternational: z.boolean().optional(),
+  emiDuration: z.number().optional(),
+  international: z.boolean().optional(),
+  // ── Razorpay gateway fees (different from our 3% surcharge) ────
+  razorpayFeeMinor: z.number().int().nonnegative().optional(),
+  razorpayTaxMinor: z.number().int().nonnegative().optional(),
+  // ── Acquirer / bank settlement telemetry ───────────────────────
+  acquirerAuthCode: z.string().optional(),
+  acquirerBankTxnId: z.string().optional(),
+  acquirerRrn: z.string().optional(),       // Retrieval Reference Number
+  acquirerUpiTxnId: z.string().optional(),
   paidAt: z.string().optional(),
   createdAt: z.string(),
   updatedAt: z.string().optional()
@@ -60,6 +84,7 @@ export const PaymentSchema = z.object({
   gatewayPaymentId: z.string().optional(),
   gatewayOrderId: z.string().optional(),
   gatewaySignature: z.string().optional(),
+  // ── Payment instrument ──────────────────────────────────────────
   paymentMode: z.string().optional(),
   paymentMethod: z.string().optional(),
   bank: z.string().optional(),
@@ -67,7 +92,33 @@ export const PaymentSchema = z.object({
   vpa: z.string().optional(),
   cardNetwork: z.string().optional(),
   cardLast4: z.string().optional(),
+  cardName: z.string().optional(),
+  cardIssuer: z.string().optional(),
+  cardType: z.string().optional(),
+  cardSubType: z.string().optional(),
+  cardInternational: z.boolean().optional(),
+  emiDuration: z.number().optional(),
+  international: z.boolean().optional(),
+  // ── Razorpay gateway fees ───────────────────────────────────────
+  razorpayFeeMinor: z.number().int().nonnegative().optional(),
+  razorpayTaxMinor: z.number().int().nonnegative().optional(),
+  // ── Acquirer data ───────────────────────────────────────────────
+  acquirerAuthCode: z.string().optional(),
+  acquirerBankTxnId: z.string().optional(),
+  acquirerRrn: z.string().optional(),
+  acquirerUpiTxnId: z.string().optional(),
+  // ── Error diagnostics ───────────────────────────────────────────
+  errorCode: z.string().optional(),
+  errorDescription: z.string().optional(),
+  errorSource: z.string().optional(),
+  errorStep: z.string().optional(),
+  errorReason: z.string().optional(),
+  // ── Status & refunds ────────────────────────────────────────────
   status: z.enum(['created', 'authorized', 'captured', 'failed', 'refunded']).default('created'),
+  refundId: z.string().optional(),
+  refundedAt: z.string().optional(),
+  refundStatus: z.enum(['pending', 'processed', 'failed']).optional(),
+  refundAmountMinor: z.number().int().nonnegative().optional(),
   failureReason: z.string().optional(),
   paidAt: z.string().optional(),
   createdAt: z.string()

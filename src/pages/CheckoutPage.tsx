@@ -142,7 +142,60 @@ export default function CheckoutPage() {
               userRepository.updateUser(user.uid, { phone: userPhoneClean }).catch(e => console.warn(e));
             }
 
-            // 3. Complete payment & provision in Firestore
+            // 3a. Fetch REAL payment details from Razorpay API (actual instrument used)
+            //     The handler callback only gives payment_id/order_id/signature — not the method.
+            //     We must call our backend to get the actual card/UPI/netbanking details.
+            let realPaymentMode = modeStr;
+            let realPaymentMethod = methodStr;
+            let realVpa: string | undefined = paymentMethod === 'upi' ? upiId : undefined;
+            let realCardNetwork: string | undefined;
+            let realCardLast4: string | undefined;
+            let realCardName: string | undefined;
+            let realCardIssuer: string | undefined;
+            let realCardType: string | undefined;
+            let realCardSubType: string | undefined;
+            let realCardInternational: boolean | undefined;
+            let realBank: string | undefined;
+            let realWallet: string | undefined;
+            let realEmiDuration: number | undefined;
+            let realInternational: boolean | undefined;
+            let realRazorpayFeeMinor: number | undefined;
+            let realRazorpayTaxMinor: number | undefined;
+            let realAcquirerAuthCode: string | undefined;
+            let realAcquirerBankTxnId: string | undefined;
+            let realAcquirerRrn: string | undefined;
+            let realAcquirerUpiTxnId: string | undefined;
+
+            try {
+              const { paymentService: ps } = await import('../services/paymentService');
+              const rzpDetails = await ps.fetchPaymentDetails(rzpResponse.razorpay_payment_id);
+              if (rzpDetails.success) {
+                realPaymentMode        = rzpDetails.paymentMode;
+                realPaymentMethod      = rzpDetails.paymentMethod;
+                realVpa                = rzpDetails.vpa;
+                realCardNetwork        = rzpDetails.cardNetwork;
+                realCardLast4          = rzpDetails.cardLast4;
+                realCardName           = rzpDetails.cardName;
+                realCardIssuer         = rzpDetails.cardIssuer;
+                realCardType           = rzpDetails.cardType;
+                realCardSubType        = rzpDetails.cardSubType;
+                realCardInternational  = rzpDetails.cardInternational;
+                realBank               = rzpDetails.bank;
+                realWallet             = rzpDetails.wallet;
+                realEmiDuration        = rzpDetails.emiDuration ?? undefined;
+                realInternational      = rzpDetails.international;
+                realRazorpayFeeMinor   = rzpDetails.razorpayFeeMinor;
+                realRazorpayTaxMinor   = rzpDetails.razorpayTaxMinor;
+                realAcquirerAuthCode   = rzpDetails.acquirerData?.authCode;
+                realAcquirerBankTxnId  = rzpDetails.acquirerData?.bankTransactionId;
+                realAcquirerRrn        = rzpDetails.acquirerData?.rrn;
+                realAcquirerUpiTxnId   = rzpDetails.acquirerData?.upiTransactionId;
+              }
+            } catch (fetchErr) {
+              console.warn('[CheckoutPage] fetchPaymentDetails failed, using pre-selected method:', fetchErr);
+            }
+
+            // 3b. Complete payment & provision in Firestore with all real payment data
             const { subscriptionId } = await orderRepository.completePaymentAndProvision(order, {
               gatewayPaymentId: rzpResponse.razorpay_payment_id,
               gatewayOrderId: rzpResponse.razorpay_order_id,
@@ -152,10 +205,28 @@ export default function CheckoutPage() {
               userEmail: user.email || '',
               userName: user.displayName || 'Valued Investor',
               userPhone: userPhoneClean || undefined,
-              paymentMode: modeStr,
-              paymentMethod: methodStr,
-              vpa: paymentMethod === 'upi' ? upiId : undefined
+              paymentMode: realPaymentMode,
+              paymentMethod: realPaymentMethod,
+              vpa: realVpa,
+              cardNetwork: realCardNetwork,
+              cardLast4: realCardLast4,
+              cardName: realCardName,
+              cardIssuer: realCardIssuer,
+              cardType: realCardType,
+              cardSubType: realCardSubType,
+              cardInternational: realCardInternational,
+              bank: realBank,
+              wallet: realWallet,
+              emiDuration: realEmiDuration,
+              international: realInternational,
+              razorpayFeeMinor: realRazorpayFeeMinor,
+              razorpayTaxMinor: realRazorpayTaxMinor,
+              acquirerAuthCode: realAcquirerAuthCode,
+              acquirerBankTxnId: realAcquirerBankTxnId,
+              acquirerRrn: realAcquirerRrn,
+              acquirerUpiTxnId: realAcquirerUpiTxnId
             });
+
 
             // 4. Generate official Tax Invoice PDF & send via email with attachment
             if (user.email) {
