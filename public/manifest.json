@@ -4,8 +4,13 @@
   "description": "Institutional-grade quantitative equities research, factor models, and non-custodial advisory.",
   "icons": [
     {
+      "src": "/favicon.ico",
+      "sizes": "48x48 64x64",
+      "type": "image/x-icon"
+    },
+    {
       "src": "/logo1.png",
-      "sizes": "192x192 512x512",
+      "sizes": "48x48 96x96 144x144 192x192 256x256 384x384 512x512",
       "type": "image/png",
       "purpose": "any maskable"
     }
