@@ -140,6 +140,9 @@ export const supportRepository = {
     return onSnapshot(q, (snap) => {
       const tickets = snap.docs.map(d => SupportTicketSchema.parse(d.data()));
       callback(tickets);
+    }, (err) => {
+      console.warn('[supportRepository] All tickets subscription notice:', err.message);
+      callback([]);
     });
   },
 
@@ -154,6 +157,9 @@ export const supportRepository = {
     return onSnapshot(q, (snap) => {
       const messages = snap.docs.map(d => SupportMessageSchema.parse(d.data()));
       callback(messages);
+    }, (err) => {
+      console.warn('[supportRepository] Ticket messages subscription notice:', err.message);
+      callback([]);
     });
   },
 

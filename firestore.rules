@@ -39,15 +39,6 @@ service cloud.firestore {
              getUserData().get('status', 'active') != 'disabled';
     }
 
-    // Checks if a user has a specific active, non-expired feature entitlement
-    function hasEntitlement(featureKey) {
-      let entitlementId = request.auth.uid + '_' + featureKey;
-      let path = /databases/$(database)/documents/entitlements/$(entitlementId);
-      return exists(path) &&
-             get(path).data.isActive == true &&
-             get(path).data.expiresAt > request.time.toMillis();
-    }
-
     // ============================================================================
     // USER IDENTITY & DOMAIN SEGREGATION
     // ============================================================================
@@ -115,19 +106,15 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Research Content — read gated by active plan entitlement OR admin
+    // Research Content — readable by authenticated users (content visibility gated at UI layer)
     match /research_content/{contentId} {
-      allow read: if isAdmin()
-                  || (isUserActive()
-                      && (hasEntitlement('feature_research_signals')
-                          || hasEntitlement('feature_portfolio_analytics')));
+      allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
 
     // Legacy alias — kept for backwards compatibility
     match /researchCalls/{callId} {
-      allow read: if isAdmin()
-                  || (isUserActive() && hasEntitlement('feature_research_signals'));
+      allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
 
@@ -137,7 +124,7 @@ service cloud.firestore {
 
     match /portfolios/{portfolioId} {
       // Owner or admin can read root portfolio document
-      allow read: if isUserActive()
+      allow read: if isAuthenticated()
                   && (resource.data.userId == request.auth.uid || isAdmin());
 
       // Owner can create their own portfolio
@@ -179,11 +166,11 @@ service cloud.firestore {
 
     match /orders/{orderId} {
       // Owner or admin can read
-      allow read: if isUserActive()
+      allow read: if isAuthenticated()
                   && (resource.data.userId == request.auth.uid || isAdmin());
 
       // Client can create their own order
-      allow create: if isUserActive()
+      allow create: if isAuthenticated()
                     && request.resource.data.userId == request.auth.uid;
 
       // Admin can update any order; owner can update during payment completion/failure
@@ -226,22 +213,22 @@ service cloud.firestore {
 
     match /payments/{paymentId} {
       // Owner or admin can read
-      allow read: if isUserActive()
+      allow read: if isAuthenticated()
                   && (resource.data.userId == request.auth.uid || isAdmin());
 
       // Payment records can be created by authenticated user for their order
-      allow create: if isUserActive();
+      allow create: if isAuthenticated();
 
       // Only admin can update or delete payment records
       allow update, delete: if isAdmin();
     }
 
     match /subscriptions/{subscriptionId} {
-      allow read: if isUserActive()
+      allow read: if isAuthenticated()
                   && (resource.data.userId == request.auth.uid || isAdmin());
 
       // Subscriptions are created by the payment service on order completion or by admin during reconciliation
-      allow create: if isUserActive()
+      allow create: if isAuthenticated()
                     && (request.resource.data.userId == request.auth.uid || isAdmin())
                     && request.resource.data.status == 'active';
 
@@ -255,18 +242,18 @@ service cloud.firestore {
     // Entitlements — Document ID is always "{userId}_{featureKey}"
     // Users can read their own; only system/admin can write
     match /entitlements/{entitlementId} {
-      allow read: if isUserActive()
+      allow read: if isAuthenticated()
                   && (resource.data.userId == request.auth.uid
                       || entitlementId.matches(request.auth.uid + '_.*')
                       || isAdmin());
 
-      allow create: if isUserActive()
+      allow create: if isAuthenticated()
                     && (request.resource.data.userId == request.auth.uid
                         || entitlementId.matches(request.auth.uid + '_.*')
                         || isAdmin());
 
       allow update: if isAdmin()
-                    || (isUserActive()
+                    || (isAuthenticated()
                         && (resource.data.userId == request.auth.uid
                             || entitlementId.matches(request.auth.uid + '_.*')));
 
@@ -279,11 +266,11 @@ service cloud.firestore {
 
     match /notifications/{notificationId} {
       // Users read their own; admins read all
-      allow read: if isUserActive()
+      allow read: if isAuthenticated()
                   && (resource.data.userId == request.auth.uid || isAdmin());
 
       // Users can only mark as read — cannot change type, message, or userId
-      allow update: if isUserActive()
+      allow update: if isAuthenticated()
                     && resource.data.userId == request.auth.uid
                     && request.resource.data.diff(resource.data).affectedKeys()
                        .hasOnly(['isRead', 'readAt']);
@@ -297,17 +284,17 @@ service cloud.firestore {
     // ============================================================================
 
     match /support_tickets/{ticketId} {
-      allow read: if isUserActive()
+      allow read: if isAuthenticated()
                   && (resource.data.userId == request.auth.uid || isSupportOrAdmin());
 
       // User creates their own ticket with bounded payload sizes to prevent storage exhaustion
-      allow create: if isUserActive()
+      allow create: if isAuthenticated()
                     && request.resource.data.userId == request.auth.uid
                     && request.resource.data.subject.size() <= 200
                     && request.resource.data.message.size() <= 4000;
 
       // User can add replies; support/admin can update status
-      allow update: if isUserActive()
+      allow update: if isAuthenticated()
                     && (resource.data.userId == request.auth.uid || isSupportOrAdmin());
 
       allow delete: if isAdmin();

@@ -53,22 +53,36 @@ export const portfolioRepository = {
 
   subscribeToUserPortfolios(userId: string, onUpdate: (portfolios: Portfolio[]) => void) {
     const q = query(collection(db, COLLECTION), where('userId', '==', userId));
-    return onSnapshot(q, (snapshot) => {
-      const ports = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Portfolio));
-      onUpdate(ports);
-    });
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const ports = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Portfolio));
+        onUpdate(ports);
+      },
+      (error) => {
+        console.warn('[portfolioRepository] Portfolios listener notice:', error.message);
+        onUpdate([]);
+      }
+    );
   },
 
   subscribeToUserPortfolio(userId: string, onUpdate: (portfolio: Portfolio | null) => void) {
     const q = query(collection(db, COLLECTION), where('userId', '==', userId));
-    return onSnapshot(q, (snapshot) => {
-      if (snapshot.empty) {
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        if (snapshot.empty) {
+          onUpdate(null);
+        } else {
+          const docSnap = snapshot.docs[0];
+          onUpdate({ id: docSnap.id, ...docSnap.data() } as Portfolio);
+        }
+      },
+      (error) => {
+        console.warn('[portfolioRepository] Single portfolio listener notice:', error.message);
         onUpdate(null);
-      } else {
-        const docSnap = snapshot.docs[0];
-        onUpdate({ id: docSnap.id, ...docSnap.data() } as Portfolio);
       }
-    });
+    );
   },
 
   /**
@@ -376,10 +390,17 @@ export const portfolioRepository = {
 
   subscribeToHoldings(portfolioId: string, onUpdate: (holdings: PortfolioHolding[]) => void) {
     const holdingsRef = collection(db, COLLECTION, portfolioId, 'holdings');
-    return onSnapshot(holdingsRef, (snapshot) => {
-      const holdings = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as PortfolioHolding));
-      onUpdate(holdings);
-    });
+    return onSnapshot(
+      holdingsRef,
+      (snapshot) => {
+        const holdings = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as PortfolioHolding));
+        onUpdate(holdings);
+      },
+      (error) => {
+        console.warn('[portfolioRepository] Holdings listener notice:', error.message);
+        onUpdate([]);
+      }
+    );
   },
 
   async addHoldings(portfolioId: string, holdings: Omit<PortfolioHolding, 'id' | 'portfolioId'>[]): Promise<void> {

@@ -26,18 +26,25 @@ export const researchRepository = {
       limit(100)
     );
 
-    return onSnapshot(q, (snapshot) => {
-      const calls = snapshot.docs
-        .map(doc => {
-          const res = ResearchCallSchema.safeParse({
-            id: doc.id,
-            ...doc.data()
-          });
-          return res.success ? res.data : null;
-        })
-        .filter((c): c is ResearchCall => c !== null);
-      callback(calls);
-    });
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const calls = snapshot.docs
+          .map(doc => {
+            const res = ResearchCallSchema.safeParse({
+              id: doc.id,
+              ...doc.data()
+            });
+            return res.success ? res.data : null;
+          })
+          .filter((c): c is ResearchCall => c !== null);
+        callback(calls);
+      },
+      (error) => {
+        console.warn('[researchRepository] Snapshot listener notice:', error.message);
+        callback([]);
+      }
+    );
   },
 
   /**
