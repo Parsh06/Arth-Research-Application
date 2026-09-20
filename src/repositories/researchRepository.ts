@@ -25,10 +25,15 @@ export const researchRepository = {
     );
 
     return onSnapshot(q, (snapshot) => {
-      const calls = snapshot.docs.map(doc => ResearchCallSchema.parse({
-        id: doc.id,
-        ...doc.data()
-      }));
+      const calls = snapshot.docs
+        .map(doc => {
+          const res = ResearchCallSchema.safeParse({
+            id: doc.id,
+            ...doc.data()
+          });
+          return res.success ? res.data : null;
+        })
+        .filter((c): c is ResearchCall => c !== null);
       callback(calls);
     });
   },
@@ -42,10 +47,15 @@ export const researchRepository = {
       orderBy('publishedAt', 'desc')
     );
     const snap = await getDocs(q);
-    return snap.docs.map(d => ResearchCallSchema.parse({
-      id: d.id,
-      ...d.data()
-    }));
+    return snap.docs
+      .map(d => {
+        const res = ResearchCallSchema.safeParse({
+          id: d.id,
+          ...d.data()
+        });
+        return res.success ? res.data : null;
+      })
+      .filter((c): c is ResearchCall => c !== null);
   },
 
   /**

@@ -3,7 +3,6 @@ import {
   doc,
   query,
   where,
-  orderBy,
   onSnapshot,
   updateDoc,
   addDoc
@@ -28,19 +27,28 @@ export const notificationRepository = {
   /**
    * Subscribe to live real-time notifications for a user
    */
-  subscribeToUserNotifications(userId: string, callback: (notifications: AppNotification[]) => void) {
+  subscribeToUserNotifications(
+    userId: string, 
+    callback: (notifications: AppNotification[]) => void,
+    onError?: (err: any) => void
+  ) {
     const q = query(
       collection(db, COLLECTION),
-      where('userId', '==', userId),
-      orderBy('createdAt', 'desc')
+      where('userId', '==', userId)
     );
 
     return onSnapshot(q, (snapshot) => {
-      const notifications = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as AppNotification));
+      const notifications = snapshot.docs
+        .map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        } as AppNotification))
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       callback(notifications);
+    }, (err) => {
+      console.warn('[notificationRepository] Subscription error:', err);
+      callback([]);
+      onError?.(err);
     });
   },
 

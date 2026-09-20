@@ -104,6 +104,9 @@ export interface Payment {
 export interface Subscription {
   id: string;
   userId: string;
+  userName?: string;
+  userEmail?: string;
+  userPhone?: string;
   planId: string;
   planName: string;
   paymentId?: string;

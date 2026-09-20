@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquare, Send, ChevronRight, AlertCircle, Headphones, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { MessageSquare, Send, ChevronRight, Headphones, ArrowLeft, ShieldCheck } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { supportRepository } from '../repositories/supportRepository';
 import type { SupportTicket, SupportMessage } from '../schemas/support.schema';
@@ -50,19 +50,28 @@ export default function SupportPage() {
 
   // Subscribe to user tickets
   useEffect(() => {
-    if (!user?.uid) return;
-    setLoadingTickets(true);
-    const unsubscribe = supportRepository.subscribeToUserTickets(user.uid, (data) => {
-      setTickets(data);
+    if (!user?.uid) {
       setLoadingTickets(false);
-      if (selectedTicket) {
-        const updated = data.find(t => t.id === selectedTicket.id);
-        if (updated) setSelectedTicket(updated);
+      return;
+    }
+    setLoadingTickets(true);
+    const unsubscribe = supportRepository.subscribeToUserTickets(
+      user.uid, 
+      (data) => {
+        setTickets(data);
+        setLoadingTickets(false);
+        if (selectedTicket) {
+          const updated = data.find(t => t.id === selectedTicket.id);
+          if (updated) setSelectedTicket(updated);
+        }
+      },
+      () => {
+        setLoadingTickets(false);
       }
-    });
+    );
 
     return () => unsubscribe();
-  }, [user?.uid, selectedTicket?.id]);
+  }, [user?.uid]);
 
   // Subscribe to messages when ticket is selected
   useEffect(() => {
@@ -228,12 +237,12 @@ export default function SupportPage() {
             
             <form onSubmit={handleCreateTicket} className="space-y-3 text-xs font-mono">
               <div>
-                <label className="block text-[10px] uppercase text-muted-foreground mb-1">Inquiry Subject</label>
+                <label className="block text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 mb-1">Inquiry Subject</label>
                 <input 
                   type="text" 
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
-                  className="w-full glass-panel-data px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary font-medium rounded-md" 
+                  className="w-full bg-white dark:bg-[#121926] border border-slate-200 dark:border-white/10 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-primary font-medium rounded-md shadow-2xs" 
                   placeholder="e.g. Allocation rebalance clarification" 
                   required
                 />
@@ -241,42 +250,42 @@ export default function SupportPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] uppercase text-muted-foreground mb-1">Category</label>
+                  <label className="block text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 mb-1">Category</label>
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value as any)}
-                    className="w-full bg-background dark:bg-[#121926] border border-border rounded-md px-2.5 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary capitalize font-mono"
+                    className="w-full bg-white dark:bg-[#121926] border border-slate-200 dark:border-white/10 rounded-md px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-primary capitalize font-mono cursor-pointer shadow-2xs"
                   >
-                    <option className="bg-background dark:bg-[#121926] text-foreground" value="portfolio">Portfolio</option>
-                    <option className="bg-background dark:bg-[#121926] text-foreground" value="advisory">Advisory</option>
-                    <option className="bg-background dark:bg-[#121926] text-foreground" value="billing">Billing</option>
-                    <option className="bg-background dark:bg-[#121926] text-foreground" value="technical">Technical</option>
-                    <option className="bg-background dark:bg-[#121926] text-foreground" value="general">General</option>
+                    <option className="bg-white dark:bg-[#121926] text-slate-900 dark:text-slate-100" value="portfolio">Portfolio</option>
+                    <option className="bg-white dark:bg-[#121926] text-slate-900 dark:text-slate-100" value="advisory">Advisory</option>
+                    <option className="bg-white dark:bg-[#121926] text-slate-900 dark:text-slate-100" value="billing">Billing</option>
+                    <option className="bg-white dark:bg-[#121926] text-slate-900 dark:text-slate-100" value="technical">Technical</option>
+                    <option className="bg-white dark:bg-[#121926] text-slate-900 dark:text-slate-100" value="general">General</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-[10px] uppercase text-muted-foreground mb-1">Urgency</label>
+                  <label className="block text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 mb-1">Urgency</label>
                   <select
                     value={priority}
                     onChange={(e) => setPriority(e.target.value as any)}
-                    className="w-full bg-background dark:bg-[#121926] border border-border rounded-md px-2.5 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary capitalize font-mono"
+                    className="w-full bg-white dark:bg-[#121926] border border-slate-200 dark:border-white/10 rounded-md px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-primary capitalize font-mono cursor-pointer shadow-2xs"
                   >
-                    <option className="bg-background dark:bg-[#121926] text-foreground" value="low">Low</option>
-                    <option className="bg-background dark:bg-[#121926] text-foreground" value="medium">Medium</option>
-                    <option className="bg-background dark:bg-[#121926] text-foreground" value="high">High</option>
-                    <option className="bg-background dark:bg-[#121926] text-foreground" value="urgent">Urgent</option>
+                    <option className="bg-white dark:bg-[#121926] text-slate-900 dark:text-slate-100" value="low">Low</option>
+                    <option className="bg-white dark:bg-[#121926] text-slate-900 dark:text-slate-100" value="medium">Medium</option>
+                    <option className="bg-white dark:bg-[#121926] text-slate-900 dark:text-slate-100" value="high">High</option>
+                    <option className="bg-white dark:bg-[#121926] text-slate-900 dark:text-slate-100" value="urgent">Urgent</option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase text-muted-foreground mb-1">Detailed Message</label>
+                <label className="block text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 mb-1">Detailed Message</label>
                 <textarea 
                   rows={4} 
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  className="w-full glass-panel-data p-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary leading-relaxed font-sans rounded-md" 
+                  className="w-full bg-white dark:bg-[#121926] border border-slate-200 dark:border-white/10 p-3 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-primary leading-relaxed font-sans rounded-md shadow-2xs" 
                   placeholder="Provide complete context to expedite analyst resolution..." 
                   required
                 />
@@ -449,15 +458,17 @@ export default function SupportPage() {
                 </div>
 
                 {loadingTickets ? (
-                  <div className="py-12 text-center text-xs font-mono text-muted-foreground animate-pulse">
-                    Loading tickets...
+                  <div className="py-14 text-center text-xs font-mono text-muted-foreground animate-pulse">
+                    Loading inquiries...
                   </div>
                 ) : tickets.length === 0 ? (
-                  <div className="py-12 text-center space-y-2">
-                    <AlertCircle className="w-6 h-6 mx-auto text-muted-foreground" />
-                    <p className="font-semibold text-xs text-foreground">No Open Tickets</p>
-                    <p className="text-[11px] font-mono text-muted-foreground">
-                      Use the inquiry form on the left to reach our research and compliance teams.
+                  <div className="py-14 text-center space-y-2 px-4">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 text-primary mx-auto flex items-center justify-center">
+                      <MessageSquare className="w-5 h-5" />
+                    </div>
+                    <p className="font-semibold text-sm text-foreground">No Tickets Raised</p>
+                    <p className="text-xs font-mono text-muted-foreground max-w-sm mx-auto leading-relaxed">
+                      You haven't submitted any support tickets yet. Use the inquiry form on the left to reach our quantitative analysts and compliance desk.
                     </p>
                   </div>
                 ) : (

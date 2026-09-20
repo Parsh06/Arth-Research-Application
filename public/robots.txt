@@ -5,8 +5,16 @@ Allow: /favicon.png
 Allow: /logo1.png
 Allow: /og-image.png
 
+User-agent: Googlebot
+Allow: /
+
 User-agent: Googlebot-Image
 Allow: /
 
 User-agent: Googlebot-Favicon
 Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+Sitemap: https://arthresearch.web.app/sitemap.xml

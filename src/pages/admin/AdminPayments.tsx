@@ -60,18 +60,24 @@ export default function AdminPayments() {
     const completedOrders = orders.filter(o => o.status === 'completed');
     const failedOrders = orders.filter(o => o.status === 'failed');
     
-    const grossRevenueMinor = completedOrders.reduce((sum, o) => sum + (o.totalMinor || 0), 0);
+    // 1) Base Plan Revenue (Gross Plan Fee / Pre-Tax Subscription Fees)
+    const baseRevenueMinor = completedOrders.reduce((sum, o) => sum + (o.priceMinor || 0), 0);
+    // 2) Revenue for GST (18% Statutory Tax)
     const totalGstMinor = completedOrders.reduce((sum, o) => sum + (o.taxMinor || 0), 0);
-    const totalGatewayFeesMinor = completedOrders.reduce((sum, o) => sum + (o.gatewayFeeMinor || 0), 0);
-    const averageOrderValueMinor = completedOrders.length > 0 ? Math.round(grossRevenueMinor / completedOrders.length) : 0;
-    
+    // 3) Revenue for 3% Gateway Surcharges & Handling
+    const totalSurchargeMinor = completedOrders.reduce((sum, o) => sum + (o.gatewayFeeMinor || 0), 0);
+    // 4) Final Net Settled Revenue
+    const finalGrossRevenueMinor = completedOrders.reduce((sum, o) => sum + (o.totalMinor || 0), 0);
+
+    const averageOrderValueMinor = completedOrders.length > 0 ? Math.round(finalGrossRevenueMinor / completedOrders.length) : 0;
     const totalAttempts = orders.length;
     const successRate = totalAttempts > 0 ? Math.round((completedOrders.length / totalAttempts) * 100) : 0;
 
     return {
-      grossRevenueMinor,
+      baseRevenueMinor,
       totalGstMinor,
-      totalGatewayFeesMinor,
+      totalSurchargeMinor,
+      finalGrossRevenueMinor,
       averageOrderValueMinor,
       totalCompleted: completedOrders.length,
       totalFailed: failedOrders.length,
@@ -219,59 +225,87 @@ export default function AdminPayments() {
         </div>
       </div>
 
-      {/* Financial Executive KPI Cards */}
+      {/* Primary 4-Part Revenue Metric Ledger Breakdown */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <motion.div initial={{ y: 15, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="glass-panel p-5">
+        {/* 1. Base Plan Revenue */}
+        <motion.div initial={{ y: 15, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="glass-panel p-5 relative overflow-hidden">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">Gross Revenue Settled</span>
+            <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground font-semibold">1. Total Base Revenue</span>
             <Receipt className="w-4 h-4 text-primary" />
           </div>
           <p className="text-2xl font-mono tabular-nums font-semibold tracking-tight text-foreground mt-1">
-            {formatINR(stats.grossRevenueMinor)}
+            {formatINR(stats.baseRevenueMinor)}
           </p>
-          <div className="text-[10px] font-mono text-muted-foreground mt-1 flex items-center gap-1">
-            <span className="text-emerald-500 font-semibold">{stats.totalCompleted}</span> completed mandates
+          <div className="text-[10px] font-mono text-muted-foreground mt-1.5 flex items-center justify-between">
+            <span>Net Plan Mandate Fees</span>
+            <span className="text-emerald-500 font-semibold">{stats.totalCompleted} Settled</span>
           </div>
         </motion.div>
 
-        <motion.div initial={{ y: 15, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.05 }} className="glass-panel p-5">
+        {/* 2. Statutory GST (18%) */}
+        <motion.div initial={{ y: 15, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.05 }} className="glass-panel p-5 relative overflow-hidden">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">Gateway Success Rate</span>
+            <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground font-semibold">2. Statutory GST (18%)</span>
+            <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20">Tax</span>
+          </div>
+          <p className="text-2xl font-mono tabular-nums font-semibold tracking-tight text-amber-500 dark:text-amber-400 mt-1">
+            {formatINR(stats.totalGstMinor)}
+          </p>
+          <div className="text-[10px] font-mono text-muted-foreground mt-1.5 flex items-center justify-between">
+            <span>Statutory Tax Collected</span>
+            <span className="text-muted-foreground font-mono">18.0% Rate</span>
+          </div>
+        </motion.div>
+
+        {/* 3. Gateway Surcharges (3%) */}
+        <motion.div initial={{ y: 15, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }} className="glass-panel p-5 relative overflow-hidden">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground font-semibold">3. Surcharges (3%)</span>
+            <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-500 border border-blue-500/20">Gateway</span>
+          </div>
+          <p className="text-2xl font-mono tabular-nums font-semibold tracking-tight text-blue-500 dark:text-blue-400 mt-1">
+            {formatINR(stats.totalSurchargeMinor)}
+          </p>
+          <div className="text-[10px] font-mono text-muted-foreground mt-1.5 flex items-center justify-between">
+            <span>Payment Gateway Handling</span>
+            <span className="text-muted-foreground font-mono">3.0% Surge</span>
+          </div>
+        </motion.div>
+
+        {/* 4. Final Settled Revenue */}
+        <motion.div initial={{ y: 15, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.15 }} className="glass-panel p-5 border-l-4 border-l-primary bg-primary/5">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-mono uppercase tracking-wider text-primary font-bold">4. Final Gross Revenue</span>
             <TrendingUp className="w-4 h-4 text-emerald-500" />
           </div>
-          <p className="text-2xl font-mono tabular-nums font-semibold tracking-tight text-emerald-500 mt-1">
-            {stats.successRate}%
+          <p className="text-2xl font-mono tabular-nums font-bold tracking-tight text-foreground mt-1">
+            {formatINR(stats.finalGrossRevenueMinor)}
           </p>
-          <div className="text-[10px] font-mono text-muted-foreground mt-1">
-            {stats.totalCompleted} of {stats.totalAttempts} total attempts
+          <div className="text-[10px] font-mono text-muted-foreground mt-1.5 flex items-center justify-between">
+            <span>Net Total Invoiced & Settled</span>
+            <span className="text-emerald-500 font-bold">{stats.successRate}% Success</span>
           </div>
         </motion.div>
+      </div>
 
-        <motion.div initial={{ y: 15, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }} className="glass-panel p-5">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">Failed Attempts</span>
-            <AlertCircle className="w-4 h-4 text-[hsl(var(--destructive))]" />
-          </div>
-          <p className="text-2xl font-mono tabular-nums font-semibold tracking-tight text-[hsl(var(--destructive))] mt-1">
-            {stats.totalFailed}
-          </p>
-          <div className="text-[10px] font-mono text-muted-foreground mt-1">
-            Logged with error telemetry
-          </div>
-        </motion.div>
-
-        <motion.div initial={{ y: 15, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.15 }} className="glass-panel p-5">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">Average Order Value</span>
-            <CreditCard className="w-4 h-4 text-primary" />
-          </div>
-          <p className="text-2xl font-mono tabular-nums font-semibold tracking-tight text-foreground mt-1">
-            {formatINR(stats.averageOrderValueMinor)}
-          </p>
-          <div className="text-[10px] font-mono text-muted-foreground mt-1">
-            Per active strategy mandate
-          </div>
-        </motion.div>
+      {/* Secondary Operational Diagnostics Strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="glass-panel-data p-3 flex items-center justify-between text-xs font-mono">
+          <span className="text-muted-foreground">Gateway Success Rate:</span>
+          <span className="font-bold text-emerald-500">{stats.successRate}% ({stats.totalCompleted}/{stats.totalAttempts})</span>
+        </div>
+        <div className="glass-panel-data p-3 flex items-center justify-between text-xs font-mono">
+          <span className="text-muted-foreground">Failed Attempts:</span>
+          <span className={`font-bold ${stats.totalFailed > 0 ? 'text-destructive' : 'text-muted-foreground'}`}>{stats.totalFailed}</span>
+        </div>
+        <div className="glass-panel-data p-3 flex items-center justify-between text-xs font-mono">
+          <span className="text-muted-foreground">Avg Order Value:</span>
+          <span className="font-bold text-foreground">{formatINR(stats.averageOrderValueMinor)}</span>
+        </div>
+        <div className="glass-panel-data p-3 flex items-center justify-between text-xs font-mono">
+          <span className="text-muted-foreground">Settled Mandates:</span>
+          <span className="font-bold text-primary">{stats.totalCompleted} Completed</span>
+        </div>
       </div>
 
       {/* Filter Toolbar */}

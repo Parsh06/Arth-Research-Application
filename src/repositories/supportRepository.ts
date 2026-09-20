@@ -101,15 +101,31 @@ export const supportRepository = {
   /**
    * Subscribe to user tickets in real-time
    */
-  subscribeToUserTickets(userId: string, callback: (tickets: SupportTicket[]) => void) {
+  subscribeToUserTickets(
+    userId: string, 
+    callback: (tickets: SupportTicket[]) => void,
+    onError?: (err: any) => void
+  ) {
     const q = query(
       collection(db, 'tickets'),
-      where('userId', '==', userId),
-      orderBy('updatedAt', 'desc')
+      where('userId', '==', userId)
     );
     return onSnapshot(q, (snap) => {
-      const tickets = snap.docs.map(d => SupportTicketSchema.parse(d.data()));
+      const tickets = snap.docs
+        .map(d => {
+          try {
+            return SupportTicketSchema.parse(d.data());
+          } catch {
+            return null;
+          }
+        })
+        .filter((t): t is SupportTicket => t !== null)
+        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
       callback(tickets);
+    }, (err) => {
+      console.warn('[supportRepository] Subscription error for user tickets:', err);
+      callback([]);
+      onError?.(err);
     });
   },
 

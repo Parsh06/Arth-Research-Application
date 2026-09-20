@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
   --font-display: "Fraunces", "Newsreader", serif;
@@ -132,9 +133,10 @@
     transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  /* Form & Input Theme Baseline */
+  /* Form & Input Theme Baseline - Strict Uniformity */
   input, select, textarea {
     color: hsl(var(--foreground));
+    background-color: hsl(var(--card));
   }
 
   input::placeholder, textarea::placeholder {

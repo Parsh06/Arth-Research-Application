@@ -174,13 +174,13 @@ export default function AdminSupport() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full bg-card dark:bg-[#121926] border border-border rounded-md px-3 py-2 text-xs text-foreground font-mono capitalize focus:outline-none focus:ring-1 focus:ring-primary"
+              className="w-full bg-white dark:bg-[#121926] border border-slate-200 dark:border-white/10 rounded-md px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-mono capitalize focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs"
             >
-              <option className="bg-background dark:bg-[#121926] text-foreground" value="all">All Inquiries ({tickets.length})</option>
-              <option className="bg-background dark:bg-[#121926] text-foreground" value="open">Open</option>
-              <option className="bg-background dark:bg-[#121926] text-foreground" value="in_progress">In Progress</option>
-              <option className="bg-background dark:bg-[#121926] text-foreground" value="resolved">Resolved</option>
-              <option className="bg-background dark:bg-[#121926] text-foreground" value="closed">Closed</option>
+              <option value="all">All Inquiries ({tickets.length})</option>
+              <option value="open">Open</option>
+              <option value="in_progress">In Progress</option>
+              <option value="resolved">Resolved</option>
+              <option value="closed">Closed</option>
             </select>
           </div>
 
@@ -260,12 +260,12 @@ export default function AdminSupport() {
                     <select
                       value={selectedTicket.status}
                       onChange={(e) => handleUpdateStatus(selectedTicket.id, e.target.value as any)}
-                      className="bg-card dark:bg-[#121926] border border-border text-[11px] font-mono rounded-md px-3 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary capitalize"
+                      className="bg-white dark:bg-[#121926] border border-slate-200 dark:border-white/10 text-[11px] font-mono rounded-md px-3 py-1.5 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-primary capitalize cursor-pointer shadow-2xs"
                     >
-                      <option className="bg-background dark:bg-[#121926] text-foreground" value="open">Open</option>
-                      <option className="bg-background dark:bg-[#121926] text-foreground" value="in_progress">In Progress</option>
-                      <option className="bg-background dark:bg-[#121926] text-foreground" value="resolved">Resolved</option>
-                      <option className="bg-background dark:bg-[#121926] text-foreground" value="closed">Closed</option>
+                      <option value="open">Open</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="resolved">Resolved</option>
+                      <option value="closed">Closed</option>
                     </select>
                   </div>
                 </div>
