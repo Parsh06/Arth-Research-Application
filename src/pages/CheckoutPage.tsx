@@ -231,28 +231,10 @@ export default function CheckoutPage() {
         });
       }
 
-      const modeStr = paymentMethod === 'upi' ? 'UPI' : paymentMethod === 'card' ? 'CARD' : 'NETBANKING';
-      const methodStr = paymentMethod === 'upi' ? `UPI (${upiId})` : paymentMethod === 'card' ? 'Credit / Debit Card' : 'Net Banking';
       const userPhoneClean = phone.trim();
+      const receiptCode = `ARTH_${Date.now().toString(36).toUpperCase()}_${user.uid.slice(0, 4).toUpperCase()}`;
 
-      // 1. Create order record in Firestore
-      const order = await orderRepository.createOrder({
-        userId: user.uid,
-        userEmail: user.email || '',
-        userName: user.displayName || 'Valued Investor',
-        userPhone: userPhoneClean || undefined,
-        planId: plan.id,
-        planName: plan.name,
-        priceMinor: basePriceMinor,
-        discountMinor,
-        gatewayFeeMinor,
-        couponCode: couponApplied ? couponCode.trim().toUpperCase() : undefined,
-        validityDays: plan.validityDays,
-        paymentMode: modeStr,
-        paymentMethod: methodStr
-      });
-
-      // 2. Launch Razorpay Standard Checkout SDK
+      // Launch Razorpay Standard Checkout SDK directly — ZERO draft orders in Firestore
       const { paymentService } = await import('../services/paymentService');
 
       await paymentService.launchRazorpayCheckout({
@@ -261,7 +243,7 @@ export default function CheckoutPage() {
         userName: user.displayName || 'Valued Investor',
         userEmail: user.email || '',
         userPhone: userPhoneClean || undefined,
-        receipt: `ARTH_${order.id.slice(0, 8)}`,
+        receipt: receiptCode,
         onSuccess: async (rzpResponse) => {
           try {
             // Save phone to user profile and private record if provided
@@ -270,12 +252,10 @@ export default function CheckoutPage() {
               userRepository.updateUser(user.uid, { phone: userPhoneClean }).catch(e => console.warn(e));
             }
 
-            // 3a. Fetch REAL payment details from Razorpay API (actual instrument used)
-            //     The handler callback only gives payment_id/order_id/signature — not the method.
-            //     We must call our backend to get the actual card/UPI/netbanking details.
-            let realPaymentMode = modeStr;
-            let realPaymentMethod = methodStr;
-            let realVpa: string | undefined = paymentMethod === 'upi' ? upiId : undefined;
+            // 1. Fetch REAL verified payment details from Razorpay API
+            let realPaymentMode = 'UNKNOWN';
+            let realPaymentMethod = 'Razorpay Gateway';
+            let realVpa: string | undefined;
             let realCardNetwork: string | undefined;
             let realCardLast4: string | undefined;
             let realCardName: string | undefined;
@@ -300,7 +280,7 @@ export default function CheckoutPage() {
               if (rzpDetails.success) {
                 realPaymentMode        = rzpDetails.paymentMode;
                 realPaymentMethod      = rzpDetails.paymentMethod;
-                realVpa                = rzpDetails.vpa;
+                realVpa                = rzpDetails.paymentMode === 'UPI' ? (rzpDetails.vpa || undefined) : undefined;
                 realCardNetwork        = rzpDetails.cardNetwork;
                 realCardLast4          = rzpDetails.cardLast4;
                 realCardName           = rzpDetails.cardName;
@@ -320,19 +300,29 @@ export default function CheckoutPage() {
                 realAcquirerUpiTxnId   = rzpDetails.acquirerData?.upiTransactionId;
               }
             } catch (fetchErr) {
-              console.warn('[CheckoutPage] fetchPaymentDetails failed, using pre-selected method:', fetchErr);
+              console.warn('[CheckoutPage] fetchPaymentDetails warning:', fetchErr);
             }
 
-            // 3b. Complete payment & provision in Firestore with all real payment data
-            const { subscriptionId } = await orderRepository.completePaymentAndProvision(order, {
-              gatewayPaymentId: rzpResponse.razorpay_payment_id,
-              gatewayOrderId: rzpResponse.razorpay_order_id,
-              gatewaySignature: rzpResponse.razorpay_signature,
-              validityDays: plan.validityDays,
-              planName: plan.name,
+            // 2. Create the official completed Order & provision Subscriptions and Entitlements atomically
+            const { order, subscriptionId } = await orderRepository.createOrderAndProvisionOnSuccess({
+              userId: user.uid,
               userEmail: user.email || '',
               userName: user.displayName || 'Valued Investor',
               userPhone: userPhoneClean || undefined,
+              planId: plan.id,
+              planName: plan.name,
+              planVersionId: (plan as any).versionId || 'version_1',
+              validityDays: plan.validityDays,
+              priceMinor: basePriceMinor,
+              discountMinor,
+              couponCode: couponApplied ? couponCode.trim().toUpperCase() : undefined,
+              taxMinor,
+              gatewayFeeMinor,
+              totalMinor,
+              // Real Gateway & Instrument Details
+              gatewayPaymentId: rzpResponse.razorpay_payment_id,
+              gatewayOrderId: rzpResponse.razorpay_order_id,
+              gatewaySignature: rzpResponse.razorpay_signature,
               paymentMode: realPaymentMode,
               paymentMethod: realPaymentMethod,
               vpa: realVpa,
@@ -355,13 +345,29 @@ export default function CheckoutPage() {
               acquirerUpiTxnId: realAcquirerUpiTxnId
             });
 
+            // 3. Ensure initial strategy portfolio exists
+            try {
+              const { portfolioRepository } = await import('../repositories/portfolioRepository');
+              const userPorts = await portfolioRepository.getUserPortfolios(user.uid).catch(() => []);
+              const existing = userPorts.find((p: any) => p.planId === plan.id);
+              if (!existing) {
+                await portfolioRepository.createPortfolioWithVersionAndHoldings({
+                  userId: user.uid,
+                  planId: plan.id,
+                  planName: plan.name,
+                  holdings: []
+                });
+              }
+            } catch (portErr) {
+              console.warn('[CheckoutPage] Portfolio init warning:', portErr);
+            }
 
             // 4. Generate official Tax Invoice PDF & send via email with attachment
             if (user.email) {
               const { emailService } = await import('../services/emailService');
               const { getInvoicePdfBase64 } = await import('../utils/invoicePdfGenerator');
 
-              const invoiceNumber = `INV-ARTH-${new Date().getFullYear()}-${order.id.slice(0, 6).toUpperCase()}`;
+              const invoiceNumber = order.invoiceNumber || `INV-ARTH-${new Date().getFullYear()}-${order.id.slice(0, 6).toUpperCase()}`;
 
               const invoiceData = {
                 invoiceNumber,
@@ -382,7 +388,6 @@ export default function CheckoutPage() {
                 paymentMethod: realPaymentMethod
               };
 
-              // Generate PDF base64
               let pdfBase64 = '';
               try {
                 pdfBase64 = getInvoicePdfBase64(invoiceData);
@@ -419,7 +424,7 @@ export default function CheckoutPage() {
               });
             }
 
-            // 5. Store completed checkout state in sessionStorage so refreshing or navigating never loses receipt or repeats payment
+            // 5. Store completed checkout state in sessionStorage so refreshing or navigating never loses receipt
             try {
               sessionStorage.setItem('last_successful_checkout', JSON.stringify({
                 planId: plan.id,
@@ -431,7 +436,7 @@ export default function CheckoutPage() {
                 taxableAmountMinor,
                 basePriceMinor,
                 discountMinor,
-                invoiceNumber: `INV-ARTH-${new Date().getFullYear()}-${order.id.slice(0, 6).toUpperCase()}`,
+                invoiceNumber: order.invoiceNumber || `INV-ARTH-${new Date().getFullYear()}-${order.id.slice(0, 6).toUpperCase()}`,
                 paymentId: rzpResponse.razorpay_payment_id,
                 paymentMode: realPaymentMode,
                 paymentMethod: realPaymentMethod,
@@ -457,7 +462,7 @@ export default function CheckoutPage() {
           } catch (provisionErr: any) {
             console.error('[CheckoutPage] Provisioning error:', provisionErr);
             setIsProcessing(false);
-            alert(`Payment succeeded (Ref: ${rzpResponse.razorpay_payment_id}), but provisioning had an issue: ${provisionErr.message}`);
+            alert(`Payment captured (${rzpResponse.razorpay_payment_id}), but provisioning had an issue: ${provisionErr.message}`);
           }
         },
         onFailure: async (err) => {
@@ -466,12 +471,6 @@ export default function CheckoutPage() {
           console.warn('[CheckoutPage] Razorpay payment failure:', failureMsg);
 
           const isUserDismissal = err.reason === 'Payment window closed by investor.' || failureMsg.includes('closed by investor');
-
-          // Log failed status in Firestore for Super Admin audit
-          await orderRepository.markOrderFailed(order.id, {
-            failureReason: failureMsg,
-            errorCode: err.code
-          });
 
           // Send payment failed email if it was an actual gateway failure, not a simple window close
           if (!isUserDismissal && user?.email && plan) {

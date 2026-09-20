@@ -49,6 +49,227 @@ export interface CreateOrderParams {
 
 export const orderRepository = {
   /**
+   * Creates an order directly in 'completed' state and provisions subscriptions,
+   * payments, entitlements, and user status atomically. Zero preliminary draft records.
+   */
+  async createOrderAndProvisionOnSuccess(params: {
+    userId: string;
+    userEmail: string;
+    userName: string;
+    userPhone?: string;
+    planId: string;
+    planName: string;
+    planVersionId?: string;
+    validityDays: number;
+    priceMinor: number;
+    discountMinor?: number;
+    couponCode?: string;
+    taxMinor?: number;
+    gatewayFeeMinor?: number;
+    totalMinor?: number;
+    // Verified Gateway & Real Payment Instrument Telemetry
+    gatewayPaymentId: string;
+    gatewayOrderId: string;
+    gatewaySignature?: string;
+    invoiceNumber?: string;
+    paymentMode: string;
+    paymentMethod: string;
+    bank?: string;
+    wallet?: string;
+    vpa?: string;
+    cardNetwork?: string;
+    cardLast4?: string;
+    cardName?: string;
+    cardIssuer?: string;
+    cardType?: string;
+    cardSubType?: string;
+    cardInternational?: boolean;
+    emiDuration?: number;
+    international?: boolean;
+    razorpayFeeMinor?: number;
+    razorpayTaxMinor?: number;
+    acquirerAuthCode?: string;
+    acquirerBankTxnId?: string;
+    acquirerRrn?: string;
+    acquirerUpiTxnId?: string;
+  }): Promise<{ order: Order; paymentId: string; subscriptionId: string }> {
+    const now = new Date().toISOString();
+    const discountMinor = params.discountMinor || 0;
+    const taxableAmountMinor = Math.max(0, params.priceMinor - discountMinor);
+    const taxMinor = params.taxMinor ?? Math.round(taxableAmountMinor * 0.18);
+    const subtotalBeforeGatewayMinor = taxableAmountMinor + taxMinor;
+    const gatewayFeeMinor = params.gatewayFeeMinor ?? Math.round(subtotalBeforeGatewayMinor * 0.03);
+    const totalMinor = params.totalMinor ?? (subtotalBeforeGatewayMinor + gatewayFeeMinor);
+
+    const orderRef = doc(collection(db, COLLECTION_ORDERS));
+    const orderId = orderRef.id;
+    const invoiceNumber = params.invoiceNumber || `INV-ARTH-${new Date().getFullYear()}-${orderId.slice(0, 6).toUpperCase()}`;
+
+    // 1. Order Record (created directly with status: 'completed' and real instrument data only)
+    const orderPayload: any = {
+      id: orderId,
+      userId: params.userId,
+      userEmail: params.userEmail || '',
+      userName: params.userName || '',
+      userPhone: params.userPhone || '',
+      planId: params.planId,
+      planName: params.planName,
+      planVersionId: params.planVersionId || 'version_1',
+      validityDays: params.validityDays,
+      priceMinor: params.priceMinor,
+      discountMinor,
+      taxMinor,
+      gatewayFeeMinor,
+      totalMinor,
+      currency: 'INR',
+      status: 'completed',
+      invoiceNumber,
+      // Verified Gateway Details
+      gatewayPaymentId: params.gatewayPaymentId,
+      gatewayOrderId: params.gatewayOrderId,
+      gatewaySignature: params.gatewaySignature || '',
+      paymentMode: params.paymentMode,
+      paymentMethod: params.paymentMethod,
+      vpa: params.paymentMode === 'UPI' ? (params.vpa || '') : '',
+      cardNetwork: params.cardNetwork || '',
+      cardLast4: params.cardLast4 || '',
+      cardName: params.cardName || '',
+      cardIssuer: params.cardIssuer || '',
+      cardType: params.cardType || '',
+      cardSubType: params.cardSubType || '',
+      cardInternational: params.cardInternational || false,
+      bank: params.bank || '',
+      wallet: params.wallet || '',
+      emiDuration: params.emiDuration || null,
+      international: params.international || false,
+      razorpayFeeMinor: params.razorpayFeeMinor || 0,
+      razorpayTaxMinor: params.razorpayTaxMinor || 0,
+      acquirerAuthCode: params.acquirerAuthCode || '',
+      acquirerBankTxnId: params.acquirerBankTxnId || '',
+      acquirerRrn: params.acquirerRrn || '',
+      acquirerUpiTxnId: params.acquirerUpiTxnId || '',
+      paidAt: now,
+      createdAt: now,
+      updatedAt: now
+    };
+
+    if (params.couponCode) {
+      orderPayload.couponCode = params.couponCode;
+    }
+
+    const order = sanitizeForFirestore(orderPayload) as Order;
+
+    const batch = writeBatch(db);
+    batch.set(orderRef, order);
+
+    // 2. Payment Record
+    const paymentRef = doc(collection(db, COLLECTION_PAYMENTS));
+    const paymentId = paymentRef.id;
+    const paymentPayload: any = {
+      id: paymentId,
+      orderId: orderId,
+      userId: params.userId,
+      userEmail: params.userEmail || '',
+      userName: params.userName || '',
+      userPhone: params.userPhone || '',
+      planName: params.planName,
+      amountMinor: totalMinor,
+      currency: 'INR',
+      provider: 'razorpay',
+      gatewayPaymentId: params.gatewayPaymentId,
+      gatewayOrderId: params.gatewayOrderId,
+      gatewaySignature: params.gatewaySignature || '',
+      paymentMode: params.paymentMode,
+      paymentMethod: params.paymentMethod,
+      bank: params.bank || '',
+      wallet: params.wallet || '',
+      vpa: params.paymentMode === 'UPI' ? (params.vpa || '') : '',
+      cardNetwork: params.cardNetwork || '',
+      cardLast4: params.cardLast4 || '',
+      cardName: params.cardName || '',
+      cardIssuer: params.cardIssuer || '',
+      cardType: params.cardType || '',
+      cardSubType: params.cardSubType || '',
+      cardInternational: params.cardInternational || false,
+      emiDuration: params.emiDuration || null,
+      international: params.international || false,
+      razorpayFeeMinor: params.razorpayFeeMinor || 0,
+      razorpayTaxMinor: params.razorpayTaxMinor || 0,
+      acquirerAuthCode: params.acquirerAuthCode || '',
+      acquirerBankTxnId: params.acquirerBankTxnId || '',
+      acquirerRrn: params.acquirerRrn || '',
+      acquirerUpiTxnId: params.acquirerUpiTxnId || '',
+      status: 'captured',
+      paidAt: now,
+      createdAt: now
+    };
+    batch.set(paymentRef, sanitizeForFirestore(paymentPayload) as Payment);
+
+    // 3. Subscription Record
+    const subscriptionRef = doc(collection(db, COLLECTION_SUBSCRIPTIONS));
+    const subscriptionId = subscriptionRef.id;
+    const expiresAt = calculateExpiryTimestamp(params.validityDays);
+
+    const subscriptionPayload: any = {
+      id: subscriptionId,
+      userId: params.userId,
+      userEmail: params.userEmail || '',
+      userName: params.userName || '',
+      planId: params.planId,
+      planVersionId: params.planVersionId || 'version_1',
+      planName: params.planName,
+      orderId: orderId,
+      paymentId: paymentId,
+      pricePaidMinor: totalMinor,
+      validityDays: params.validityDays,
+      status: 'active',
+      startsAt: now,
+      expiresAt: expiresAt,
+      createdAt: now,
+      updatedAt: now
+    };
+    batch.set(subscriptionRef, sanitizeForFirestore(subscriptionPayload) as Subscription);
+
+    // 4. Feature Entitlements
+    const features = [
+      'feature_portfolio_analytics',
+      'feature_research_signals',
+      'feature_custom_watchlist',
+      'feature_priority_support',
+      'feature_factor_radar',
+      `access_plan_${params.planId}`
+    ];
+
+    for (const featureKey of features) {
+      const entitlementId = `${params.userId}_${featureKey}`;
+      const entitlementRef = doc(db, COLLECTION_ENTITLEMENTS, entitlementId);
+      const entitlementPayload: any = {
+        id: entitlementId,
+        userId: params.userId,
+        planId: params.planId,
+        featureKey,
+        isActive: true,
+        expiresAt: expiresAt
+      };
+      batch.set(entitlementRef, sanitizeForFirestore(entitlementPayload) as Entitlement, { merge: true });
+    }
+
+    // 5. Update user document to reflect active subscription status
+    const userRef = doc(db, 'users', params.userId);
+    batch.set(userRef, {
+      subscriptionStatus: 'active',
+      activePlanId: params.planId,
+      activePlanName: params.planName,
+      subscriptionExpiresAt: expiresAt,
+      updatedAt: now
+    }, { merge: true });
+
+    await batch.commit();
+
+    return { order, paymentId, subscriptionId };
+  },
+
+  /**
    * Creates an order with 18% GST and 3% payment gateway calculation in minor units.
    */
   async createOrder(params: CreateOrderParams): Promise<Order> {
