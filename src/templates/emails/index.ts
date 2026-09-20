@@ -415,9 +415,9 @@ export const EMAIL_TEMPLATES_CATALOG: EmailTemplateDefinition[] = [
       userName: 'Vikramaditya Singhania',
       userEmail: email,
       revocationDate: '19 Sep 2026, 12:00 PM IST',
-      reason: 'Periodic SEBI KYC re-verification failed: PAN-Aadhaar linkage mismatch and expired address documentation. Account suspended pending updated verification upload.',
+      reason: 'Periodic identity verification review update required: PAN-document linkage mismatch. Account temporarily restricted pending updated verification upload.',
       supervisorName: 'Parsh Jain',
-      supervisorRole: 'Principal Compliance Officer',
+      supervisorRole: 'Principal Advisory Supervisor',
       appealUrl: `${typeof window !== 'undefined' ? window.location.origin : 'https://arthresearch.com'}/support`
     })
   },

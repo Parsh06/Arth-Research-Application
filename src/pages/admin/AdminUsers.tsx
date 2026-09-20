@@ -389,7 +389,7 @@ export default function AdminUsers() {
                     rows={4}
                     value={revocationReason}
                     onChange={(e) => setRevocationReason(e.target.value)}
-                    placeholder="e.g. Account suspended due to unresolved KYC verification discrepancy under SEBI Master Circular guidelines. Please submit clear PAN document to compliance desk."
+                    placeholder="e.g. Account suspended due to unresolved verification discrepancy under advisory risk guidelines. Please submit clear identity document to advisory desk."
                     className="w-full bg-card border border-border rounded-md p-3 text-xs text-foreground leading-relaxed focus:outline-none focus:ring-1 focus:ring-destructive focus:border-destructive transition-colors"
                     required
                   />

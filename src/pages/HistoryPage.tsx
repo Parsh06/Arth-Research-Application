@@ -1,17 +1,24 @@
 import { motion } from 'framer-motion';
 import { History } from 'lucide-react';
+import NoActiveStrategyGate from '../components/NoActiveStrategyGate';
+import { useAdvisoryAccess } from '../hooks/useAdvisoryAccess';
 
 export default function HistoryPage() {
+  const { hasAccess, isLoading: isAccessLoading } = useAdvisoryAccess();
   const transactions: any[] = []; 
   const isLoadingTransactions = false;
 
-  if (isLoadingTransactions) {
+  if (isAccessLoading || isLoadingTransactions) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-3">
+      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3">
         <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         <span className="text-xs font-mono tracking-wider text-muted-foreground">Loading Execution Audit Trail...</span>
       </div>
     );
+  }
+
+  if (!hasAccess) {
+    return <NoActiveStrategyGate />;
   }
 
   return (

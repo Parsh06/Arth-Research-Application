@@ -136,9 +136,9 @@ export default function Preloader({ isReady = true }: PreloaderProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.5, delay: 0.5 }}
-              className="mt-1 text-[9.5px] font-mono uppercase tracking-[0.25em] text-slate-500"
+              className="text-[10px] sm:text-[11px] font-mono tracking-[0.2em] uppercase text-[#C6A15B]/70 mt-1"
             >
-              SEBI Registered Research Analyst &bull; INH00001234
+              Quantitative Equities Research &bull; Institutional Advisory
             </motion.p>
           </div>
 

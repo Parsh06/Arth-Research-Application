@@ -186,7 +186,7 @@ export function buildAnalystPortfolioClearanceEmail(data: PortfolioClearanceEmai
         text: 'Open Live Portfolio Desk',
         url: portfolioUrl
       },
-      footerNotice: 'SEBI RA compliance: Initial basket reconciled against strategy allocation tolerance.'
+      footerNotice: 'Research clearance: Initial basket reconciled against strategy allocation tolerance.'
     })
   };
 }

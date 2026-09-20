@@ -1,5 +1,16 @@
 // src/repositories/orderRepository.ts
-import { collection, doc, getDoc, getDocs, query, where, writeBatch } from 'firebase/firestore';
+import { 
+  collection, 
+  doc, 
+  getDoc, 
+  getDocs, 
+  query, 
+  where, 
+  writeBatch, 
+  orderBy, 
+  onSnapshot,
+  type Unsubscribe 
+} from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type { Order, Payment, Subscription, Entitlement } from '../schemas/subscription.schema';
 import { calculateExpiryTimestamp } from '../utils/datetime';
@@ -21,6 +32,8 @@ function sanitizeForFirestore<T extends Record<string, any>>(obj: T): T {
 
 export interface CreateOrderParams {
   userId: string;
+  userEmail?: string;
+  userName?: string;
   planId: string;
   planVersionId?: string;
   planName: string;
@@ -48,8 +61,12 @@ export const orderRepository = {
     const orderPayload: any = {
       id: orderRef.id,
       userId: params.userId,
+      userEmail: params.userEmail || '',
+      userName: params.userName || '',
       planId: params.planId,
+      planName: params.planName,
       planVersionId: params.planVersionId || 'version_1',
+      validityDays: params.validityDays,
       priceMinor: params.priceMinor,
       discountMinor,
       taxMinor,
@@ -85,6 +102,9 @@ export const orderRepository = {
       gatewaySignature?: string;
       validityDays: number;
       planName: string;
+      invoiceNumber?: string;
+      userEmail?: string;
+      userName?: string;
     }
   ): Promise<{ paymentId: string; subscriptionId: string }> {
     const now = new Date().toISOString();
@@ -97,6 +117,9 @@ export const orderRepository = {
       id: paymentId,
       orderId: order.id,
       userId: order.userId,
+      userEmail: paymentDetails.userEmail || order.userEmail || '',
+      userName: paymentDetails.userName || order.userName || '',
+      planName: paymentDetails.planName || order.planName || '',
       amountMinor: order.totalMinor,
       currency: 'INR',
       provider: 'razorpay',
@@ -110,10 +133,15 @@ export const orderRepository = {
     const payment = sanitizeForFirestore(paymentPayload) as Payment;
     batch.set(paymentRef, payment);
 
-    // 2. Update Order Status
+    // 2. Update Order Status & Gateway Identifiers
     const orderRef = doc(db, COLLECTION_ORDERS, order.id);
     batch.update(orderRef, {
       status: 'completed',
+      gatewayPaymentId: paymentDetails.gatewayPaymentId || '',
+      gatewayOrderId: paymentDetails.gatewayOrderId || '',
+      gatewaySignature: paymentDetails.gatewaySignature || '',
+      invoiceNumber: paymentDetails.invoiceNumber || `INV-ARTH-${new Date().getFullYear()}-${order.id.slice(0, 6).toUpperCase()}`,
+      paidAt: now,
       updatedAt: now
     });
 
@@ -125,6 +153,8 @@ export const orderRepository = {
     const subscriptionPayload: any = {
       id: subscriptionId,
       userId: order.userId,
+      userEmail: paymentDetails.userEmail || order.userEmail || '',
+      userName: paymentDetails.userName || order.userName || '',
       planId: order.planId,
       planVersionId: order.planVersionId || 'version_1',
       planName: paymentDetails.planName,
@@ -171,6 +201,54 @@ export const orderRepository = {
     return { paymentId, subscriptionId };
   },
 
+  /**
+   * Marks an order as failed with exact failure reason and gateway diagnostic details.
+   */
+  async markOrderFailed(
+    orderId: string,
+    details: {
+      failureReason: string;
+      errorCode?: string;
+      gatewayOrderId?: string;
+      gatewayPaymentId?: string;
+    }
+  ): Promise<void> {
+    try {
+      const now = new Date().toISOString();
+      const orderRef = doc(db, COLLECTION_ORDERS, orderId);
+      
+      const updateData: any = {
+        status: 'failed',
+        failureReason: details.failureReason,
+        updatedAt: now
+      };
+
+      if (details.errorCode) updateData.errorCode = details.errorCode;
+      if (details.gatewayOrderId) updateData.gatewayOrderId = details.gatewayOrderId;
+      if (details.gatewayPaymentId) updateData.gatewayPaymentId = details.gatewayPaymentId;
+
+      const batch = writeBatch(db);
+      batch.update(orderRef, updateData);
+
+      // Also record in payments collection as a failed attempt
+      const paymentRef = doc(collection(db, COLLECTION_PAYMENTS));
+      batch.set(paymentRef, sanitizeForFirestore({
+        id: paymentRef.id,
+        orderId,
+        status: 'failed',
+        failureReason: details.failureReason,
+        gatewayPaymentId: details.gatewayPaymentId || '',
+        gatewayOrderId: details.gatewayOrderId || '',
+        provider: 'razorpay',
+        createdAt: now
+      }));
+
+      await batch.commit();
+    } catch (err) {
+      console.warn('[orderRepository] Failed to mark order as failed:', err);
+    }
+  },
+
   async getUserOrders(userId: string): Promise<Order[]> {
     const q = query(collection(db, COLLECTION_ORDERS), where('userId', '==', userId));
     const snap = await getDocs(q);
@@ -181,5 +259,28 @@ export const orderRepository = {
     const docRef = doc(db, COLLECTION_ORDERS, orderId);
     const snap = await getDoc(docRef);
     return snap.exists() ? (snap.data() as Order) : null;
+  },
+
+  /**
+   * Fetches all orders across all users for Super Admin financial audits.
+   */
+  async getAllOrders(): Promise<Order[]> {
+    const q = query(collection(db, COLLECTION_ORDERS), orderBy('createdAt', 'desc'));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data() as Order);
+  },
+
+  /**
+   * Real-time subscription to all orders for Super Admin financial overview.
+   */
+  subscribeToAllOrders(callback: (orders: Order[]) => void): Unsubscribe {
+    const q = query(collection(db, COLLECTION_ORDERS), orderBy('createdAt', 'desc'));
+    return onSnapshot(q, (snap) => {
+      const orders = snap.docs.map(d => d.data() as Order);
+      callback(orders);
+    }, (err) => {
+      console.error('[orderRepository] Realtime orders listener error:', err);
+      callback([]);
+    });
   }
 };

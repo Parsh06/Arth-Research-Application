@@ -22,7 +22,7 @@ export default function LoginPage() {
   const loginData = siteContent?.loginPage || {
     title: "Access Your Wealth Engine",
     subtitle: "Institutional quantitative portfolio analytics and automated research signals.",
-    securityText: "SEBI Registered Research Analyst Security Standard"
+    securityText: "Institutional Quantitative Advisory Security Standard"
   };
 
   const handleGoogleLogin = async () => {
@@ -154,7 +154,7 @@ export default function LoginPage() {
             <div className="p-3.5 rounded-md glass-panel-data flex items-start gap-2.5">
               <Lock className="w-3.5 h-3.5 text-muted-foreground mt-0.5 shrink-0" />
               <p className="text-[11px] text-muted-foreground leading-relaxed">
-                By entering the platform, you agree to our strictly enforced SEBI compliance guidelines, Terms of Service, and Privacy Policy.
+                By entering the platform, you agree to our Terms of Service, Advisory Guidelines, and Privacy Policy.
               </p>
             </div>
           </div>

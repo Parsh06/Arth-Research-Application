@@ -180,7 +180,7 @@ export function buildSecurityLoginAlertEmail(data: SecurityLoginAlertEmailData):
         text: 'Review Active Sessions',
         url: secureUrl
       },
-      footerNotice: 'Automated telemetry security alert triggered under SEBI cybersecurity compliance guidelines.'
+      footerNotice: 'Automated telemetry security alert triggered for your authenticated account session.'
     })
   };
 }

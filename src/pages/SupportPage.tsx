@@ -7,10 +7,13 @@ import type { SupportTicket, SupportMessage } from '../schemas/support.schema';
 import { useToastStore } from '../stores/toastStore';
 import { formatDateTime } from '../utils/datetime';
 import { emailService } from '../services/emailService';
+import NoActiveStrategyGate from '../components/NoActiveStrategyGate';
+import { useAdvisoryAccess } from '../hooks/useAdvisoryAccess';
 
 export default function SupportPage() {
   const { user } = useAuthStore();
   const { addToast } = useToastStore();
+  const { hasAccess, isLoading: isAccessLoading } = useAdvisoryAccess();
 
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
@@ -189,6 +192,10 @@ export default function SupportPage() {
     }
   };
 
+  if (!isAccessLoading && !hasAccess) {
+    return <NoActiveStrategyGate />;
+  }
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       <div className="pb-4 border-b border-border">
@@ -198,10 +205,10 @@ export default function SupportPage() {
           </span>
         </div>
         <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground mt-1">
-          Direct Compliance & Research Support
+          Direct Advisory & Portfolio Support
         </h1>
         <p className="text-xs text-muted-foreground font-mono mt-0.5">
-          Communicate directly with SEBI-registered analysts, technical engineers, and account compliance officers.
+          Communicate directly with quantitative analysts, research engineers, and portfolio support specialists.
         </p>
       </div>
 

@@ -1,4 +1,3 @@
-// src/utils/rbac.ts
 import {
   LayoutDashboard,
   Users,
@@ -9,6 +8,7 @@ import {
   TrendingUp,
   Headphones,
   Mail,
+  Receipt,
   type LucideIcon
 } from 'lucide-react';
 
@@ -27,6 +27,12 @@ export const ALL_ADMIN_NAV_ITEMS: AdminNavItem[] = [
     href: '/admin/dashboard', 
     icon: LayoutDashboard,
     allowedRoles: ['super_admin', 'admin']
+  },
+  { 
+    name: 'Payments & Revenue', 
+    href: '/admin/payments', 
+    icon: Receipt,
+    allowedRoles: ['super_admin'] // Super Admin only
   },
   { 
     name: 'User Directory', 

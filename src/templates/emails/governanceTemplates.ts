@@ -75,10 +75,10 @@ export function buildAccountRevokedEmail(data: AccountRevokedEmailData): { subje
       subheadline: 'Compliance Notice & Supervisor Risk Assessment',
       bodyHtml,
       primaryCta: {
-        text: 'Contact Compliance Desk',
+        text: 'Contact Advisory Desk',
         url: appealUrl
       },
-      footerNotice: 'This action has been logged in the SEBI-mandated compliance register with immutable timestamps.'
+      footerNotice: 'This action has been logged in the audit register with immutable timestamps.'
     })
   };
 }

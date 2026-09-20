@@ -92,6 +92,8 @@ export default function CheckoutPage() {
       // 1. Create order record in Firestore
       const order = await orderRepository.createOrder({
         userId: user.uid,
+        userEmail: user.email || '',
+        userName: user.displayName || 'Valued Investor',
         planId: plan.id,
         planName: plan.name,
         priceMinor: basePriceMinor,
@@ -118,10 +120,12 @@ export default function CheckoutPage() {
               gatewayOrderId: rzpResponse.razorpay_order_id,
               gatewaySignature: rzpResponse.razorpay_signature,
               validityDays: plan.validityDays,
-              planName: plan.name
+              planName: plan.name,
+              userEmail: user.email || '',
+              userName: user.displayName || 'Valued Investor'
             });
 
-            // 4. Generate official SEBI-compliant Tax Invoice PDF & send via email with attachment
+            // 4. Generate official Tax Invoice PDF & send via email with attachment
             if (user.email) {
               const { emailService } = await import('../services/emailService');
               const { getInvoicePdfBase64 } = await import('../utils/invoicePdfGenerator');
@@ -193,14 +197,20 @@ export default function CheckoutPage() {
             alert(`Payment succeeded (Ref: ${rzpResponse.razorpay_payment_id}), but provisioning had an issue: ${provisionErr.message}`);
           }
         },
-        onFailure: (err) => {
+        onFailure: async (err) => {
           setIsProcessing(false);
           const failureMsg = err.description || err.reason || 'Payment processing was cancelled or declined.';
           console.warn('[CheckoutPage] Razorpay payment failure:', failureMsg);
 
           const isUserDismissal = err.reason === 'Payment window closed by investor.' || failureMsg.includes('closed by investor');
 
-          // Only send payment failed email if it was an actual gateway failure, not a simple window close
+          // Log failed status in Firestore for Super Admin audit
+          await orderRepository.markOrderFailed(order.id, {
+            failureReason: failureMsg,
+            errorCode: err.code
+          });
+
+          // Send payment failed email if it was an actual gateway failure, not a simple window close
           if (!isUserDismissal && user?.email && plan) {
             import('../services/emailService').then(({ emailService }) => {
               emailService.sendPaymentFailedEmail(user.email!, {
@@ -379,7 +389,7 @@ export default function CheckoutPage() {
 
             <div className="glass-panel-data p-4 text-[11px] text-muted-foreground flex items-start gap-2.5">
               <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-              <span className="leading-relaxed">Fully compliant with SEBI Research Analyst mandates and RBI statutory recurring billing protocols.</span>
+              <span className="leading-relaxed">Direct non-custodial stock recommendations with instant digital invoice generation.</span>
             </div>
           </div>
 

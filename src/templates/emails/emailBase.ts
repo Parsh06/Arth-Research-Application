@@ -188,7 +188,7 @@ export function wrapEmailInBaseTemplate(options: BaseEmailOptions): string {
                   <td align="center" style="padding-bottom: 10px;">
                     <span style="font-family: 'Cinzel', Georgia, serif; font-size: 12px; font-weight: 700; color: #0F172A; letter-spacing: 0.8px;">ARTH RESEARCH</span>
                     <span style="font-size: 11px; color: #94A3B8; margin: 0 6px;">&bull;</span>
-                    <span style="font-size: 10.5px; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600; color: #475569;">SEBI REGISTRATION NO: INH00001234</span>
+                    <span style="font-size: 10.5px; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600; color: #475569;">QUANTITATIVE EQUITIES ADVISORY</span>
                   </td>
                 </tr>
                 <tr>

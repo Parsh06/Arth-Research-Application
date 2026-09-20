@@ -4,10 +4,11 @@ import { Wallet, Layers, ShieldCheck, ChevronRight, Clock, CheckCircle2, Refresh
 import { useAuthStore } from '../stores/authStore';
 import { usePortfolioStore } from '../stores/portfolioStore';
 import { useCmsStore } from '../stores/cmsStore';
-import { useEntitlementStore } from '../stores/entitlementStore';
 import { formatINR } from '../utils/money';
 import { useNavigate, Link } from 'react-router-dom';
 import StrategySelector from '../components/StrategySelector';
+import NoActiveStrategyGate from '../components/NoActiveStrategyGate';
+import { useAdvisoryAccess } from '../hooks/useAdvisoryAccess';
 
 const MetricCard = ({ title, value, icon: Icon, delay, subtitle, statusBadge }: any) => (
   <motion.div
@@ -42,13 +43,13 @@ const MetricCard = ({ title, value, icon: Icon, delay, subtitle, statusBadge }: 
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { dbUser } = useAuthStore();
-  const { userPortfolio, valuation, holdings } = usePortfolioStore();
+  const { userPortfolio, userPortfolios, valuation, holdings } = usePortfolioStore();
   const { siteContent, fetchSiteContent } = useCmsStore();
-  const isSubscriber = useEntitlementStore(state => state.isSubscriber);
+  const { hasAccess, isLoading: isAccessLoading } = useAdvisoryAccess();
   const firstName = dbUser?.displayName?.split(' ')[0] || 'Investor';
   
   const isPendingApproval = userPortfolio?.status === 'pending';
-  const hasActiveAccess = isSubscriber() && userPortfolio && (userPortfolio.status as string) === 'active';
+  const hasActiveAccess = Boolean(hasAccess && userPortfolio && (userPortfolio.status as string) === 'active');
   
   const hour = new Date().getHours();
   let greeting = 'Good evening';
@@ -91,16 +92,18 @@ export default function DashboardPage() {
           </div>
 
           <div className="px-3 py-1.5 rounded-md bg-primary/10 border border-primary/25 text-primary text-[11px] font-mono font-medium">
-            SEBI REG: INH00001234
+            QUANT DESK ACTIVE
           </div>
         </div>
       </div>
 
       {/* Multi-Plan Strategy Selector */}
-      <StrategySelector />
+      {hasAccess && <StrategySelector />}
 
-      {/* Conditional Rendering: If Active Mandate is Pending Analyst Approval */}
-      {isPendingApproval ? (
+      {/* Conditional Rendering: If No Active Strategy */}
+      {!isAccessLoading && !hasAccess && !userPortfolio && (!userPortfolios || userPortfolios.length === 0) ? (
+        <NoActiveStrategyGate />
+      ) : isPendingApproval ? (
         <div className="space-y-6">
           {/* Main Hero Clearance Notice Card */}
           <motion.div
@@ -146,7 +149,7 @@ export default function DashboardPage() {
                     <CheckCircle2 className="w-4 h-4 shrink-0" />
                     <span>1. Mandate Cleared</span>
                   </div>
-                  <p className="text-[11px] text-muted-foreground font-mono">Subscription payment & SEBI regulatory charter recorded.</p>
+                  <p className="text-[11px] text-muted-foreground font-mono">Subscription payment & advisory mandate recorded.</p>
                 </div>
 
                 <div className="glass-panel-data p-3.5 rounded-md border border-[hsl(var(--success))/0.3] bg-[hsl(var(--success))/0.05]">
@@ -247,8 +250,8 @@ export default function DashboardPage() {
                     <span className="text-foreground font-semibold">{userPortfolio?.planName}</span>
                   </div>
                   <div className="flex justify-between text-muted-foreground">
-                    <span>SEBI Model Reg.</span>
-                    <span className="text-foreground font-semibold">INH00001234</span>
+                    <span>Model Architecture</span>
+                    <span className="text-foreground font-semibold">Factor Parity</span>
                   </div>
                   <div className="flex justify-between text-muted-foreground">
                     <span>Registered Positions</span>
@@ -290,7 +293,7 @@ export default function DashboardPage() {
               value={userPortfolio?.planName || 'Quant Strategy'}
               icon={ShieldCheck}
               delay={0.15}
-              subtitle="SEBI Model Reg. INH00001234"
+              subtitle="Institutional Model Basket"
             />
             <MetricCard
               title="Rebalance Cadence"
@@ -401,8 +404,8 @@ export default function DashboardPage() {
                       <span className="font-semibold text-foreground">{activeHoldings.length} Assets</span>
                     </div>
                     <div className="flex justify-between text-muted-foreground">
-                      <span>SEBI Strategy Reg.</span>
-                      <span className="font-semibold text-foreground">INH00001234</span>
+                      <span>Strategy Model</span>
+                      <span className="font-semibold text-foreground">Quantitative Alpha</span>
                     </div>
                     <div className="flex justify-between text-muted-foreground">
                       <span>Rebalance Cadence</span>

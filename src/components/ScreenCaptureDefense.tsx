@@ -265,7 +265,7 @@ export default function ScreenCaptureDefense() {
           </h2>
 
           <p className="text-xs sm:text-sm font-mono text-zinc-400 max-w-lg leading-relaxed mb-6">
-            Institutional quantitative strategies, research signals, and portfolio telemetry are protected under SEBI proprietary regulations. Screen capture, external grabbers, and recording are strictly prevented.
+            Institutional quantitative strategies, research signals, and portfolio telemetry are protected under proprietary advisory terms. Screen capture, external grabbers, and recording are strictly prevented.
           </p>
 
           <div className="p-4 rounded-xl bg-zinc-900/90 border border-zinc-800 text-[11px] font-mono text-zinc-400 max-w-md w-full space-y-2 text-left shadow-2xl backdrop-blur-md">
@@ -279,7 +279,7 @@ export default function ScreenCaptureDefense() {
               <div className="text-zinc-400 text-[10px] space-y-1 pt-1">
                 <div><span className="text-zinc-500">Audited User:</span> {user.email}</div>
                 <div><span className="text-zinc-500">Terminal UID:</span> {user.uid}</div>
-                <div><span className="text-zinc-500">Security Stamp:</span> {timestampString} • SEBI RA AUDIT ACTIVE</div>
+                <div><span className="text-zinc-500">Security Stamp:</span> {timestampString} • RESEARCH AUDIT ACTIVE</div>
               </div>
             )}
           </div>

@@ -118,16 +118,26 @@ export const useAuthStore = create<AuthState>((set) => ({
             });
           }
 
-          const portfolios = await portfolioRepository.getUserPortfolios(user.uid);
+          const [portfolios, userSubs] = await Promise.all([
+            portfolioRepository.getUserPortfolios(user.uid).catch(() => []),
+            import('../repositories/subscriptionRepository').then(m => m.subscriptionRepository.getUserSubscriptions(user.uid)).catch(() => [])
+          ]);
           let subStatus: SubscriptionStatus = SubscriptionStatus.NONE;
           
+          const hasActiveSub = userSubs.some(s => {
+            if (s.status !== 'active') return false;
+            if (!s.expiresAt) return true;
+            const expTime = typeof s.expiresAt === 'number' ? s.expiresAt : new Date(s.expiresAt).getTime();
+            return Date.now() <= expTime;
+          });
+
           if (portfolios && portfolios.length > 0) {
             const hasActive = portfolios.some(p => p.status === 'active' && (!p.expiresAt || Date.now() <= p.expiresAt));
             const hasPending = portfolios.some(p => p.status === 'pending');
             const hasRejected = portfolios.some(p => p.status === 'rejected');
             const hasExpired = portfolios.some(p => p.status === 'active' && p.expiresAt && Date.now() > p.expiresAt);
 
-            if (hasActive) {
+            if (hasActive || hasActiveSub) {
               subStatus = SubscriptionStatus.ACTIVE;
             } else if (hasPending) {
               subStatus = SubscriptionStatus.PENDING;
@@ -136,6 +146,8 @@ export const useAuthStore = create<AuthState>((set) => ({
             } else if (hasExpired) {
               subStatus = SubscriptionStatus.EXPIRED;
             }
+          } else if (hasActiveSub) {
+            subStatus = SubscriptionStatus.ACTIVE;
           }
 
           const role = dbUser?.role?.toLowerCase() || 'user';

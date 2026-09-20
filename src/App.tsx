@@ -26,6 +26,7 @@ const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 
 const AdminReviewPortfolio = lazy(() => import('./pages/admin/AdminReviewPortfolio'));
+const AdminPayments = lazy(() => import('./pages/admin/AdminPayments'));
 const AdminSubscriptions = lazy(() => import('./pages/admin/AdminSubscriptions'));
 const AdminApprovals = lazy(() => import('./pages/admin/AdminApprovals'));
 const AdminCMS = lazy(() => import('./pages/admin/AdminCMS'));
@@ -93,6 +94,7 @@ function App() {
                 <Route element={<AuthGuard requireAuth requireAdmin />}>
                   <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
                   <Route path="/admin/dashboard" element={<AdminDashboard />} />
+                  <Route path="/admin/payments" element={<AdminPayments />} />
                   <Route path="/admin/review-portfolio/:id" element={<AdminReviewPortfolio />} />
                   <Route path="/admin/users" element={<AdminUsers />} />
                   <Route path="/admin/users/:userId/portfolio" element={<AdminUserPortfolio />} />

@@ -35,9 +35,10 @@ export const useCmsStore = create<CmsState>((set, get) => ({
           // Institutional defaults if document is uninitialized
           const institutionalDefaults: Record<string, any> = {
             landingPage: {
-              badgeText: "Quantitative Research & Wealth Management",
-              title: "Institutional Factor Models for Systematic Alpha",
-              subtitle: "SEBI Registered Research Analyst advisory engineered for high-net-worth portfolios."
+              heroTitle: "Quantitative Alpha Architecture",
+              heroSubtitle: "Institutional-grade research strategies, disciplined factor allocations, and algorithmic market signals engineered for sustainable capital compounding.",
+              aboutTitle: "Disciplined Quantitative Models.\nZero Speculative Bias.",
+              aboutText: "We eliminate emotional noise through systematic factor modeling. Combining price momentum, fundamental quality metrics, and dynamic risk parity, our advisory delivers structured alpha."
             },
             welcomePage: {
               title: "Advisory Mandate Initialized",

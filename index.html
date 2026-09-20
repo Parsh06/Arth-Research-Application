@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
@@ -7,11 +7,27 @@
     <meta name="theme-color" content="#06090F" />
     <meta name="color-scheme" content="dark light" />
     
+    <!-- Inline script to prevent theme flash & ensure instant theme initialization -->
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('arth_theme');
+          if (saved === 'light') {
+            document.documentElement.classList.remove('dark');
+          } else {
+            document.documentElement.classList.add('dark');
+          }
+        } catch (e) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
+    
     <!-- Primary SEO Meta Tags -->
-    <title>Arth Research | Institutional Quantitative Equities Advisory & Wealth Management</title>
-    <meta name="title" content="Arth Research | Institutional Quantitative Equities Advisory & Wealth Management" />
-    <meta name="description" content="India's premier quantitative equities research and factor investing advisory. Institutional-grade alpha models, dynamic risk parity, real-time market signals, and 100% non-custodial capital protection in your verified broker Demat." />
-    <meta name="keywords" content="Arth Research, quantitative research analyst, SEBI research analyst, quant trading India, quantitative advisory, factor investing, momentum portfolio, non-custodial wealth management, stock recommendations, risk parity, Nifty 50 alpha, Parsh Jain, algorithmic trading systems, portfolio rebalancing" />
+    <title>Arth Research | Quantitative Stock Recommendations & Equities Advisory Plans</title>
+    <meta name="title" content="Arth Research | Quantitative Stock Recommendations & Equities Advisory Plans" />
+    <meta name="description" content="Subscription-based quantitative stock recommendations and factor model portfolios for Indian equities. High-conviction entry prices, target allocations, dynamic rebalancing signals, and 100% non-custodial custody in your personal broker Demat." />
+    <meta name="keywords" content="Arth Research, stock recommendations India, equity advisory plans, quantitative stock research, multi-factor portfolio, momentum stock advisory, non-custodial stock advisory, Nifty alpha, stock picks subscription, portfolio rebalancing signals" />
     <meta name="author" content="Arth Research Quantitative Advisory Desk" />
     <meta name="publisher" content="Arth Research" />
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
@@ -33,8 +49,8 @@
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://arthresearch.web.app/" />
     <meta property="og:site_name" content="Arth Research" />
-    <meta property="og:title" content="Arth Research | Quantitative Equities Advisory & Wealth Management" />
-    <meta property="og:description" content="Institutional-grade quantitative factor models, real-time research signals, and 100% non-custodial capital safety in your personal broker Demat." />
+    <meta property="og:title" content="Arth Research | Quantitative Stock Recommendations & Equities Advisory" />
+    <meta property="og:description" content="Subscribe to high-conviction quantitative equity recommendations and model portfolios. 100% non-custodial trading in your personal Demat account." />
     <meta property="og:image" content="https://arthresearch.web.app/og-image.png" />
     <meta property="og:image:secure_url" content="https://arthresearch.web.app/og-image.png" />
     <meta property="og:image:type" content="image/png" />
@@ -49,8 +65,8 @@
     <meta name="twitter:url" content="https://arthresearch.web.app/" />
     <meta name="twitter:site" content="@arthresearch" />
     <meta name="twitter:creator" content="@arthresearch" />
-    <meta name="twitter:title" content="Arth Research | Quantitative Equities Advisory & Wealth Management" />
-    <meta name="twitter:description" content="Disciplined quantitative factor strategies, dynamic risk parity allocations, and non-custodial portfolio advisory for serious investors." />
+    <meta name="twitter:title" content="Arth Research | Quantitative Stock Recommendations & Equities Advisory" />
+    <meta name="twitter:description" content="Systematic quantitative equities recommendations, risk parity model portfolios, and real-time rebalancing signals." />
     <meta name="twitter:image" content="https://arthresearch.web.app/og-image.png" />
     <meta name="twitter:image:alt" content="Arth Research Quantitative Equities Advisory Terminal" />
 
@@ -72,8 +88,7 @@
     <!-- Google Fonts for Design System v2 -->
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..800;1,9..144,400..700&family=Geist+Mono:wght@300;400;500;600;700&family=Geist:wght@300;400;500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&display=swap" rel="stylesheet" />
     
-    <!-- Icons & Manifest -->
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Icons & Manifest (Tab icon set to official logo1.png) -->
     <link rel="icon" type="image/png" href="/logo1.png" />
     <link rel="apple-touch-icon" href="/logo1.png" />
     <link rel="manifest" href="/manifest.json" />
@@ -87,11 +102,11 @@
           "@type": "FinancialService",
           "@id": "https://arthresearch.web.app/#organization",
           "name": "Arth Research",
-          "alternateName": "Arth Research Quantitative Advisory",
+          "alternateName": "Arth Research Quantitative Equities Advisory",
           "url": "https://arthresearch.web.app/",
           "logo": "https://arthresearch.web.app/logo1.png",
           "image": "https://arthresearch.web.app/og-image.png",
-          "description": "SEBI-compliant quantitative equities research, algorithmic portfolio advisory, multi-factor models, and 100% non-custodial wealth management.",
+          "description": "Subscription-based quantitative stock recommendations, multi-factor model portfolios, and 100% non-custodial investment advisory.",
           "areaServed": [
             {
               "@type": "Country",
@@ -99,11 +114,11 @@
             }
           ],
           "serviceType": [
-            "Quantitative Equities Research",
-            "Multi-Factor Portfolio Advisory",
-            "Algorithmic Risk Parity Models",
-            "Non-Custodial Wealth Advisory",
-            "Real-Time Research Signals"
+            "Quantitative Stock Recommendations",
+            "Subscription Advisory Plans",
+            "Multi-Factor Portfolio Baskets",
+            "Real-Time Rebalancing Signals",
+            "Non-Custodial Equities Advisory"
           ],
           "currenciesAccepted": "INR",
           "paymentAccepted": "UPI, Credit Card, Debit Card, Net Banking"
@@ -113,7 +128,7 @@
           "@id": "https://arthresearch.web.app/#website",
           "url": "https://arthresearch.web.app/",
           "name": "Arth Research",
-          "description": "Institutional-grade quantitative equities advisory and factor research platform.",
+          "description": "Subscription-based quantitative equities research and stock recommendation platform.",
           "publisher": {
             "@id": "https://arthresearch.web.app/#organization"
           }
@@ -142,23 +157,23 @@
               "name": "What is Arth Research?",
               "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "Arth Research is an institutional-grade quantitative equities research advisory platform that builds disciplined factor models and risk parity strategies for individual and institutional investors in India."
+                "text": "Arth Research is a quantitative equities research platform that provides subscription-based stock recommendations, model portfolios, and real-time rebalancing alerts to help investors build disciplined equity wealth."
               }
             },
             {
               "@type": "Question",
-              "name": "Is my capital non-custodial and safe?",
+              "name": "Is my capital non-custodial?",
               "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "Yes, 100%. Arth Research never holds or pools your capital. All trades and portfolio allocations are executed directly within your personal verified broker Demat account."
+                "text": "Yes, 100%. Arth Research never holds or pools your capital. You execute all stock recommendations directly inside your personal broker Demat account (Zerodha, Groww, Angel One, Upstox, etc.)."
               }
             },
             {
               "@type": "Question",
-              "name": "How do quantitative research recommendations work?",
+              "name": "How does the subscription model work?",
               "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "Subscribed members receive real-time research signals with target entry prices, stop-loss benchmarks, factor conviction ratings, and risk-weighted rebalancing allocations directly on their advisory terminal."
+                "text": "You choose an advisory plan based on your capital scale and investment style. Once subscribed, you unlock curated stock recommendations, target weights, entry levels, stop losses, and live rebalancing updates."
               }
             }
           ]
@@ -167,9 +182,9 @@
     }
     </script>
   </head>
-  <body class="bg-[#06090F] text-[#F0F4F8] antialiased selection:bg-[#D4AF37]/30 selection:text-[#FFFDF5]">
+  <body>
     <noscript>
-      <div style="padding: 24px; text-align: center; background-color: #06090F; color: #F0F4F8; font-family: sans-serif;">
+      <div style="padding: 24px; text-align: center; font-family: sans-serif;">
         <h2>JavaScript Required</h2>
         <p>You need to enable JavaScript to experience the Arth Research Quantitative Advisory Terminal.</p>
       </div>

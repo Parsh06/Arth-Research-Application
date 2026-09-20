@@ -23,6 +23,8 @@ import { formatDate } from '../utils/datetime';
 import { useEntitlementStore } from '../stores/entitlementStore';
 import { FeatureKeys } from '../repositories/entitlementRepository';
 import { Link } from 'react-router-dom';
+import NoActiveStrategyGate from '../components/NoActiveStrategyGate';
+import { useAdvisoryAccess } from '../hooks/useAdvisoryAccess';
 
 interface WatchlistItem {
   id: string;
@@ -37,6 +39,7 @@ type TabType = 'signals' | 'watchlist';
 type SignalStatusFilter = 'ALL' | 'ACTIVE' | 'TARGET_ACHIEVED' | 'STOPLOSS_TRIGGERED' | 'CLOSED';
 
 export default function WatchlistPage() {
+  const { hasAccess, isLoading: isAccessLoading } = useAdvisoryAccess();
   const [activeTab, setActiveTab] = useState<TabType>('signals');
   const [researchCalls, setResearchCalls] = useState<ResearchCall[]>([]);
   const [isLoadingSignals, setIsLoadingSignals] = useState(true);
@@ -127,6 +130,10 @@ export default function WatchlistPage() {
     });
   }, [researchCalls, statusFilter, signalSearchQuery]);
 
+  if (!isAccessLoading && !hasAccess) {
+    return <NoActiveStrategyGate />;
+  }
+
   const activeSignalsCount = researchCalls.filter(c => c.status === 'ACTIVE').length;
   const targetMetCount = researchCalls.filter(c => c.status === 'TARGET_ACHIEVED').length;
 
@@ -141,7 +148,7 @@ export default function WatchlistPage() {
               Quantitative Advisory
             </span>
             <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-              Live SEBI Telemetry
+              Live Signal Telemetry
             </span>
           </div>
           <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground mt-1">
@@ -237,13 +244,13 @@ export default function WatchlistPage() {
 
             <motion.div initial={{ y: 15, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.15 }} className="glass-panel p-5">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">Regulatory Authority</span>
+                <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">Research Desk</span>
                 <ShieldCheck className="w-4 h-4 text-primary" />
               </div>
               <p className="text-sm font-semibold tracking-tight text-foreground mt-1 truncate">
-                SEBI RA Reg. INH00001234
+                Quantitative Equities Desk
               </p>
-              <span className="text-[10px] font-mono text-muted-foreground mt-1 block">Institutional Compliance</span>
+              <span className="text-[10px] font-mono text-muted-foreground mt-1 block">Factor Alpha Engine</span>
             </motion.div>
           </div>
 

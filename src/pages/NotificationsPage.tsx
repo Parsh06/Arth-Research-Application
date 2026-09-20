@@ -17,10 +17,13 @@ import { useNavigate } from 'react-router-dom';
 import { notificationRepository, type AppNotification } from '../repositories/notificationRepository';
 import { useAuthStore } from '../stores/authStore';
 import { formatDateTime } from '../utils/datetime';
+import NoActiveStrategyGate from '../components/NoActiveStrategyGate';
+import { useAdvisoryAccess } from '../hooks/useAdvisoryAccess';
 
 type FilterCategory = 'all' | 'unread' | 'order' | 'rebalance' | 'research' | 'system';
 
 export default function NotificationsPage() {
+  const { hasAccess, isLoading: isAccessLoading } = useAdvisoryAccess();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [selectedFilter, setSelectedFilter] = useState<FilterCategory>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -115,6 +118,10 @@ export default function NotificationsPage() {
         };
     }
   };
+
+  if (!isAccessLoading && !hasAccess) {
+    return <NoActiveStrategyGate />;
+  }
 
   return (
     <div className="space-y-6 sm:space-y-8 p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">

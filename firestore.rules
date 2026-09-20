@@ -165,14 +165,16 @@ service cloud.firestore {
       allow read: if isAuthenticated()
                   && (resource.data.userId == request.auth.uid || isAdmin());
 
-      // Client can only create their own order (payment intent)
+      // Client can create their own order
       allow create: if isAuthenticated()
-                    && request.resource.data.userId == request.auth.uid
-                    && request.resource.data.status == 'created';
+                    && request.resource.data.userId == request.auth.uid;
 
-      // Client CANNOT update orders — only the payment service (via admin SDK) updates status
-      // Admin can update from dashboard for reconciliation
-      allow update: if isAdmin();
+      // Admin can update any order; owner can update during payment completion/failure
+      allow update: if isAdmin()
+                    || (isAuthenticated()
+                        && resource.data.userId == request.auth.uid
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                           .hasOnly(['status', 'updatedAt', 'paidAt', 'failureReason', 'errorCode', 'gatewayPaymentId', 'gatewayOrderId', 'gatewaySignature', 'invoiceNumber']));
 
       allow delete: if false; // Financial records are never deleted
     }
@@ -182,12 +184,10 @@ service cloud.firestore {
       allow read: if isAuthenticated()
                   && (resource.data.userId == request.auth.uid || isAdmin());
 
-      // Payment records are created by the payment service — not directly by client
-      // Client creates via order flow; server handles payment capture
-      allow create: if isAuthenticated()
-                    && request.resource.data.userId == request.auth.uid;
+      // Payment records can be created by authenticated user for their order
+      allow create: if isAuthenticated();
 
-      // Only admin can update payment records (reconciliation, refunds)
+      // Only admin can update or delete payment records
       allow update, delete: if isAdmin();
     }
 

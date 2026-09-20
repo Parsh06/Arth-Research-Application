@@ -3,7 +3,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } 
 import { usePortfolioStore } from '../stores/portfolioStore';
 import { useAuthStore } from '../stores/authStore';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShieldAlert, Clock, Calendar, ArrowRight, AlertCircle, RefreshCw, Wallet, Layers, ShieldCheck, Activity } from 'lucide-react';
+import { Clock, Calendar, ArrowRight, AlertCircle, RefreshCw, Wallet, Layers, ShieldCheck, Activity } from 'lucide-react';
 import StrategySelector from '../components/StrategySelector';
 import { formatINR } from '../utils/money';
 import { formatDate, getDaysRemaining } from '../utils/datetime';
@@ -11,9 +11,15 @@ import { getTerminalTitle, getDefaultAdminRoute } from '../utils/rbac';
 
 const COLORS = ['hsl(38 50% 60%)', 'hsl(216 55% 62%)', 'hsl(152 55% 46%)', 'hsl(280 40% 60%)', 'hsl(190 50% 50%)', 'hsl(222 10% 65%)', 'hsl(340 50% 55%)', 'hsl(160 40% 50%)'];
 
+import NoActiveStrategyGate from '../components/NoActiveStrategyGate';
+import { useAdvisoryAccess } from '../hooks/useAdvisoryAccess';
+
 export default function PortfolioPage() {
   const navigate = useNavigate();
-  const { userPortfolio, userPortfolios, valuation, isLoading } = usePortfolioStore();
+  const { userPortfolio, userPortfolios, valuation, isLoading: isPortLoading } = usePortfolioStore();
+  const { hasAccess, isLoading: isAccessLoading } = useAdvisoryAccess();
+
+  const isLoading = isPortLoading || isAccessLoading;
 
   if (isLoading) {
     return (
@@ -24,27 +30,8 @@ export default function PortfolioPage() {
     );
   }
 
-  if (!userPortfolio && (!userPortfolios || userPortfolios.length === 0)) {
-    return (
-      <div className="space-y-6 max-w-xl mx-auto py-8">
-        <div className="glass-panel p-8 sm:p-10 text-center shadow-xl">
-          <div className="w-12 h-12 rounded-md bg-primary/10 text-primary border border-primary/20 flex items-center justify-center mx-auto mb-4">
-            <ShieldAlert className="w-6 h-6" />
-          </div>
-          <h3 className="text-lg font-semibold text-foreground mb-1.5">No Active Advisory Strategy</h3>
-          <p className="text-xs text-muted-foreground mb-6 leading-relaxed">
-            You haven't subscribed to an algorithmic quant advisory plan yet. Browse available strategies to begin.
-          </p>
-          <Link 
-            to="/plans" 
-            className="inline-flex items-center gap-2 bg-primary hover:opacity-90 text-primary-foreground px-5 py-2.5 rounded-md text-xs font-semibold shadow-sm transition-all"
-          >
-            <span>Explore Research Plans</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-      </div>
-    );
+  if (!hasAccess && !userPortfolio && (!userPortfolios || userPortfolios.length === 0)) {
+    return <NoActiveStrategyGate />;
   }
 
   const isExpired = userPortfolio?.expiresAt ? Date.now() > userPortfolio.expiresAt : false;
@@ -279,7 +266,7 @@ export default function PortfolioPage() {
           <p className="text-lg font-semibold tracking-tight text-foreground mt-1 truncate">
             {userPortfolio?.planName || 'Quant Alpha'}
           </p>
-          <span className="text-[10px] font-mono text-muted-foreground mt-1 block">SEBI Reg. INH00001234</span>
+          <span className="text-[10px] font-mono text-muted-foreground mt-1 block">Institutional Model Basket</span>
         </motion.div>
 
         <motion.div initial={{ y: 15, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.15 }} className="glass-panel p-5">
@@ -366,7 +353,7 @@ export default function PortfolioPage() {
             <div className="flex items-center justify-between pb-3 mb-4 border-b border-border">
               <div>
                 <h3 className="text-sm font-semibold text-foreground">Strategy Composition & Governance</h3>
-                <p className="text-[11px] font-mono text-muted-foreground mt-0.5">SEBI Research Analyst advisory mandate parameters</p>
+                <p className="text-[11px] font-mono text-muted-foreground mt-0.5">Quantitative equities advisory mandate parameters</p>
               </div>
               <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
                 Active Audit
@@ -395,7 +382,7 @@ export default function PortfolioPage() {
               <div className="p-3.5 rounded-lg bg-muted/20 border border-border">
                 <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground block mb-1">Advisory Entity</span>
                 <span className="text-sm font-semibold text-foreground block">Arth Research</span>
-                <span className="text-[10px] font-mono text-muted-foreground mt-0.5 block">SEBI Registered Research Analyst</span>
+                <span className="text-[10px] font-mono text-muted-foreground mt-0.5 block">Quantitative Research Advisory</span>
               </div>
             </div>
           </div>

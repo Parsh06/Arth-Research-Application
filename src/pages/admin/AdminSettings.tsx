@@ -155,7 +155,7 @@ export default function AdminSettings() {
           Compliance & Gateway Architecture
         </h1>
         <p className="text-xs text-muted-foreground font-mono mt-0.5">
-          Configure SEBI registration credentials, risk parity constraints, and manage regulatory data maintenance.
+          Configure advisory entity credentials, risk parity constraints, and manage system data maintenance.
         </p>
       </div>
 
@@ -166,7 +166,7 @@ export default function AdminSettings() {
           className="glass-panel p-6 shadow-sm space-y-5"
         >
           <div className="pb-3 border-b border-border">
-            <h3 className="text-sm font-semibold text-foreground">SEBI Regulatory Registration</h3>
+            <h3 className="text-sm font-semibold text-foreground">Advisory Entity Registration</h3>
             <p className="text-xs font-mono text-muted-foreground mt-0.5">Public advisory entity identifiers</p>
           </div>
 
@@ -183,7 +183,7 @@ export default function AdminSettings() {
             </div>
 
             <div>
-              <label className="block text-xs font-mono text-muted-foreground mb-1.5">SEBI Registration Number</label>
+              <label className="block text-xs font-mono text-muted-foreground mb-1.5">Entity / License Identifier</label>
               <input
                 type="text"
                 value={sebiRegNumber}

@@ -100,7 +100,7 @@ export function buildPaymentConfirmationInvoiceEmail(data: PaymentInvoiceEmailDa
         text: 'Configure Holdings Basket',
         url: configureUrl
       },
-      footerNotice: `GST Invoice Ref: ${data.invoiceNumber} • Digital invoice generated under SEBI & GST statutory compliance.`
+      footerNotice: `GST Invoice Ref: ${data.invoiceNumber} • Official tax invoice generated for your subscription record.`
     })
   };
 }

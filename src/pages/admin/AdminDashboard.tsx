@@ -224,9 +224,9 @@ export default function AdminDashboard() {
             </div>
             <span
               className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 select-none"
-              title="Audit logs are SEBI-regulated immutable records — deletion is prohibited"
+              title="Audit logs are immutable records with cryptographic timestamps"
             >
-              🔒 SEBI Immutable
+              🔒 Tamper-Evident
             </span>
           </div>
           

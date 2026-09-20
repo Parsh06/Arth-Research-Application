@@ -97,7 +97,7 @@ export default function PlansPage() {
             className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-primary/10 border border-primary/20 text-primary text-[10px] font-mono uppercase tracking-wider mb-4"
           >
             <Sparkles className="w-3 h-3 text-primary" />
-            <span>SEBI-Compliant Research Strategies</span>
+            <span>Quantitative Research Strategies</span>
           </motion.div>
           
           <motion.h1 
@@ -161,7 +161,7 @@ export default function PlansPage() {
 
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-[11px] font-mono uppercase tracking-wider mb-5">
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Pipeline Calibration & SEBI Audit</span>
+              <span>Pipeline Calibration & Factor Audit</span>
             </div>
 
             <h2 className="text-2xl sm:text-3xl font-display font-semibold tracking-tight text-foreground mb-3">
@@ -311,9 +311,9 @@ export default function PlansPage() {
           </div>
           <button 
             onClick={() => navigate('/login')}
-            className="shrink-0 text-xs font-medium text-primary hover:underline flex items-center gap-1"
+            className="shrink-0 text-xs font-medium text-primary hover:underline flex items-center gap-1 cursor-pointer"
           >
-            <span>Have questions? Speak to compliance</span>
+            <span>Have questions? Speak to research desk</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>

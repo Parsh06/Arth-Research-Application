@@ -101,7 +101,7 @@ export function generateInvoicePdf(data: InvoiceData): jsPDF {
 
   doc.setTextColor(203, 213, 225); // Slate 300
   doc.setFontSize(7);
-  doc.text('SEBI Reg. No: INH00001234  |  GSTIN: 27AABCA1234F1Z5  |  PAN: AABCA1234F', margin + 26, 23);
+  doc.text('Entity License: ARTH-QUANT-2026  |  GSTIN: 27AABCA1234F1Z5  |  PAN: AABCA1234F', margin + 26, 23);
   doc.text('Registered Office: BKC Financial Centre, Bandra East, Mumbai, MH 400051', margin + 26, 28);
 
   // Top Right "TAX INVOICE" Badge
@@ -366,7 +366,7 @@ export function generateInvoicePdf(data: InvoiceData): jsPDF {
   doc.setFontSize(6.8);
   doc.setTextColor(100, 116, 139);
   doc.text(
-    '1. Arth Research is registered with SEBI as a Research Analyst (Reg: INH00001234). All model strategies are algorithmic.',
+    '1. Arth Research provides quantitative equities research and stock recommendations. All model strategies are algorithmic.',
     margin,
     signBlockY + 8.5
   );
@@ -381,7 +381,7 @@ export function generateInvoicePdf(data: InvoiceData): jsPDF {
     signBlockY + 16.5
   );
   doc.text(
-    '4. Client assets remain 100% self-custodied in their verified Demat trading account with their respective SEBI broker.',
+    '4. Client assets remain 100% self-custodied in their verified Demat trading account with their respective chosen broker.',
     margin,
     signBlockY + 20.5
   );
