@@ -3,7 +3,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } 
 import { usePortfolioStore } from '../stores/portfolioStore';
 import { useAuthStore } from '../stores/authStore';
 import { Link, useNavigate } from 'react-router-dom';
-import { Clock, Calendar, ArrowRight, AlertCircle, RefreshCw, Wallet, Layers, ShieldCheck, Activity } from 'lucide-react';
+import { Clock, Calendar, ArrowRight, AlertCircle, RefreshCw, Wallet, Layers, ShieldCheck, Activity, CheckCircle2 } from 'lucide-react';
 import StrategySelector from '../components/StrategySelector';
 import { formatINR } from '../utils/money';
 import { formatDate, getDaysRemaining } from '../utils/datetime';
@@ -32,6 +32,41 @@ export default function PortfolioPage() {
 
   if (!hasAccess && !userPortfolio && (!userPortfolios || userPortfolios.length === 0)) {
     return <NoActiveStrategyGate />;
+  }
+
+  // If user has an active mandate but hasn't submitted their stock holdings yet
+  if (hasAccess && !userPortfolio && (!userPortfolios || userPortfolios.length === 0)) {
+    return (
+      <div className="space-y-6 max-w-3xl mx-auto py-8">
+        <div className="glass-panel p-8 sm:p-10 text-center shadow-xl relative overflow-hidden">
+          <div className="w-14 h-14 bg-primary/10 border border-primary/25 text-primary rounded-md mx-auto flex items-center justify-center mb-5 shadow-sm">
+            <Layers className="w-7 h-7 stroke-[2.2]" />
+          </div>
+
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-[hsl(var(--success))/0.1] text-[hsl(var(--success))] text-[10px] font-mono uppercase tracking-wider mb-3 border border-[hsl(var(--success))/0.2]">
+            <CheckCircle2 className="w-3 h-3" />
+            <span>Advisory Mandate Active</span>
+          </div>
+
+          <h2 className="text-xl sm:text-2xl font-display font-semibold tracking-tight text-foreground mb-2">
+            Configure Your Strategy Portfolio
+          </h2>
+          <p className="text-xs text-muted-foreground mb-6 max-w-md mx-auto leading-relaxed font-mono">
+            Your quantitative research mandate is verified and active. Submit your executed portfolio holdings to unlock real-time factor radar analytics, risk-parity weight monitoring, and live rebalancing signals.
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-3 justify-center max-w-sm mx-auto">
+            <button
+              onClick={() => navigate('/setup-portfolio')}
+              className="w-full bg-primary hover:opacity-90 text-primary-foreground py-3 px-5 rounded-md font-semibold text-xs shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <span>Initialize Portfolio Setup</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const isExpired = userPortfolio?.expiresAt ? Date.now() > userPortfolio.expiresAt : false;

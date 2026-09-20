@@ -25,6 +25,7 @@ export interface RazorpayPaymentSuccessPayload {
 export interface RazorpayPaymentDetails {
   success: boolean;
   paymentId: string;
+  orderId?: string;
   method: string;           // raw: 'card' | 'upi' | 'netbanking' | 'wallet' | 'emi'
   paymentMode: string;      // normalised: 'CARD' | 'UPI' | 'NETBANKING' | 'WALLET' | 'EMI'
   paymentMethod: string;    // human label: 'Visa •••• 4242 (credit)' etc.
@@ -267,11 +268,14 @@ export const paymentService = {
 
   /**
    * Fetches the actual payment instrument details from Razorpay via our backend.
-   * Called AFTER signature verification to get the real method (card, UPI, etc.).
+   * Accepts either a payment ID (pay_xxx) or an order ID (order_xxx).
+   * Called AFTER signature verification or during administrative sync reconciliation.
    */
-  async fetchPaymentDetails(paymentId: string): Promise<RazorpayPaymentDetails> {
+  async fetchPaymentDetails(paymentIdOrOrderId: string): Promise<RazorpayPaymentDetails> {
+    const cleanId = (paymentIdOrOrderId || '').trim();
     try {
-      const endpoint = getApiEndpoint(`/razorpay/fetch-payment?paymentId=${encodeURIComponent(paymentId)}`);
+      const paramKey = cleanId.startsWith('order_') ? 'orderId' : 'paymentId';
+      const endpoint = getApiEndpoint(`/razorpay/fetch-payment?${paramKey}=${encodeURIComponent(cleanId)}`);
       const response = await fetch(endpoint, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' }
@@ -281,7 +285,7 @@ export const paymentService = {
       if (!response.ok) {
         return {
           success: false,
-          paymentId,
+          paymentId: cleanId,
           method: 'unknown',
           paymentMode: 'UNKNOWN',
           paymentMethod: 'Unknown',
@@ -296,7 +300,7 @@ export const paymentService = {
       console.error('[PaymentService] fetchPaymentDetails failed:', err);
       return {
         success: false,
-        paymentId,
+        paymentId: cleanId,
         method: 'unknown',
         paymentMode: 'UNKNOWN',
         paymentMethod: 'Unknown',

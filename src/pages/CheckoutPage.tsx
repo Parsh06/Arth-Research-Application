@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldCheck, CreditCard, Lock, LogIn, Tag, CheckCircle2, AlertCircle, X, Sparkles, Check, Phone } from 'lucide-react';
+import { ShieldCheck, CreditCard, Lock, LogIn, Tag, CheckCircle2, AlertCircle, X, Sparkles, Check, Phone, ArrowRight } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { usePlanStore } from '../stores/planStore';
 import { orderRepository } from '../repositories/orderRepository';
@@ -22,6 +22,9 @@ export default function CheckoutPage() {
   const [discountPercent, setDiscountPercent] = useState(0);
   const [couponApplied, setCouponApplied] = useState(false);
   const [couponError, setCouponError] = useState('');
+
+  const [activeSubscription, setActiveSubscription] = useState<any | null>(null);
+  const [allowRepurchase, setAllowRepurchase] = useState<boolean>(false);
   
   const { user, dbUser, loginWithGoogle } = useAuthStore();
   const { plans, fetchPlans } = usePlanStore();
@@ -29,6 +32,60 @@ export default function CheckoutPage() {
   useEffect(() => {
     fetchPlans();
   }, [fetchPlans]);
+
+  // Prevent accidental page refresh while payment is processing
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isProcessing) {
+        e.preventDefault();
+        e.returnValue = 'A transaction is in progress. Leaving or refreshing may interrupt your payment confirmation.';
+        return e.returnValue;
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isProcessing]);
+
+  // If this plan was just purchased in current session (within last 2 hours), auto-forward to success confirmation
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('last_successful_checkout');
+      if (raw) {
+        const item = JSON.parse(raw);
+        if (item.planId === planId && Date.now() - (item.timestamp || 0) < 2 * 60 * 60 * 1000) {
+          navigate(`/checkout/success?planId=${planId}&subscriptionId=${item.subscriptionId || ''}`, {
+            replace: true,
+            state: item
+          });
+        }
+      }
+    } catch {
+      // Ignore parse errors
+    }
+  }, [planId, navigate]);
+
+  // Check if user already holds an active subscription for this plan in Firestore
+  useEffect(() => {
+    if (!user?.uid || !planId) return;
+    let isMounted = true;
+    import('../repositories/subscriptionRepository').then(({ subscriptionRepository }) => {
+      return subscriptionRepository.getUserSubscriptions(user.uid);
+    }).then(subs => {
+      if (!isMounted) return;
+      const now = Date.now();
+      const match = subs.find(s => {
+        if (s.planId !== planId) return false;
+        if (s.status !== 'active') return false;
+        if (!s.expiresAt) return true;
+        const exp = typeof s.expiresAt === 'number' ? s.expiresAt : new Date(s.expiresAt).getTime();
+        return exp > now;
+      });
+      setActiveSubscription(match || null);
+    }).catch(err => {
+      console.warn('[CheckoutPage] Check subscription error:', err);
+    });
+    return () => { isMounted = false; };
+  }, [user?.uid, planId]);
 
   // Load existing phone from userPrivate or user profile if available
   useEffect(() => {
@@ -77,6 +134,77 @@ export default function CheckoutPage() {
       <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-3">
         <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         <span className="text-xs font-mono tracking-wider text-muted-foreground">Retrieving Strategy Parameters...</span>
+      </div>
+    );
+  }
+
+  // If user already holds an active subscription and hasn't chosen to re-buy, show existing mandate screen
+  if (activeSubscription && !allowRepurchase) {
+    const expDate = activeSubscription.expiresAt 
+      ? new Date(typeof activeSubscription.expiresAt === 'number' ? activeSubscription.expiresAt : activeSubscription.expiresAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+      : 'Lifetime Coverage';
+
+    return (
+      <div className="min-h-screen bg-mesh bg-background text-foreground flex flex-col justify-center items-center p-6">
+        <TopNavBar />
+        <div className="max-w-md mx-auto w-full pt-16 text-center">
+          <div className="glass-panel p-8 sm:p-10 shadow-xl relative overflow-hidden">
+            <div className="w-14 h-14 bg-[hsl(var(--success))/0.12] border border-[hsl(var(--success))/0.25] text-[hsl(var(--success))] rounded-md mx-auto flex items-center justify-center mb-5 shadow-sm">
+              <CheckCircle2 className="w-7 h-7 stroke-[2.2]" />
+            </div>
+
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-[hsl(var(--success))/0.1] text-[hsl(var(--success))] text-[10px] font-mono uppercase tracking-wider mb-3 border border-[hsl(var(--success))/0.2]">
+              <Sparkles className="w-3 h-3" />
+              <span>Mandate Active</span>
+            </div>
+
+            <h1 className="text-xl sm:text-2xl font-display font-semibold tracking-tight text-foreground mb-2">
+              Subscription Already Active
+            </h1>
+            <p className="text-xs text-muted-foreground mb-6 max-w-sm mx-auto leading-relaxed">
+              You already hold an active, verified subscription to the <span className="text-foreground font-semibold">{plan.name}</span> strategy. You do not need to make another payment.
+            </p>
+
+            <div className="glass-panel-data p-5 text-left mb-6 shadow-sm">
+              <div className="space-y-2.5 text-xs font-mono">
+                <div className="flex justify-between items-center text-muted-foreground">
+                  <span>Strategy Mandate</span>
+                  <span className="font-semibold text-foreground">{plan.name}</span>
+                </div>
+                <div className="flex justify-between items-center text-muted-foreground">
+                  <span>Active Through</span>
+                  <span className="font-semibold tabular-nums text-[hsl(var(--success))]">{expDate}</span>
+                </div>
+                <div className="flex justify-between items-center text-muted-foreground">
+                  <span>Mandate Status</span>
+                  <span className="font-semibold text-[hsl(var(--success))] uppercase tracking-wider text-[10px]">Verified & Covered</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2.5">
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="w-full bg-primary hover:opacity-90 text-primary-foreground py-3 px-5 rounded-md font-semibold text-xs shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>Open Terminal / Dashboard</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => navigate('/history')}
+                className="w-full border border-border bg-card/40 hover:bg-card text-foreground py-2.5 px-4 rounded-md text-xs font-medium transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <span>View Invoices & Orders</span>
+              </button>
+              <button
+                onClick={() => setAllowRepurchase(true)}
+                className="text-[11px] text-muted-foreground hover:text-foreground font-mono transition-colors pt-2 underline underline-offset-4 cursor-pointer"
+              >
+                Renew or purchase additional mandate period anyway
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -233,8 +361,10 @@ export default function CheckoutPage() {
               const { emailService } = await import('../services/emailService');
               const { getInvoicePdfBase64 } = await import('../utils/invoicePdfGenerator');
 
+              const invoiceNumber = `INV-ARTH-${new Date().getFullYear()}-${order.id.slice(0, 6).toUpperCase()}`;
+
               const invoiceData = {
-                invoiceNumber: `INV-ARTH-${new Date().getFullYear()}-${order.id.slice(0, 6).toUpperCase()}`,
+                invoiceNumber,
                 paymentDate: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
                 paymentId: rzpResponse.razorpay_payment_id,
                 orderId: order.id,
@@ -248,8 +378,8 @@ export default function CheckoutPage() {
                 taxMinor,
                 gatewayFeeMinor,
                 totalMinor,
-                paymentMode: modeStr,
-                paymentMethod: methodStr
+                paymentMode: realPaymentMode,
+                paymentMethod: realPaymentMethod
               };
 
               // Generate PDF base64
@@ -279,7 +409,7 @@ export default function CheckoutPage() {
                   amountPaid: formatINR(totalMinor),
                   baseAmount: formatINR(taxableAmountMinor),
                   gstAmount: `${formatINR(taxMinor)} (18% GST)`,
-                  paymentMethod: `${methodStr} • Razorpay (${rzpResponse.razorpay_payment_id})`,
+                  paymentMethod: `${realPaymentMethod} • Razorpay (${rzpResponse.razorpay_payment_id})`,
                   period: `${plan.validityDays} Days Operational Mandate`,
                   invoiceUrl: window.location.origin + `/history`
                 },
@@ -289,11 +419,39 @@ export default function CheckoutPage() {
               });
             }
 
+            // 5. Store completed checkout state in sessionStorage so refreshing or navigating never loses receipt or repeats payment
+            try {
+              sessionStorage.setItem('last_successful_checkout', JSON.stringify({
+                planId: plan.id,
+                planName: plan.name,
+                subscriptionId,
+                totalMinor,
+                gatewayFeeMinor,
+                taxMinor,
+                taxableAmountMinor,
+                basePriceMinor,
+                discountMinor,
+                invoiceNumber: `INV-ARTH-${new Date().getFullYear()}-${order.id.slice(0, 6).toUpperCase()}`,
+                paymentId: rzpResponse.razorpay_payment_id,
+                paymentMode: realPaymentMode,
+                paymentMethod: realPaymentMethod,
+                validityDays: plan.validityDays,
+                paidAt: new Date().toISOString(),
+                timestamp: Date.now()
+              }));
+            } catch (storageErr) {
+              console.warn('[CheckoutPage] Session storage cache error:', storageErr);
+            }
+
+            // 6. Instantly synchronize authStore so subscriptionStatus is ACTIVE in memory across the entire app
+            useAuthStore.getState().initAuthListener();
+
             setIsProcessing(false);
             setShowPaymentModal(false);
 
-            // Navigate to checkout confirmation success page
+            // 7. Navigate to checkout confirmation success page with replace: true
             navigate(`/checkout/success?planId=${plan.id}&subscriptionId=${subscriptionId}`, {
+              replace: true,
               state: { plan, subscriptionId, totalMinor, gatewayFeeMinor, taxMinor }
             });
           } catch (provisionErr: any) {

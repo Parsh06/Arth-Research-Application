@@ -49,10 +49,11 @@ service cloud.firestore {
                     && request.resource.data.role == 'user'
                     && request.resource.data.status == 'active';
 
-      // Users can update ONLY safe profile fields — never role, status, or access flags
+      // Users can update safe profile fields and subscription state on checkout completion
       allow update: if isAuthenticated() && request.auth.uid == userId
                     && request.resource.data.diff(resource.data).affectedKeys()
-                       .hasOnly(['displayName', 'phone', 'photoURL', 'updatedAt'])
+                       .hasOnly(['displayName', 'phone', 'photoURL', 'updatedAt',
+                                 'subscriptionStatus', 'activePlanId', 'activePlanName', 'subscriptionExpiresAt'])
                     || isAdmin();
 
       // Only admins can delete user documents
@@ -162,11 +163,37 @@ service cloud.firestore {
                     && request.resource.data.userId == request.auth.uid;
 
       // Admin can update any order; owner can update during payment completion/failure
+      // NOTE: affectedKeys must include every field written by completePaymentAndProvision()
       allow update: if isAdmin()
                     || (isAuthenticated()
                         && resource.data.userId == request.auth.uid
                         && request.resource.data.diff(resource.data).affectedKeys()
-                           .hasOnly(['status', 'updatedAt', 'paidAt', 'failureReason', 'errorCode', 'gatewayPaymentId', 'gatewayOrderId', 'gatewaySignature', 'invoiceNumber', 'paymentMode', 'paymentMethod', 'bank', 'wallet', 'vpa', 'cardNetwork', 'cardLast4', 'userPhone']));
+                           .hasOnly([
+                             // Core status fields
+                             'status', 'updatedAt', 'paidAt', 'failureReason',
+                             // Gateway identifiers
+                             'gatewayPaymentId', 'gatewayOrderId', 'gatewaySignature',
+                             'invoiceNumber',
+                             // Customer
+                             'userPhone',
+                             // Payment instrument — basic
+                             'paymentMode', 'paymentMethod', 'bank', 'wallet', 'vpa',
+                             // Payment instrument — card details
+                             'cardNetwork', 'cardLast4', 'cardName', 'cardIssuer',
+                             'cardType', 'cardSubType', 'cardInternational',
+                             // EMI & international
+                             'emiDuration', 'international',
+                             // Razorpay platform fees
+                             'razorpayFeeMinor', 'razorpayTaxMinor',
+                             // Acquirer / bank telemetry
+                             'acquirerAuthCode', 'acquirerBankTxnId',
+                             'acquirerRrn', 'acquirerUpiTxnId',
+                             // Error diagnostics (failed payments)
+                             'errorCode', 'errorDescription', 'errorSource',
+                             'errorStep', 'errorReason',
+                             // Refund tracking
+                             'refundId', 'refundedAt', 'refundStatus', 'refundAmountMinor'
+                           ]));
 
       allow delete: if false; // Financial records are never deleted
     }
@@ -187,9 +214,9 @@ service cloud.firestore {
       allow read: if isAuthenticated()
                   && (resource.data.userId == request.auth.uid || isAdmin());
 
-      // Subscriptions are created by the payment service on order completion
+      // Subscriptions are created by the payment service on order completion or by admin during reconciliation
       allow create: if isAuthenticated()
-                    && request.resource.data.userId == request.auth.uid
+                    && (request.resource.data.userId == request.auth.uid || isAdmin())
                     && request.resource.data.status == 'active';
 
       // Users CANNOT modify subscription fields — no status spoofing

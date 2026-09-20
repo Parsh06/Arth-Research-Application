@@ -6,8 +6,9 @@ import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
 // Pages that must strictly be protected from screenshots & screen capture for regular clients
 // Admin pages are strictly permitted for administrative auditing & screenshots
-const PROTECTED_ROUTE_PREFIXES = [
-  '/checkout'
+// Note: Checkout and payment pages are intentionally excluded so investors can capture receipts & audit freely
+const PROTECTED_ROUTE_PREFIXES: string[] = [
+  // Removed '/checkout' to allow unrestricted screenshots and screen capture on checkout/payment sections
 ];
 
 export default function ScreenCaptureDefense() {

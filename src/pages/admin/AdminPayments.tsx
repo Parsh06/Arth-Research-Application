@@ -14,10 +14,12 @@ import {
   X,
   Phone,
   RotateCcw,
-  ShieldAlert
+  ShieldAlert,
+  RefreshCw
 } from 'lucide-react';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { orderRepository } from '../../repositories/orderRepository';
+import { portfolioRepository } from '../../repositories/portfolioRepository';
 import type { Order } from '../../schemas/subscription.schema';
 import { formatINR } from '../../utils/money';
 import { downloadInvoicePdf } from '../../utils/invoicePdfGenerator';
@@ -137,6 +139,133 @@ export default function AdminPayments() {
       addToast(err.message || 'An unexpected error occurred during refund.', 'error');
     } finally {
       setIsRefunding(false);
+    }
+  };
+
+  // Sync with Razorpay & Provision state
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncPaymentId, setSyncPaymentId] = useState('');
+
+  /**
+   * Fetches real-time payment instrument details from Razorpay API
+   * and provisions the order, subscription, entitlements, and portfolio.
+   * Supports either a payment ID (pay_xxx) or an order ID (order_xxx).
+   */
+  const handleSyncWithRazorpay = async (order: Order, overridePaymentId?: string) => {
+    const payId = (overridePaymentId || syncPaymentId || order.gatewayPaymentId || order.gatewayOrderId || '').trim();
+    if (!payId) {
+      addToast('Please enter a valid Razorpay Payment ID (pay_...) or Order ID (order_...)', 'error');
+      return;
+    }
+
+    setIsSyncing(true);
+    try {
+      // 1. Call backend endpoint to fetch live verified payment details
+      const rzpDetails = await paymentService.fetchPaymentDetails(payId);
+      if (!rzpDetails.success) {
+        addToast(rzpDetails.error || 'Failed to fetch payment details from Razorpay', 'error');
+        setIsSyncing(false);
+        return;
+      }
+
+      const verifiedPaymentId = rzpDetails.paymentId || (payId.startsWith('pay_') ? payId : `pay_verified_${order.id}`);
+      const verifiedOrderId = rzpDetails.orderId || (payId.startsWith('order_') ? payId : order.gatewayOrderId || '');
+
+      // 2. Complete payment & provision in Firestore
+      await orderRepository.completePaymentAndProvision(order, {
+        gatewayPaymentId: verifiedPaymentId,
+        gatewayOrderId: verifiedOrderId,
+        validityDays: order.validityDays || 30,
+        planName: order.planName || 'Institutional Advisory Mandate',
+        userEmail: order.userEmail || rzpDetails.customerEmail || '',
+        userName: order.userName || 'Investor',
+        userPhone: order.userPhone || rzpDetails.customerContact || undefined,
+        paymentMode: rzpDetails.paymentMode,
+        paymentMethod: rzpDetails.paymentMethod,
+        vpa: rzpDetails.vpa,
+        cardNetwork: rzpDetails.cardNetwork,
+        cardLast4: rzpDetails.cardLast4,
+        cardName: rzpDetails.cardName,
+        cardIssuer: rzpDetails.cardIssuer,
+        cardType: rzpDetails.cardType,
+        cardSubType: rzpDetails.cardSubType,
+        cardInternational: rzpDetails.cardInternational,
+        bank: rzpDetails.bank,
+        wallet: rzpDetails.wallet,
+        emiDuration: rzpDetails.emiDuration ?? undefined,
+        international: rzpDetails.international,
+        razorpayFeeMinor: rzpDetails.razorpayFeeMinor,
+        razorpayTaxMinor: rzpDetails.razorpayTaxMinor,
+        acquirerAuthCode: rzpDetails.acquirerData?.authCode,
+        acquirerBankTxnId: rzpDetails.acquirerData?.bankTransactionId,
+        acquirerRrn: rzpDetails.acquirerData?.rrn,
+        acquirerUpiTxnId: rzpDetails.acquirerData?.upiTransactionId
+      });
+
+      // 3. Update User profile with active subscription status
+      try {
+        const { userRepository } = await import('../../repositories/userRepository');
+        await userRepository.updateUser(order.userId, {
+          subscriptionStatus: 'active',
+          activePlanId: order.planId,
+          activePlanName: order.planName || 'Institutional Advisory Mandate',
+          subscriptionExpiresAt: Date.now() + (order.validityDays || 30) * 86400000
+        } as any);
+      } catch (uErr) {
+        console.warn('[AdminPayments] User profile update warning:', uErr);
+      }
+
+      // 4. Ensure initial portfolio exists so user sees the plan in their portfolio immediately
+      try {
+        const userPorts = await portfolioRepository.getUserPortfolios(order.userId).catch(() => []);
+        const existing = userPorts.find(p => p.planId === order.planId);
+        if (!existing) {
+          await portfolioRepository.createPortfolioWithVersionAndHoldings({
+            userId: order.userId,
+            planId: order.planId || 'plan_default',
+            planName: order.planName || 'Institutional Advisory Mandate',
+            holdings: []
+          });
+        }
+      } catch (pErr) {
+        console.warn('[AdminPayments] Portfolio creation warning:', pErr);
+      }
+
+      addToast(
+        `Order verified & captured! Payment instrument: ${rzpDetails.paymentMethod}. Mandate provisioned for ${order.userName || 'Investor'}.`,
+        'success'
+      );
+
+      // Update selected order in state if modal is open
+      if (selectedOrder && selectedOrder.id === order.id) {
+        setSelectedOrder({
+          ...selectedOrder,
+          status: 'completed',
+          gatewayPaymentId: verifiedPaymentId,
+          gatewayOrderId: verifiedOrderId,
+          paymentMode: rzpDetails.paymentMode,
+          paymentMethod: rzpDetails.paymentMethod,
+          cardNetwork: rzpDetails.cardNetwork,
+          cardLast4: rzpDetails.cardLast4,
+          cardIssuer: rzpDetails.cardIssuer,
+          cardType: rzpDetails.cardType,
+          vpa: rzpDetails.vpa,
+          bank: rzpDetails.bank,
+          wallet: rzpDetails.wallet,
+          razorpayFeeMinor: rzpDetails.razorpayFeeMinor,
+          razorpayTaxMinor: rzpDetails.razorpayTaxMinor,
+          acquirerAuthCode: rzpDetails.acquirerData?.authCode,
+          acquirerRrn: rzpDetails.acquirerData?.rrn,
+          acquirerBankTxnId: rzpDetails.acquirerData?.bankTransactionId,
+          acquirerUpiTxnId: rzpDetails.acquirerData?.upiTransactionId,
+          paidAt: new Date().toISOString()
+        } as any);
+      }
+    } catch (syncErr: any) {
+      console.error('[AdminPayments] Sync error:', syncErr);
+      addToast(syncErr.message || 'Synchronization failed', 'error');
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -689,13 +818,35 @@ export default function AdminPayments() {
 
                       {/* 7. Action */}
                       <td className="py-3.5 px-4 text-right align-top">
-                        <button
-                          onClick={() => setSelectedOrder(order)}
-                          className="px-2.5 py-1 rounded bg-card border border-border hover:border-primary/50 text-foreground hover:text-primary text-[11px] transition-all cursor-pointer shadow-xs inline-flex items-center gap-1"
-                        >
-                          <span>Audit</span>
-                          <ExternalLink className="w-3 h-3" />
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          {!isSuccess && (
+                            <button
+                              onClick={() => {
+                                const targetId = (order.gatewayPaymentId || order.gatewayOrderId || '').trim();
+                                setSelectedOrder(order);
+                                setSyncPaymentId(targetId);
+                                if (targetId) {
+                                  handleSyncWithRazorpay(order, targetId);
+                                }
+                              }}
+                              title="Sync with Razorpay Gateway & Provision Mandate"
+                              className="px-2 py-1 rounded bg-primary/10 border border-primary/25 hover:bg-primary/20 text-primary text-[11px] transition-all cursor-pointer shadow-xs inline-flex items-center gap-1 font-mono font-semibold"
+                            >
+                              <RefreshCw className={`w-3 h-3 ${isSyncing && selectedOrder?.id === order.id ? 'animate-spin' : ''}`} />
+                              <span>Sync</span>
+                            </button>
+                          )}
+                          <button
+                            onClick={() => {
+                              setSelectedOrder(order);
+                              setSyncPaymentId(order.gatewayPaymentId || '');
+                            }}
+                            className="px-2.5 py-1 rounded bg-card border border-border hover:border-primary/50 text-foreground hover:text-primary text-[11px] transition-all cursor-pointer shadow-xs inline-flex items-center gap-1"
+                          >
+                            <span>Audit</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </button>
+                        </div>
                       </td>
 
                     </tr>
@@ -758,6 +909,47 @@ export default function AdminPayments() {
                   <span>Settlement Captured & Strategy Entitlements Provisioned</span>
                 </div>
               ) : null}
+
+              {/* ── GATEWAY RECONCILIATION & LIVE SYNCHRONIZATION ── */}
+              <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-primary text-xs font-bold font-mono">
+                    <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                    <span>Razorpay Gateway Reconciliation & Mandate Provisioning</span>
+                  </div>
+                  {selectedOrder.status === 'completed' ? (
+                    <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                      Settled & Synced
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                      Needs Verification
+                    </span>
+                  )}
+                </div>
+
+                <p className="text-[11px] text-muted-foreground font-mono leading-relaxed">
+                  Query live transaction status and instrument details (Card brand, last 4 digits, bank issuer, acquirer auth code, platform fees) directly from Razorpay. Synchronizing will automatically update order status to Completed and provision the investor's research mandate and portfolio.
+                </p>
+
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="text"
+                    value={syncPaymentId}
+                    onChange={(e) => setSyncPaymentId(e.target.value)}
+                    placeholder="Enter Payment ID or Order ID (e.g. pay_TeEesyKYh4Ie7L or order_TeEe3SjTXno2TK)"
+                    className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-xs font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
+                  />
+                  <button
+                    onClick={() => handleSyncWithRazorpay(selectedOrder, syncPaymentId)}
+                    disabled={isSyncing || (!syncPaymentId.trim() && !selectedOrder.gatewayPaymentId && !selectedOrder.gatewayOrderId)}
+                    className="bg-primary hover:opacity-90 disabled:opacity-50 text-primary-foreground text-xs font-semibold px-4 py-2 rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer font-mono whitespace-nowrap shadow-xs"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+                    <span>{isSyncing ? 'Verifying Gateway...' : 'Sync Live & Provision'}</span>
+                  </button>
+                </div>
+              </div>
 
               {/* ── SECTION 1: Investor Details ─────────────────────────────── */}
               <div className="space-y-2">

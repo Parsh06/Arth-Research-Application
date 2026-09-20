@@ -103,6 +103,35 @@ export default function DashboardPage() {
       {/* Conditional Rendering: If No Active Strategy */}
       {!isAccessLoading && !hasAccess && !userPortfolio && (!userPortfolios || userPortfolios.length === 0) ? (
         <NoActiveStrategyGate />
+      ) : hasAccess && !userPortfolio && (!userPortfolios || userPortfolios.length === 0) ? (
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-panel p-8 text-center space-y-4 max-w-2xl mx-auto my-8 border border-primary/25 shadow-xl relative overflow-hidden"
+        >
+          <div className="w-12 h-12 rounded-lg bg-primary/10 text-primary border border-primary/20 flex items-center justify-center mx-auto">
+            <Layers className="w-6 h-6" />
+          </div>
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-[hsl(var(--success))/0.1] text-[hsl(var(--success))] text-[10px] font-mono uppercase tracking-wider border border-[hsl(var(--success))/0.2]">
+            <CheckCircle2 className="w-3 h-3" />
+            <span>Advisory Mandate Cleared & Active</span>
+          </div>
+          <h2 className="text-xl font-semibold text-foreground">
+            Complete Your Strategy Portfolio Setup
+          </h2>
+          <p className="text-xs text-muted-foreground font-mono max-w-md mx-auto leading-relaxed">
+            Your quantitative subscription is active. Submit your current stock positions to activate real-time factor telemetry, risk-parity weight monitoring, and rebalancing alerts.
+          </p>
+          <div className="pt-2">
+            <Link
+              to="/setup-portfolio"
+              className="inline-flex items-center gap-2 bg-primary hover:opacity-90 text-primary-foreground text-xs font-semibold px-5 py-2.5 rounded-md shadow-sm transition-all font-mono"
+            >
+              <span>Initialize Strategy Holdings</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </motion.div>
       ) : isPendingApproval ? (
         <div className="space-y-6">
           {/* Main Hero Clearance Notice Card */}

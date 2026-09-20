@@ -26,10 +26,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const paymentId = req.query.paymentId as string;
+    const rawId = (req.query.paymentId as string || req.query.orderId as string || '').trim();
 
-    if (!paymentId || !paymentId.startsWith('pay_')) {
-      res.status(400).json({ error: 'Valid paymentId (e.g. pay_xxx) is required' });
+    if (!rawId) {
+      res.status(400).json({ error: 'Valid paymentId (pay_xxx) or orderId (order_xxx) is required' });
       return;
     }
 
@@ -43,23 +43,57 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const authHeader = 'Basic ' + Buffer.from(`${keyId}:${keySecret}`).toString('base64');
 
-    const rzpResponse = await fetch(`https://api.razorpay.com/v1/payments/${paymentId}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': authHeader,
-        'Content-Type': 'application/json'
-      }
-    });
+    let p: any;
 
-    const p: any = await rzpResponse.json();
-
-    if (!rzpResponse.ok) {
-      console.error('[RAZORPAY FETCH PAYMENT ERROR]', p);
-      res.status(rzpResponse.status).json({
-        error: p.error?.description || 'Failed to fetch payment details',
-        details: p
+    if (rawId.startsWith('order_')) {
+      // Fetch payments associated with this Razorpay order
+      const orderPaymentsRes = await fetch(`https://api.razorpay.com/v1/orders/${rawId}/payments`, {
+        method: 'GET',
+        headers: {
+          'Authorization': authHeader,
+          'Content-Type': 'application/json'
+        }
       });
-      return;
+
+      const orderPaymentsData: any = await orderPaymentsRes.json();
+      if (!orderPaymentsRes.ok) {
+        res.status(orderPaymentsRes.status).json({
+          error: orderPaymentsData.error?.description || 'Failed to fetch payments for order',
+          details: orderPaymentsData
+        });
+        return;
+      }
+
+      const items: any[] = orderPaymentsData.items || [];
+      if (items.length === 0) {
+        res.status(404).json({ error: `No payment attempts found on Razorpay for order ${rawId}` });
+        return;
+      }
+
+      // Prioritize captured payment, then authorized, then first attempt
+      p = items.find((item: any) => item.status === 'captured') ||
+          items.find((item: any) => item.status === 'authorized') ||
+          items[0];
+    } else {
+      // Direct payment lookup
+      const rzpResponse = await fetch(`https://api.razorpay.com/v1/payments/${rawId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': authHeader,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      p = await rzpResponse.json();
+
+      if (!rzpResponse.ok) {
+        console.error('[RAZORPAY FETCH PAYMENT ERROR]', p);
+        res.status(rzpResponse.status).json({
+          error: p.error?.description || 'Failed to fetch payment details',
+          details: p
+        });
+        return;
+      }
     }
 
     const method: string = p.method || 'unknown';

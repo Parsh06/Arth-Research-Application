@@ -10,8 +10,12 @@
 
 const RAW_API_URL = (import.meta.env.VITE_API_URL || '').trim();
 
-// Normalize baseUrl: remove trailing slash if present
-export const API_BASE_URL = RAW_API_URL ? RAW_API_URL.replace(/\/+$/, '') : '';
+// In local browser development (localhost/127.0.0.1), always use relative paths
+// so the Vite dev server middleware handles all /api endpoints natively.
+const isLocalhost = typeof window !== 'undefined' && 
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+export const API_BASE_URL = isLocalhost ? '' : (RAW_API_URL ? RAW_API_URL.replace(/\/+$/, '') : '');
 
 /**
  * Resolves a given API route path to either the full Vercel backend URL or local relative route
@@ -22,7 +26,7 @@ export function getApiEndpoint(path: string): string {
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
   const normalizedPath = cleanPath.startsWith('/api/') ? cleanPath : `/api${cleanPath}`;
 
-  if (!API_BASE_URL) {
+  if (!API_BASE_URL || isLocalhost) {
     // Relative path for local development Vite middleware
     return normalizedPath;
   }
