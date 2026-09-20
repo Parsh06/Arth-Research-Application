@@ -582,27 +582,27 @@ export default function AdminPayments() {
       {/* Audit Telemetry Modal */}
       <AnimatePresence>
         {selectedOrder && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="bg-white dark:bg-[#0E1420] text-foreground border border-black/10 dark:border-white/10 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-5"
+              className="bg-white dark:bg-[#0E1420] text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-5"
             >
-              <div className="flex items-center justify-between pb-3 border-b border-black/10 dark:border-white/10">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-white/10">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+                  <div className="w-8 h-8 rounded-lg bg-primary/15 text-primary flex items-center justify-center border border-primary/30">
                     <Receipt className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-semibold text-foreground">Transaction Audit Diagnostic</h3>
-                    <p className="text-[11px] font-mono text-muted-foreground">Order ID: {selectedOrder.id}</p>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Transaction Audit Diagnostic</h3>
+                    <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400">Order ID: {selectedOrder.id}</p>
                   </div>
                 </div>
 
                 <button
                   onClick={() => setSelectedOrder(null)}
-                  className="w-7 h-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center cursor-pointer transition-colors"
+                  className="w-7 h-7 rounded-md text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 flex items-center justify-center cursor-pointer transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -610,8 +610,8 @@ export default function AdminPayments() {
 
               {/* Status Banner */}
               {selectedOrder.status === 'failed' ? (
-                <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/25 space-y-1">
-                  <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-xs font-semibold font-mono">
+                <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 space-y-1">
+                  <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-xs font-bold font-mono">
                     <AlertCircle className="w-4 h-4 shrink-0" />
                     <span>Payment Processing Failed</span>
                   </div>
@@ -619,120 +619,120 @@ export default function AdminPayments() {
                     <strong className="text-red-800 dark:text-red-200">Failure Diagnostic:</strong> {selectedOrder.failureReason || 'Declined by banking gateway or authorization timeout.'}
                   </p>
                   {selectedOrder.errorCode && (
-                    <p className="text-[10px] text-muted-foreground font-mono pl-6">
+                    <p className="text-[10px] text-red-600/80 dark:text-red-400/80 font-mono pl-6">
                       Gateway Error Code: {selectedOrder.errorCode}
                     </p>
                   )}
                 </div>
               ) : selectedOrder.status === 'completed' ? (
-                <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2.5 text-emerald-600 dark:text-emerald-400 text-xs font-mono font-medium">
-                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
+                <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-2.5 text-emerald-700 dark:text-emerald-400 text-xs font-mono font-semibold">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
                   <span>Settlement Captured & Strategy Entitlements Provisioned</span>
                 </div>
               ) : null}
 
               {/* Detail Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-mono">
-                <div className="bg-[#F7F6F2] dark:bg-[#121926] border border-black/8 dark:border-white/8 p-3 rounded-xl space-y-1">
-                  <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider block">Investor Name</span>
-                  <span className="font-semibold text-foreground">{selectedOrder.userName || 'Investor'}</span>
+                <div className="bg-slate-100 dark:bg-[#121926] border border-slate-200 dark:border-white/10 p-3.5 rounded-xl space-y-1 shadow-2xs">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider block">Investor Name</span>
+                  <span className="font-bold text-slate-900 dark:text-slate-100 text-xs">{selectedOrder.userName || 'Investor'}</span>
                 </div>
 
-                <div className="bg-[#F7F6F2] dark:bg-[#121926] border border-black/8 dark:border-white/8 p-3 rounded-xl space-y-1">
-                  <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider block">Investor Email</span>
-                  <span className="font-semibold text-foreground">{selectedOrder.userEmail || 'N/A'}</span>
+                <div className="bg-slate-100 dark:bg-[#121926] border border-slate-200 dark:border-white/10 p-3.5 rounded-xl space-y-1 shadow-2xs">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider block">Investor Email</span>
+                  <span className="font-semibold text-slate-900 dark:text-slate-100 text-xs break-all">{selectedOrder.userEmail || 'N/A'}</span>
                 </div>
 
-                <div className="bg-[#F7F6F2] dark:bg-[#121926] border border-black/8 dark:border-white/8 p-3 rounded-xl space-y-1">
-                  <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider block">Investor Phone (Contact)</span>
-                  <span className="font-semibold text-foreground flex items-center gap-1.5">
-                    <Phone className="w-3 h-3 text-primary" />
+                <div className="bg-slate-100 dark:bg-[#121926] border border-slate-200 dark:border-white/10 p-3.5 rounded-xl space-y-1 shadow-2xs">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider block">Investor Phone (Contact)</span>
+                  <span className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5 text-xs">
+                    <Phone className="w-3 h-3 text-primary shrink-0" />
                     {selectedOrder.userPhone || 'Not Provided'}
                   </span>
                 </div>
 
-                <div className="bg-[#F7F6F2] dark:bg-[#121926] border border-black/8 dark:border-white/8 p-3 rounded-xl space-y-1">
-                  <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider block">Strategy Mandate</span>
-                  <span className="font-semibold text-primary">{selectedOrder.planName || 'Quant Strategy'}</span>
+                <div className="bg-slate-100 dark:bg-[#121926] border border-slate-200 dark:border-white/10 p-3.5 rounded-xl space-y-1 shadow-2xs">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider block">Strategy Mandate</span>
+                  <span className="font-bold text-primary text-xs">{selectedOrder.planName || 'Quant Strategy'}</span>
                 </div>
 
-                <div className="bg-[#F7F6F2] dark:bg-[#121926] border border-black/8 dark:border-white/8 p-3 rounded-xl space-y-1">
-                  <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider block">Validity Duration</span>
-                  <span className="font-semibold text-foreground">{selectedOrder.validityDays ? `${selectedOrder.validityDays} Days` : '30 Days'}</span>
+                <div className="bg-slate-100 dark:bg-[#121926] border border-slate-200 dark:border-white/10 p-3.5 rounded-xl space-y-1 shadow-2xs">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider block">Validity Duration</span>
+                  <span className="font-semibold text-slate-900 dark:text-slate-100 text-xs">{selectedOrder.validityDays ? `${selectedOrder.validityDays} Days` : '30 Days'}</span>
                 </div>
 
-                <div className="bg-[#F7F6F2] dark:bg-[#121926] border border-black/8 dark:border-white/8 p-3 rounded-xl space-y-1">
-                  <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider block">Payment Mode & Instrument</span>
+                <div className="bg-slate-100 dark:bg-[#121926] border border-slate-200 dark:border-white/10 p-3.5 rounded-xl space-y-1 shadow-2xs">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider block">Payment Mode & Instrument</span>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 text-[10px] font-semibold uppercase">
+                    <span className="px-2 py-0.5 rounded bg-primary/20 text-primary font-bold border border-primary/30 text-[10px] uppercase">
                       {selectedOrder.paymentMode || 'UPI'}
                     </span>
-                    <span className="text-foreground text-[11px] truncate">
+                    <span className="text-slate-900 dark:text-slate-100 text-[11px] font-semibold truncate">
                       {selectedOrder.paymentMethod || selectedOrder.vpa || 'Direct Payment'}
                     </span>
                   </div>
                   {selectedOrder.vpa && (
-                    <span className="text-[10px] text-muted-foreground block">VPA: {selectedOrder.vpa}</span>
+                    <span className="text-[10px] text-slate-600 dark:text-slate-400 block mt-0.5">VPA: {selectedOrder.vpa}</span>
                   )}
                   {selectedOrder.cardLast4 && (
-                    <span className="text-[10px] text-muted-foreground block">Card: •••• {selectedOrder.cardLast4} ({selectedOrder.cardNetwork || 'Card'})</span>
+                    <span className="text-[10px] text-slate-600 dark:text-slate-400 block mt-0.5">Card: •••• {selectedOrder.cardLast4} ({selectedOrder.cardNetwork || 'Card'})</span>
                   )}
                   {selectedOrder.bank && (
-                    <span className="text-[10px] text-muted-foreground block">Bank: {selectedOrder.bank}</span>
+                    <span className="text-[10px] text-slate-600 dark:text-slate-400 block mt-0.5">Bank: {selectedOrder.bank}</span>
                   )}
                 </div>
 
-                <div className="bg-[#F7F6F2] dark:bg-[#121926] border border-black/8 dark:border-white/8 p-3 rounded-xl space-y-1">
-                  <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider block">Tax Invoice Number</span>
-                  <span className="font-semibold text-foreground truncate block">{selectedOrder.invoiceNumber || 'Pending Issuance'}</span>
+                <div className="bg-slate-100 dark:bg-[#121926] border border-slate-200 dark:border-white/10 p-3.5 rounded-xl space-y-1 shadow-2xs">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider block">Tax Invoice Number</span>
+                  <span className="font-semibold text-slate-900 dark:text-slate-100 truncate block text-xs">{selectedOrder.invoiceNumber || 'Pending Issuance'}</span>
                 </div>
 
-                <div className="bg-[#F7F6F2] dark:bg-[#121926] border border-black/8 dark:border-white/8 p-3 rounded-xl space-y-1">
-                  <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider block">Gateway Payment ID</span>
-                  <span className="font-semibold text-foreground truncate block">{selectedOrder.gatewayPaymentId || 'N/A'}</span>
+                <div className="bg-slate-100 dark:bg-[#121926] border border-slate-200 dark:border-white/10 p-3.5 rounded-xl space-y-1 shadow-2xs">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider block">Gateway Payment ID</span>
+                  <span className="font-semibold text-slate-900 dark:text-slate-100 truncate block text-xs">{selectedOrder.gatewayPaymentId || 'N/A'}</span>
                 </div>
 
-                <div className="bg-[#F7F6F2] dark:bg-[#121926] border border-black/8 dark:border-white/8 p-3 rounded-xl space-y-1 sm:col-span-2">
-                  <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider block">Gateway Order ID</span>
-                  <span className="font-semibold text-foreground truncate block">{selectedOrder.gatewayOrderId || 'N/A'}</span>
+                <div className="bg-slate-100 dark:bg-[#121926] border border-slate-200 dark:border-white/10 p-3.5 rounded-xl space-y-1 shadow-2xs sm:col-span-2">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider block">Gateway Order ID</span>
+                  <span className="font-semibold text-slate-900 dark:text-slate-100 truncate block text-xs">{selectedOrder.gatewayOrderId || 'N/A'}</span>
                 </div>
               </div>
 
               {/* Financial Calculation Breakdown */}
-              <div className="bg-[#F7F6F2] dark:bg-[#121926] border border-black/8 dark:border-white/8 p-4 rounded-xl space-y-2 text-xs font-mono">
-                <div className="flex items-center justify-between pb-2 border-b border-black/10 dark:border-white/10 font-semibold text-foreground">
+              <div className="bg-slate-100 dark:bg-[#121926] border border-slate-200 dark:border-white/10 p-4 rounded-xl space-y-2.5 text-xs font-mono shadow-2xs">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-white/10 font-bold text-slate-900 dark:text-slate-100">
                   <span>Ledger Item</span>
                   <span>Amount (INR)</span>
                 </div>
-                <div className="flex justify-between text-muted-foreground">
+                <div className="flex justify-between text-slate-600 dark:text-slate-400 font-medium">
                   <span>Base Plan Fee</span>
-                  <span>{formatINR(selectedOrder.priceMinor || 0)}</span>
+                  <span className="text-slate-900 dark:text-slate-200 font-semibold">{formatINR(selectedOrder.priceMinor || 0)}</span>
                 </div>
                 {selectedOrder.discountMinor ? (
-                  <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+                  <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium">
                     <span>Voucher Discount</span>
                     <span>- {formatINR(selectedOrder.discountMinor)}</span>
                   </div>
                 ) : null}
-                <div className="flex justify-between text-muted-foreground">
+                <div className="flex justify-between text-slate-600 dark:text-slate-400 font-medium">
                   <span>GST (18% Statutory Rate)</span>
-                  <span>{formatINR(selectedOrder.taxMinor || 0)}</span>
+                  <span className="text-slate-900 dark:text-slate-200 font-semibold">{formatINR(selectedOrder.taxMinor || 0)}</span>
                 </div>
-                <div className="flex justify-between text-muted-foreground">
+                <div className="flex justify-between text-slate-600 dark:text-slate-400 font-medium">
                   <span>Payment Gateway Surcharge (3%)</span>
-                  <span>{formatINR(selectedOrder.gatewayFeeMinor || 0)}</span>
+                  <span className="text-slate-900 dark:text-slate-200 font-semibold">{formatINR(selectedOrder.gatewayFeeMinor || 0)}</span>
                 </div>
-                <div className="flex justify-between pt-2 border-t border-black/10 dark:border-white/10 font-bold text-sm text-foreground">
+                <div className="flex justify-between pt-2.5 border-t border-slate-200 dark:border-white/10 font-bold text-sm text-slate-900 dark:text-white">
                   <span>Net Total Amount</span>
-                  <span>{formatINR(selectedOrder.totalMinor || 0)}</span>
+                  <span className="text-primary font-extrabold">{formatINR(selectedOrder.totalMinor || 0)}</span>
                 </div>
               </div>
 
               {/* Gateway Cryptographic Signature */}
               {selectedOrder.gatewaySignature && (
-                <div className="bg-[#F7F6F2] dark:bg-[#121926] border border-black/8 dark:border-white/8 p-3 rounded-xl space-y-1 text-xs font-mono">
-                  <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider block">Cryptographic HMAC Signature</span>
-                  <p className="text-[10px] text-muted-foreground break-all bg-white dark:bg-[#0A0E16] p-2.5 rounded-lg border border-black/10 dark:border-white/10">
+                <div className="bg-slate-100 dark:bg-[#121926] border border-slate-200 dark:border-white/10 p-3.5 rounded-xl space-y-1.5 text-xs font-mono shadow-2xs">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider block">Cryptographic HMAC Signature</span>
+                  <p className="text-[10px] text-slate-700 dark:text-slate-300 break-all bg-white dark:bg-[#0A0E16] p-2.5 rounded-lg border border-slate-200 dark:border-white/10 font-mono">
                     {selectedOrder.gatewaySignature}
                   </p>
                 </div>
@@ -761,7 +761,7 @@ export default function AdminPayments() {
                       };
                       downloadInvoicePdf(invoiceData);
                     }}
-                    className="px-4 py-2 rounded-lg bg-primary/10 border border-primary/20 text-primary hover:bg-primary hover:text-primary-foreground text-xs font-mono font-semibold cursor-pointer transition-all flex items-center gap-1.5"
+                    className="px-4 py-2.5 rounded-lg bg-primary/15 border border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground text-xs font-mono font-bold cursor-pointer transition-all flex items-center gap-1.5 shadow-xs"
                   >
                     <Download className="w-3.5 h-3.5" />
                     <span>Download Tax Invoice (PDF)</span>
@@ -770,7 +770,7 @@ export default function AdminPayments() {
 
                 <button
                   onClick={() => setSelectedOrder(null)}
-                  className="px-4 py-2 rounded-lg bg-[#F0EEE6] dark:bg-[#182234] border border-black/10 dark:border-white/10 text-foreground hover:bg-[#E5E2D6] dark:hover:bg-[#202C42] text-xs font-mono cursor-pointer transition-colors"
+                  className="px-4 py-2.5 rounded-lg bg-slate-200 hover:bg-slate-300 dark:bg-[#182234] dark:hover:bg-[#202C42] border border-slate-300 dark:border-white/10 text-slate-800 dark:text-slate-200 text-xs font-mono font-semibold cursor-pointer transition-colors"
                 >
                   Close Audit
                 </button>
