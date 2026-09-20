@@ -197,7 +197,8 @@ export const entitlementRepository = {
    */
   subscribeToUserEntitlements(
     userId: string,
-    callback: (entitlements: Entitlement[]) => void
+    callback: (entitlements: Entitlement[]) => void,
+    onError?: (error: any) => void
   ): () => void {
     const q = query(
       collection(db, COLLECTION_ENTITLEMENTS),
@@ -208,7 +209,8 @@ export const entitlementRepository = {
       const entitlements = snapshot.docs.map(d => d.data() as Entitlement);
       callback(entitlements);
     }, (error) => {
-      console.error('[EntitlementRepository] Subscription error:', error);
+      console.warn('[EntitlementRepository] Subscription error:', error);
+      if (onError) onError(error);
     });
   },
 

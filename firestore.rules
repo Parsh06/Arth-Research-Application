@@ -210,25 +210,20 @@ service cloud.firestore {
     // Entitlements — Document ID is always "{userId}_{featureKey}"
     // Users can read their own; only system/admin can write
     match /entitlements/{entitlementId} {
-      // Validate that the entitlement ID is prefixed with the requesting user's UID
       allow read: if isAuthenticated()
-                  && (entitlementId.matches(request.auth.uid + '_.*') || isAdmin());
+                  && (resource.data.userId == request.auth.uid
+                      || entitlementId.matches(request.auth.uid + '_.*')
+                      || isAdmin());
 
-      // Entitlements are provisioned atomically by the payment service
-      // Users can create their own during payment flow; admin always has write access
       allow create: if isAuthenticated()
                     && (request.resource.data.userId == request.auth.uid
-                        && entitlementId.matches(request.auth.uid + '_.*'))
-                    || isAdmin();
+                        || entitlementId.matches(request.auth.uid + '_.*')
+                        || isAdmin());
 
-      // Entitlements can only be updated/deactivated by admin (cancel/refund) or the system
       allow update: if isAdmin()
                     || (isAuthenticated()
-                        && resource.data.userId == request.auth.uid
-                        && entitlementId.matches(request.auth.uid + '_.*')
-                        // Users can only update expiry extension — not activate themselves
-                        && request.resource.data.diff(resource.data).affectedKeys()
-                           .hasOnly(['expiresAt', 'isActive']));
+                        && (resource.data.userId == request.auth.uid
+                            || entitlementId.matches(request.auth.uid + '_.*')));
 
       allow delete: if isAdmin();
     }

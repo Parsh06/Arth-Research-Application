@@ -28,9 +28,15 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
 
     set({ isLoading: true });
 
-    const unsub = entitlementRepository.subscribeToUserEntitlements(userId, (data) => {
-      set({ entitlements: data, isLoading: false });
-    });
+    const unsub = entitlementRepository.subscribeToUserEntitlements(
+      userId,
+      (data) => {
+        set({ entitlements: data, isLoading: false });
+      },
+      (_err) => {
+        set({ entitlements: [], isLoading: false });
+      }
+    );
 
     set({ unsubscribeListener: unsub });
   },
