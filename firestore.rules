@@ -11,37 +11,41 @@ service cloud.firestore {
     }
 
     function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data
+        : {};
     }
 
     function isSuperAdmin() {
       return isAuthenticated() &&
-             getUserData().role == 'super_admin';
+             getUserData().get('role', 'user') == 'super_admin';
     }
 
     function isAdmin() {
       return isAuthenticated() &&
-             getUserData().role in ['super_admin', 'admin', 'research_admin', 'support_admin'];
+             getUserData().get('role', 'user') in ['super_admin', 'admin', 'research_admin', 'support_admin'];
     }
 
     function isSupportOrAdmin() {
       return isAuthenticated() &&
-             getUserData().role in ['super_admin', 'admin', 'support_admin', 'research_admin'];
+             getUserData().get('role', 'user') in ['super_admin', 'admin', 'support_admin', 'research_admin'];
     }
 
     // Ensures the authenticated user's account is not revoked, suspended, or disabled
     function isUserActive() {
       return isAuthenticated() &&
-             getUserData().status != 'revoked' &&
-             getUserData().status != 'suspended' &&
-             getUserData().status != 'disabled';
+             getUserData().get('status', 'active') != 'revoked' &&
+             getUserData().get('status', 'active') != 'suspended' &&
+             getUserData().get('status', 'active') != 'disabled';
     }
 
     // Checks if a user has a specific active, non-expired feature entitlement
     function hasEntitlement(featureKey) {
       let entitlementId = request.auth.uid + '_' + featureKey;
-      let ent = get(/databases/$(database)/documents/entitlements/$(entitlementId));
-      return ent.data.isActive == true && ent.data.expiresAt > request.time.toMillis();
+      let path = /databases/$(database)/documents/entitlements/$(entitlementId);
+      return exists(path) &&
+             get(path).data.isActive == true &&
+             get(path).data.expiresAt > request.time.toMillis();
     }
 
     // ============================================================================

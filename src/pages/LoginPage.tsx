@@ -10,7 +10,7 @@ import type { LegalDocType } from '../types/legal';
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { loginWithGoogle } = useAuthStore();
+  const { loginWithGoogle, user, isInitializing } = useAuthStore();
   const { siteContent, fetchSiteContent } = useCmsStore();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -18,6 +18,13 @@ export default function LoginPage() {
   const [selectedLegalDoc, setSelectedLegalDoc] = useState<LegalDocType>('terms');
   const location = useLocation();
   const from = location.state?.from || '/dashboard';
+
+  // Auto-redirect if already authenticated or when session initializes
+  useEffect(() => {
+    if (user && !isInitializing) {
+      navigate(from, { replace: true });
+    }
+  }, [user, isInitializing, navigate, from]);
 
   const openLegalModal = (docType: LegalDocType, e: React.MouseEvent) => {
     e.preventDefault();
@@ -43,15 +50,23 @@ export default function LoginPage() {
       navigate(from, { replace: true });
     } catch (err: any) {
       console.error("Authentication Error:", err);
+      // If the user actually got authenticated during the process despite popup event timing
+      if (useAuthStore.getState().user) {
+        navigate(from, { replace: true });
+        return;
+      }
+
       const code = err?.code || "";
       if (code === 'auth/popup-closed-by-user') {
         setError("Sign-in window was closed before completing. Please click below to try again.");
       } else if (code === 'auth/popup-blocked') {
-        setError("Sign-in popup was blocked by your browser. Please enable popups to continue.");
+        setError("Sign-in popup was blocked by your browser. Please allow popups for this site.");
       } else if (code === 'auth/network-request-failed') {
         setError("Network connection error. Please verify your internet connection and try again.");
+      } else if (code === 'auth/unauthorized-domain') {
+        setError("This domain is not authorized in Firebase Console. Please add it to Authorized Domains.");
       } else {
-        setError("Authentication service is temporarily unavailable. Please try again shortly.");
+        setError(err?.message || "Authentication service is temporarily unavailable. Please try again shortly.");
       }
     } finally {
       setIsLoading(false);

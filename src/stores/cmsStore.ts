@@ -67,7 +67,6 @@ export const useCmsStore = create<CmsState>((set, get) => ({
             title: "Arth Research Institutional Portal",
             subtitle: "Systematic quantitative research and algorithmic advisory."
           };
-          await setDoc(docRef, defaultData, { merge: true });
           newContent[col] = defaultData;
         }
       }
