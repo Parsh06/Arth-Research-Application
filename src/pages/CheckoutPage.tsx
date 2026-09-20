@@ -395,28 +395,13 @@ export default function CheckoutPage() {
               acquirerUpiTxnId: realAcquirerUpiTxnId
             });
 
-            // 3. Ensure initial strategy portfolio exists & update coupon usage
+            // 3. Update coupon usage if applicable
             if (appliedCoupon?.id) {
               import('../repositories/couponRepository').then(({ couponRepository }) => {
                 couponRepository.incrementCouponUsage(appliedCoupon.id).catch(e => console.warn('[CheckoutPage] Coupon usage inc err:', e));
               });
             }
 
-            try {
-              const { portfolioRepository } = await import('../repositories/portfolioRepository');
-              const userPorts = await portfolioRepository.getUserPortfolios(user.uid).catch(() => []);
-              const existing = userPorts.find((p: any) => p.planId === plan.id);
-              if (!existing) {
-                await portfolioRepository.createPortfolioWithVersionAndHoldings({
-                  userId: user.uid,
-                  planId: plan.id,
-                  planName: plan.name,
-                  holdings: []
-                });
-              }
-            } catch (portErr) {
-              console.warn('[CheckoutPage] Portfolio init warning:', portErr);
-            }
 
             // 4. Generate official Tax Invoice PDF & send via email with attachment
             if (user.email) {

@@ -30,12 +30,26 @@ export default function PortfolioPage() {
     );
   }
 
+  const holdings = valuation?.holdings || [];
+  const totalInvestedMinor = valuation?.totalInvestedMinor || userPortfolio?.totalInvestmentMinor || 0;
+
+  const hasValidSubmittedHoldings = Boolean(
+    userPortfolio && 
+    ((userPortfolio.stockCount && userPortfolio.stockCount > 0) || holdings.length > 0) &&
+    ((userPortfolio.totalInvestmentMinor && userPortfolio.totalInvestmentMinor > 0) || totalInvestedMinor > 0)
+  );
+
+  const isSetupRequired = Boolean(hasAccess && (!userPortfolio || !hasValidSubmittedHoldings));
+  const isExpired = userPortfolio?.expiresAt ? Date.now() > userPortfolio.expiresAt : false;
+  const isRejected = Boolean(userPortfolio?.status === 'rejected');
+  const isPending = Boolean(userPortfolio?.status === 'pending' && hasValidSubmittedHoldings);
+
   if (!hasAccess && !userPortfolio && (!userPortfolios || userPortfolios.length === 0)) {
     return <NoActiveStrategyGate />;
   }
 
   // If user has an active mandate but hasn't submitted their stock holdings yet
-  if (hasAccess && !userPortfolio && (!userPortfolios || userPortfolios.length === 0)) {
+  if (isSetupRequired) {
     return (
       <div className="space-y-6 max-w-3xl mx-auto py-8">
         <div className="glass-panel p-8 sm:p-10 text-center shadow-xl relative overflow-hidden">
@@ -49,15 +63,15 @@ export default function PortfolioPage() {
           </div>
 
           <h2 className="text-xl sm:text-2xl font-display font-semibold tracking-tight text-foreground mb-2">
-            Configure Your Strategy Portfolio
+            Action Required: Configure Your Strategy Portfolio
           </h2>
           <p className="text-xs text-muted-foreground mb-6 max-w-md mx-auto leading-relaxed font-mono">
-            Your quantitative research mandate is verified and active. Submit your executed portfolio holdings to unlock real-time factor radar analytics, risk-parity weight monitoring, and live rebalancing signals.
+            Your quantitative research mandate is verified and active. You must submit your executed portfolio holdings to unlock real-time factor radar analytics, risk-parity weight monitoring, and live rebalancing signals.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center max-w-sm mx-auto">
             <button
-              onClick={() => navigate('/setup-portfolio')}
+              onClick={() => navigate(userPortfolio ? `/setup-portfolio?planId=${userPortfolio.planId}&portfolioId=${userPortfolio.id}` : '/setup-portfolio')}
               className="w-full bg-primary hover:opacity-90 text-primary-foreground py-3 px-5 rounded-md font-semibold text-xs shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <span>Initialize Portfolio Setup</span>
@@ -69,9 +83,6 @@ export default function PortfolioPage() {
     );
   }
 
-  const isExpired = userPortfolio?.expiresAt ? Date.now() > userPortfolio.expiresAt : false;
-  const isRejected = userPortfolio?.status === 'rejected';
-  const isPending = userPortfolio?.status === 'pending';
 
   // If the active selection is pending or rejected, render state with the StrategySelector still visible
   if (isRejected || isPending || isExpired) {
@@ -206,9 +217,8 @@ export default function PortfolioPage() {
     );
   }
 
-  const holdings = valuation?.holdings || [];
-  const totalInvestedMinor = valuation?.totalInvestedMinor || userPortfolio?.totalInvestmentMinor || 0;
   const daysRemaining = userPortfolio?.expiresAt ? getDaysRemaining(userPortfolio.expiresAt) : 0;
+
 
   const allocationData = holdings.map((stock, i) => ({
     name: stock.symbol,

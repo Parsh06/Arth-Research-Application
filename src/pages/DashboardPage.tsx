@@ -48,8 +48,18 @@ export default function DashboardPage() {
   const { hasAccess, isLoading: isAccessLoading } = useAdvisoryAccess();
   const firstName = dbUser?.displayName?.split(' ')[0] || 'Investor';
   
-  const isPendingApproval = userPortfolio?.status === 'pending';
-  const hasActiveAccess = Boolean(hasAccess && userPortfolio && (userPortfolio.status as string) === 'active');
+  const totalInvestedMinor = valuation?.totalInvestedMinor || userPortfolio?.totalInvestmentMinor || 0;
+  const activeHoldings = valuation?.holdings || holdings || [];
+
+  const hasValidSubmittedHoldings = Boolean(
+    userPortfolio && 
+    ((userPortfolio.stockCount && userPortfolio.stockCount > 0) || activeHoldings.length > 0) &&
+    ((userPortfolio.totalInvestmentMinor && userPortfolio.totalInvestmentMinor > 0) || totalInvestedMinor > 0)
+  );
+
+  const isSetupRequired = Boolean(hasAccess && (!userPortfolio || !hasValidSubmittedHoldings));
+  const isPendingApproval = Boolean(userPortfolio?.status === 'pending' && hasValidSubmittedHoldings);
+  const hasActiveAccess = Boolean(hasAccess && userPortfolio && (userPortfolio.status as string) === 'active' && hasValidSubmittedHoldings);
   
   const hour = new Date().getHours();
   let greeting = 'Good evening';
@@ -65,9 +75,6 @@ export default function DashboardPage() {
     marketStatus: "TERMINAL ACTIVE",
     chartTitle: "Capital Allocation & Position Registry"
   };
-
-  const totalInvestedMinor = valuation?.totalInvestedMinor || userPortfolio?.totalInvestmentMinor || 0;
-  const activeHoldings = valuation?.holdings || holdings || [];
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -103,32 +110,32 @@ export default function DashboardPage() {
       {/* Conditional Rendering: If No Active Strategy */}
       {!isAccessLoading && !hasAccess && !userPortfolio && (!userPortfolios || userPortfolios.length === 0) ? (
         <NoActiveStrategyGate />
-      ) : hasAccess && !userPortfolio && (!userPortfolios || userPortfolios.length === 0) ? (
+      ) : isSetupRequired ? (
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          className="glass-panel p-8 text-center space-y-4 max-w-2xl mx-auto my-8 border border-primary/25 shadow-xl relative overflow-hidden"
+          className="glass-panel p-8 sm:p-10 text-center space-y-4 max-w-2xl mx-auto my-8 border border-primary/25 shadow-xl relative overflow-hidden"
         >
-          <div className="w-12 h-12 rounded-lg bg-primary/10 text-primary border border-primary/20 flex items-center justify-center mx-auto">
-            <Layers className="w-6 h-6" />
+          <div className="w-14 h-14 rounded-lg bg-primary/10 text-primary border border-primary/20 flex items-center justify-center mx-auto">
+            <Layers className="w-7 h-7 stroke-[2.2]" />
           </div>
           <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-[hsl(var(--success))/0.1] text-[hsl(var(--success))] text-[10px] font-mono uppercase tracking-wider border border-[hsl(var(--success))/0.2]">
             <CheckCircle2 className="w-3 h-3" />
-            <span>Advisory Mandate Cleared & Active</span>
+            <span>Advisory Mandate Active</span>
           </div>
-          <h2 className="text-xl font-semibold text-foreground">
-            Complete Your Strategy Portfolio Setup
+          <h2 className="text-xl sm:text-2xl font-semibold text-foreground tracking-tight">
+            Action Required: Complete Your Strategy Portfolio Setup
           </h2>
           <p className="text-xs text-muted-foreground font-mono max-w-md mx-auto leading-relaxed">
-            Your quantitative subscription is active. Submit your current stock positions to activate real-time portfolio analytics, weight monitoring, and rebalancing alerts.
+            Your quantitative subscription is active. You must enter your executed stock positions to submit your portfolio for analyst clearance and activate live rebalancing alerts.
           </p>
-          <div className="pt-2">
+          <div className="pt-3">
             <Link
-              to="/setup-portfolio"
-              className="inline-flex items-center gap-2 bg-primary hover:opacity-90 text-primary-foreground text-xs font-semibold px-5 py-2.5 rounded-md shadow-sm transition-all font-mono"
+              to={userPortfolio ? `/setup-portfolio?planId=${userPortfolio.planId}&portfolioId=${userPortfolio.id}` : "/setup-portfolio"}
+              className="inline-flex items-center gap-2 bg-primary hover:opacity-90 text-primary-foreground text-xs font-semibold px-6 py-3 rounded-md shadow-md transition-all font-mono cursor-pointer"
             >
-              <span>Initialize Strategy Holdings</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              <span>Initialize Portfolio Setup</span>
+              <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
         </motion.div>

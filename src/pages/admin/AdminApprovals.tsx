@@ -103,6 +103,10 @@ export default function AdminApprovals() {
   };
 
   const filteredApprovals = approvals.filter(item => {
+    // Exclude unsubmitted phantom portfolios (pending with 0 stocks and 0 capital)
+    const isUnsubmitted = item.status === 'pending' && (!item.stockCount || item.stockCount === 0) && (!item.totalInvestmentMinor || item.totalInvestmentMinor === 0);
+    if (isUnsubmitted) return false;
+
     const term = searchTerm.toLowerCase();
     return (
       (item.userName || '').toLowerCase().includes(term) ||
@@ -111,6 +115,7 @@ export default function AdminApprovals() {
       (item.status || '').toLowerCase().includes(term)
     );
   });
+
 
   if (loading) {
     return (

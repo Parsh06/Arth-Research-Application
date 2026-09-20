@@ -188,8 +188,12 @@ export default function InvestmentEntryPage() {
         buyPriceMinor: toMinorUnits(s.buyPrice)
       }));
 
-      if (portfolioIdParam) {
-        await portfolioRepository.resubmitPortfolioHoldings(portfolioIdParam, formattedHoldings);
+      const userPorts = await portfolioRepository.getUserPortfolios(user.uid).catch(() => []);
+      const existingForPlan = userPorts.find(p => p.planId === (activePlan?.id || activePlanId));
+      const targetPortfolioId = portfolioIdParam || (existingForPlan ? existingForPlan.id : null);
+
+      if (targetPortfolioId) {
+        await portfolioRepository.resubmitPortfolioHoldings(targetPortfolioId, formattedHoldings);
       } else {
         await submitPortfolio({
           userId: user.uid,
@@ -198,6 +202,7 @@ export default function InvestmentEntryPage() {
           holdings: formattedHoldings
         });
       }
+
 
       // Dispatch Holdings Submitted Confirmation Email with actual submitted holdings
       if (user.email) {
