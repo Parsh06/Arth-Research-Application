@@ -4,26 +4,30 @@ import { Lock, EyeOff, WifiOff } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
-// Pages that must strictly be protected from screenshots & screen capture
-// Note: Investment Entry (/setup-portfolio) and Client Portfolio (/portfolio) are explicitly permitted for user screenshots
+// Pages that must strictly be protected from screenshots & screen capture for regular clients
+// Admin pages are strictly permitted for administrative auditing & screenshots
 const PROTECTED_ROUTE_PREFIXES = [
-  '/checkout',
-  '/admin'
+  '/checkout'
 ];
 
 export default function ScreenCaptureDefense() {
-  const { user } = useAuthStore();
+  const { user, isAdmin } = useAuthStore();
   const location = useLocation();
   const isOnline = useNetworkStatus();
   const veilRef = useRef<HTMLDivElement>(null);
   const veilReasonRef = useRef<HTMLDivElement>(null);
   const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Administrators and all administrative routes are ALWAYS permitted to take screenshots
+  const isAdminOrAdminRoute = isAdmin || location.pathname.startsWith('/admin');
+
   // Check if screenshot defense is globally enabled in environment
   const isDefenseEnabled = 
-    import.meta.env.VITE_SCREENSHOT_ALLOWED === 'ON' || 
-    import.meta.env.VITE_SCREENSHOT_ALLOWED === 'true' ||
-    import.meta.env.VITE_SCREENSHOT_ALLOWED === undefined;
+    !isAdminOrAdminRoute && (
+      import.meta.env.VITE_SCREENSHOT_ALLOWED === 'ON' || 
+      import.meta.env.VITE_SCREENSHOT_ALLOWED === 'true' ||
+      import.meta.env.VITE_SCREENSHOT_ALLOWED === undefined
+    );
 
   // Check if current route requires strict screenshot & screen capture defense
   const isCurrentPageProtected = isDefenseEnabled && PROTECTED_ROUTE_PREFIXES.some(prefix => 
@@ -31,8 +35,8 @@ export default function ScreenCaptureDefense() {
   );
 
   useEffect(() => {
-    // If user is on a public marketing page (Landing, Plans, Login, Terms, etc.), allow screenshots freely
-    if (!isCurrentPageProtected) return;
+    // If admin or on public/unprotected page, allow screenshots freely
+    if (!isCurrentPageProtected || isAdminOrAdminRoute) return;
 
     const veilEl = veilRef.current;
     const reasonEl = veilReasonRef.current;
@@ -228,7 +232,7 @@ export default function ScreenCaptureDefense() {
       window.removeEventListener('beforeprint', handleBeforePrint);
       if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
     };
-  }, [user, isCurrentPageProtected]);
+  }, [user, isAdmin, isCurrentPageProtected, isAdminOrAdminRoute]);
 
   const timestampString = new Date().toLocaleDateString('en-GB', {
     day: '2-digit',
@@ -239,7 +243,7 @@ export default function ScreenCaptureDefense() {
   return (
     <>
       {/* 1. Direct Zero-Latency Synchronous Blackout Defense Veil */}
-      {isCurrentPageProtected && (
+      {isCurrentPageProtected && !isAdminOrAdminRoute && (
         <div 
           id="screen-defense-veil"
           ref={veilRef}
@@ -287,7 +291,7 @@ export default function ScreenCaptureDefense() {
       )}
 
       {/* 2. Security Forensic Watermark (Continuous Tiled Watermark for Photo & Camera Deterrence) */}
-      {isCurrentPageProtected && user && (
+      {isCurrentPageProtected && !isAdminOrAdminRoute && user && (
         <div 
           aria-hidden="true"
           className="fixed inset-0 pointer-events-none select-none overflow-hidden opacity-[0.045] dark:opacity-[0.06] flex flex-wrap items-center justify-center gap-x-20 gap-y-16 p-6 text-foreground font-mono text-[10px] font-extrabold uppercase rotate-[-22deg]"

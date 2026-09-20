@@ -28,98 +28,98 @@
 
 @layer base {
   :root {
-    /* Light mode (Alabaster base) */
-    --background: 40 20% 96%;           /* Alabaster #F7F6F2 */
-    --foreground: 222 30% 9%;           /* near-Obsidian text */
-    --card: 0 0% 100%;
-    --card-foreground: 222 30% 9%;
+    /* Light mode (Crisp High-Contrast Institutional Base) */
+    --background: 210 20% 98%;           /* Clean Slate-White #F8F9FA */
+    --foreground: 222 47% 11%;           /* Deep Obsidian Slate #0F172A */
+    --card: 0 0% 100%;                  /* Solid Pure White #FFFFFF */
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222 30% 9%;
+    --popover-foreground: 222 47% 11%;
 
-    --primary: 38 45% 55%;              /* Brass #C6A15B */
-    --primary-foreground: 222 30% 9%;
+    --primary: 38 75% 48%;              /* Rich Institutional Gold/Brass #D49B1F */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 216 47% 40%;           /* Sapphire #2E5AA6 */
+    --secondary: 216 65% 44%;           /* Sapphire Blue #2762C4 */
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 40 15% 91%;
-    --muted-foreground: 222 12% 40%;
+    --muted: 210 20% 93%;               /* Light Slate Surface #EAEEF3 */
+    --muted-foreground: 215 16% 40%;     /* Clear Dark Slate Text #556275 */
 
-    --accent: 38 45% 92%;               /* Brass tint for hover states */
-    --accent-foreground: 222 30% 9%;
+    --accent: 38 60% 92%;               /* Soft Gold Highlight */
+    --accent-foreground: 222 47% 11%;
 
-    --success: 152 65% 32%;             /* Gain Emerald #1E8E5A */
+    --success: 152 70% 32%;             /* Gain Emerald #188A53 */
     --success-foreground: 0 0% 100%;
-    --destructive: 348 60% 42%;         /* Loss Garnet #B3283F */
+    --destructive: 348 70% 45%;         /* Loss Garnet #C5223D */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 222 15% 88%;
-    --input: 222 15% 88%;
-    --ring: 38 45% 55%;
+    --border: 214 20% 86%;              /* Crisp Border #CBD5E1 */
+    --input: 214 20% 86%;
+    --ring: 38 75% 48%;
 
     /* Direct hex tokens */
-    --bg-main: #F7F6F2;
+    --bg-main: #F8F9FA;
     --bg-surface: #FFFFFF;
     --bg-card: #FFFFFF;
-    --bg-subtle: #ECEAE4;
-    --border-color: rgba(15, 23, 42, 0.08);
-    --text-primary: #0A0E16;
-    --text-secondary: #4A5568;
-    --text-muted: #718096;
+    --bg-subtle: #EAEEF3;
+    --border-color: rgba(15, 23, 42, 0.10);
+    --text-primary: #0F172A;
+    --text-secondary: #475569;
+    --text-muted: #64748B;
 
     /* Glass tokens (light) */
-    --glass-fill: 0 0% 100% / 0.75;
-    --glass-border: 222 30% 9% / 0.08;
-    --glass-blur: 16px;
+    --glass-fill: 0 0% 100% / 0.92;
+    --glass-border: 222 47% 11% / 0.08;
+    --glass-blur: 12px;
 
     --radius: 0.5rem;          /* soft — marketing surfaces */
-    --radius-data: 0.25rem;    /* sharp — tables, holdings, admin grids */
+    --radius-data: 0.375rem;   /* sharp — tables, holdings, admin grids */
   }
 
   .dark {
-    /* Dark mode (Obsidian base) */
+    /* Dark mode (Obsidian Institutional Base) */
     --background: 222 32% 6%;           /* Obsidian #0A0E16 */
-    --foreground: 40 20% 94%;
-    --card: 222 28% 9%;
-    --card-foreground: 40 20% 94%;
+    --foreground: 210 20% 98%;          /* Alabaster White #F8FAFC */
+    --card: 222 28% 9%;                 /* Dark Surface #0E1420 */
+    --card-foreground: 210 20% 98%;
     --popover: 222 28% 9%;
-    --popover-foreground: 40 20% 94%;
+    --popover-foreground: 210 20% 98%;
 
-    --primary: 38 50% 60%;              /* Brass, slightly brighter for dark bg */
+    --primary: 38 65% 58%;              /* Luminous Brass #DFB04F */
     --primary-foreground: 222 32% 6%;
 
-    --secondary: 216 55% 62%;           /* Sapphire, lifted for dark bg */
+    --secondary: 216 55% 62%;           /* Sapphire Lift */
     --secondary-foreground: 222 32% 6%;
 
-    --muted: 222 20% 14%;
-    --muted-foreground: 222 10% 65%;
+    --muted: 222 20% 14%;               /* #182234 */
+    --muted-foreground: 215 20% 68%;     /* #94A3B8 */
 
     --accent: 222 24% 16%;
-    --accent-foreground: 40 20% 94%;
+    --accent-foreground: 210 20% 98%;
 
     --success: 152 55% 46%;
     --success-foreground: 222 32% 6%;
     --destructive: 348 65% 58%;
     --destructive-foreground: 222 32% 6%;
 
-    --border: 222 24% 18%;
+    --border: 222 24% 18%;              /* #1E293B / rgba(255,255,255,0.10) */
     --input: 222 24% 18%;
-    --ring: 38 50% 60%;
+    --ring: 38 65% 58%;
 
     /* Direct hex tokens */
     --bg-main: #0A0E16;
     --bg-surface: #0E1420;
     --bg-card: #121926;
     --bg-subtle: #182234;
-    --border-color: rgba(247, 246, 242, 0.08);
-    --text-primary: #F7F6F2;
+    --border-color: rgba(248, 250, 252, 0.08);
+    --text-primary: #F8FAFC;
     --text-secondary: #94A3B8;
     --text-muted: #64748B;
 
     /* Glass tokens (dark) */
-    --glass-fill: 222 28% 10% / 0.70;
-    --glass-border: 40 20% 94% / 0.10;
-    --glass-blur: 20px;
+    --glass-fill: 222 28% 10% / 0.85;
+    --glass-border: 210 20% 98% / 0.08;
+    --glass-blur: 16px;
   }
 
   body {
@@ -129,49 +129,87 @@
     letter-spacing: -0.01em;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Form & Input Theme Baseline */
+  input, select, textarea {
+    color: hsl(var(--foreground));
+  }
+
+  input::placeholder, textarea::placeholder {
+    color: hsl(var(--muted-foreground) / 0.7);
+  }
+
+  select option {
+    background-color: #FFFFFF;
+    color: #0F172A;
+  }
+
+  .dark select option {
+    background-color: #0E1420;
+    color: #F8FAFC;
   }
 }
 
-/* Glassmorphism utilities */
+/* Glassmorphism & Surface Utilities with Solid High-Contrast Fallbacks */
 .glass-panel {
-  background: hsl(var(--glass-fill));
-  border: 1px solid hsl(var(--glass-border));
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  background: #FFFFFF;
+  border: 1px solid rgba(15, 23, 42, 0.09);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.03), 0 1px 2px -1px rgba(0, 0, 0, 0.02);
   border-radius: var(--radius);
 }
 
+.dark .glass-panel {
+  background: #0E1420;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+}
+
 .glass-panel-data {
-  /* for holdings tables / admin grids: sharper corners, less blur so numbers stay crisp */
-  background: hsl(var(--glass-fill));
-  border: 1px solid hsl(var(--glass-border));
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: #F8FAFC;
+  border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: var(--radius-data);
 }
 
+.dark .glass-panel-data {
+  background: #121926;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 .glass-card {
-  background: hsl(var(--glass-fill));
-  border: 1px solid hsl(var(--glass-border));
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  background: #FFFFFF;
+  border: 1px solid rgba(15, 23, 42, 0.09);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03), 0 2px 4px -2px rgba(0, 0, 0, 0.02);
+}
+
+.dark .glass-card {
+  background: #0E1420;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: none;
 }
 
 .glass-nav {
-  background: hsl(var(--glass-fill));
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid hsl(var(--glass-border));
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
 }
 
-/* Background mesh — sits behind glass panels */
+.dark .glass-nav {
+  background: rgba(10, 14, 22, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Background mesh — subtle aesthetic depth */
 .bg-mesh {
   background-color: hsl(var(--background));
   background-image:
-    radial-gradient(circle at 15% 20%, hsl(var(--primary) / 0.08), transparent 40%),
-    radial-gradient(circle at 85% 0%, hsl(var(--secondary) / 0.10), transparent 45%),
-    radial-gradient(circle at 50% 100%, hsl(var(--primary) / 0.05), transparent 50%);
+    radial-gradient(circle at 15% 20%, hsl(var(--primary) / 0.06), transparent 40%),
+    radial-gradient(circle at 85% 0%, hsl(var(--secondary) / 0.06), transparent 45%),
+    radial-gradient(circle at 50% 100%, hsl(var(--primary) / 0.04), transparent 50%);
 }
 
 /* Tabular numerals for every financial figure — PnL, prices, quantities */
@@ -212,27 +250,11 @@
   background: hsl(var(--muted-foreground) / 0.5);
 }
 
-/* Anti-Screen Capture & Anti-Print Protection */
+/* Print Utilities */
 @media print {
-  html, body {
-    background: #000000 !important;
-    color: #ffffff !important;
-  }
-  body * {
-    visibility: hidden !important;
-    display: none !important;
-  }
-  body::before {
-    visibility: visible !important;
-    display: block !important;
-    content: "RESTRICTED FINANCIAL INFORMATION: Printing, physical reproduction, and external capture of quantitative advisory portfolios is strictly prohibited under statutory license.";
-    text-align: center;
-    padding: 100px 40px;
-    font-family: monospace;
-    font-size: 14pt;
-    font-weight: bold;
-    color: #ffffff;
-    background: #000000;
+  body {
+    background: #FFFFFF !important;
+    color: #000000 !important;
   }
 }
 
