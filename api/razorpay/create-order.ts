@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { applyCors, sendSafeError } from '../_lib/security';
-import { createOrderSchema } from '../_lib/schemas';
+import { applyCors, parseRequestBody, sendSafeError } from '../_lib/security.js';
+import { createOrderSchema } from '../_lib/schemas.js';
+
 
 // Simple in-memory rate limiting map for order creation (per IP, 1-minute window)
 const orderRateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -21,7 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const clientRate = orderRateLimitMap.get(clientIp);
 
   if (clientRate && now < clientRate.resetAt) {
-    if (clientRate.count >= 20) {
+    if (clientRate.count >= 30) {
       return sendSafeError(res, 429, 'Too many order requests. Please wait a minute before retrying.');
     }
     clientRate.count++;
@@ -30,7 +31,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const parseResult = createOrderSchema.safeParse(req.body);
+    const rawBody = parseRequestBody(req.body);
+    const parseResult = createOrderSchema.safeParse(rawBody);
     if (!parseResult.success) {
       const issueMsg = parseResult.error.issues.map(i => i.message).join('; ');
       return sendSafeError(res, 400, `Invalid order request payload: ${issueMsg}`);
@@ -85,3 +87,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(500).json({ error: err.message || 'Internal server error during order creation' });
   }
 }
+

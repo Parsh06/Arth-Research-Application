@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { applyCors, sendSafeError } from '../_lib/security';
+import { applyCors, sendSafeError } from '../_lib/security.js';
+
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Strict CORS & Preflight handling

@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { applyCors, sendSafeError } from '../_lib/security';
+import { applyCors, sendSafeError } from '../_lib/security.js';
+
 
 /**
  * GET /api/razorpay/fetch-payment?paymentId=pay_xxx
@@ -165,7 +166,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       razorpayCreatedAt: p.created_at ? new Date(p.created_at * 1000).toISOString() : ''
     };
 
-    console.log(`[RAZORPAY FETCH PAYMENT] ID: ${paymentId}, Method: ${method}, Status: ${p.status}`);
+    console.log(`[RAZORPAY FETCH PAYMENT] ID: ${rawId}, Method: ${method}, Status: ${p.status}`);
     res.status(200).json(result);
   } catch (err: any) {
     console.error('[RAZORPAY FETCH PAYMENT SERVER ERROR]', err);

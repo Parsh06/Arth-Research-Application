@@ -71,6 +71,8 @@ dist-ssr/
 build/
 out/
 .output/
+*.tsbuildinfo
+
 
 # Testing & Code Coverage
 coverage/

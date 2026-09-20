@@ -1,7 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import nodemailer from 'nodemailer';
-import { applyCors, sendSafeError } from './_lib/security';
-import { sendEmailSchema } from './_lib/schemas';
+import { applyCors, parseRequestBody, sendSafeError } from './_lib/security.js';
+import { sendEmailSchema } from './_lib/schemas.js';
+
 
 // Simple in-memory rate limiting map for email dispatch (per IP, 1-minute window)
 const emailRateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -22,7 +23,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const clientRate = emailRateLimitMap.get(clientIp);
 
   if (clientRate && now < clientRate.resetAt) {
-    if (clientRate.count >= 10) {
+    if (clientRate.count >= 15) {
       return sendSafeError(res, 429, 'Too many email dispatch requests. Please wait a minute before retrying.');
     }
     clientRate.count++;
@@ -31,7 +32,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const parseResult = sendEmailSchema.safeParse(req.body);
+    const rawBody = parseRequestBody(req.body);
+    const parseResult = sendEmailSchema.safeParse(rawBody);
     if (!parseResult.success) {
       const issueMsg = parseResult.error.issues.map(i => i.message).join('; ');
       return sendSafeError(res, 400, `Invalid email payload: ${issueMsg}`);

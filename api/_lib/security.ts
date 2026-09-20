@@ -1,14 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-// Allowed Origins for CORS Validation
-const ALLOWED_ORIGINS = [
-  'https://arthresearch.com',
-  'https://www.arthresearch.com',
-  'https://arthresearch.web.app',
-  'https://arthresearch.firebaseapp.com',
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'http://localhost:4173'
+// Allowed Origins Patterns for CORS Validation
+const ALLOWED_ORIGIN_PATTERNS = [
+  /^https?:\/\/localhost(:\d+)?$/,
+  /^https:\/\/[a-z0-9-]+\.web\.app$/,
+  /^https:\/\/[a-z0-9-]+\.firebaseapp\.com$/,
+  /^https:\/\/[a-z0-9-]+\.vercel\.app$/,
+  /^https:\/\/(www\.)?arthresearch\.com$/
 ];
 
 /**
@@ -17,19 +15,19 @@ const ALLOWED_ORIGINS = [
  */
 export function applyCors(req: VercelRequest, res: VercelResponse): boolean {
   const origin = (req.headers.origin as string) || '';
-  const isAllowed = ALLOWED_ORIGINS.includes(origin) || process.env.NODE_ENV !== 'production';
+  const isAllowed = !origin || ALLOWED_ORIGIN_PATTERNS.some(p => p.test(origin)) || process.env.NODE_ENV !== 'production';
 
-  if (isAllowed && origin) {
+  if (origin && isAllowed) {
     res.setHeader('Access-Control-Allow-Origin', origin);
-  } else if (!origin && process.env.NODE_ENV !== 'production') {
+  } else if (!origin) {
     res.setHeader('Access-Control-Allow-Origin', '*');
   }
 
   res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-App-Check-Token, X-Requested-With');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-App-Check-Token, X-Requested-With, X-CSRF-Token, Accept, Accept-Version');
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
 
   if (req.method === 'OPTIONS') {
     res.status(200).end();
@@ -37,6 +35,22 @@ export function applyCors(req: VercelRequest, res: VercelResponse): boolean {
   }
 
   return false;
+}
+
+/**
+ * Safely parses request body regardless of whether Vercel delivers it as JSON object, Buffer, or string.
+ */
+export function parseRequestBody(body: any): any {
+  if (!body) return {};
+  if (typeof body === 'object') return body;
+  if (typeof body === 'string') {
+    try {
+      return JSON.parse(body);
+    } catch {
+      return {};
+    }
+  }
+  return {};
 }
 
 /**
@@ -75,7 +89,7 @@ export function isSafeOutboundUrl(targetUrl: string): boolean {
  * Standardized Safe JSON Error Formatter (Prevents stack trace / database path disclosure)
  */
 export function sendSafeError(res: VercelResponse, status: number, userMessage: string, internalError?: any) {
-  if (internalError && process.env.NODE_ENV !== 'production') {
+  if (internalError) {
     console.error(`[API ERROR ${status}]`, userMessage, internalError);
   }
   return res.status(status).json({
@@ -83,3 +97,4 @@ export function sendSafeError(res: VercelResponse, status: number, userMessage: 
     error: userMessage
   });
 }
+
