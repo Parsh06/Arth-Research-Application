@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { applyCors, sendSafeError } from '../_lib/security.js';
-
+import { requireAuth } from '../_lib/auth.js';
 
 /**
  * GET /api/razorpay/fetch-payment?paymentId=pay_xxx
@@ -18,6 +18,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method !== 'GET') {
     return sendSafeError(res, 405, 'Method not allowed. Only GET is supported.');
+  }
+
+  // Zero-Trust Authentication Guard
+  const user = await requireAuth(req, res);
+  if (!user) {
+    return; // Response already handled with 401
   }
 
   try {

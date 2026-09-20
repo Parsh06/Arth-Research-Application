@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import nodemailer from 'nodemailer';
 import { applyCors, parseRequestBody, sendSafeError } from './_lib/security.js';
 import { sendEmailSchema } from './_lib/schemas.js';
-
+import { requireAuth } from './_lib/auth.js';
 
 // Simple in-memory rate limiting map for email dispatch (per IP, 1-minute window)
 const emailRateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -15,6 +15,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method !== 'POST') {
     return sendSafeError(res, 405, 'Method not allowed. Only POST is supported.');
+  }
+
+  // Zero-Trust Authentication Guard
+  const user = await requireAuth(req, res);
+  if (!user) {
+    return; // Response already handled with 401
   }
 
   // Rate limiting check

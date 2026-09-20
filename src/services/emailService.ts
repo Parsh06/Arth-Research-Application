@@ -42,6 +42,7 @@ import {
 } from '../templates/emails';
 
 import { getApiEndpoint } from '../config/api';
+import { auth } from '../config/firebase';
 
 export interface EmailAttachment {
   filename: string;
@@ -106,11 +107,17 @@ export const emailService = {
     const dispatchPromise = (async () => {
       try {
         const endpoint = getApiEndpoint('/send-email');
+        const token = await auth.currentUser?.getIdToken().catch(() => null);
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json'
+        };
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+
         const response = await fetch(endpoint, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
+          headers,
           body: JSON.stringify({
             to: payload.to,
             subject: payload.subject,

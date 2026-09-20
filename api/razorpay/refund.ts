@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { applyCors, parseRequestBody, sendSafeError } from '../_lib/security.js';
 import { refundSchema } from '../_lib/schemas.js';
-
+import { requireAdmin } from '../_lib/auth.js';
 
 /**
  * POST /api/razorpay/refund
@@ -18,6 +18,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method !== 'POST') {
     return sendSafeError(res, 405, 'Method not allowed. Only POST is supported.');
+  }
+
+  // Zero-Trust Administrative Guard
+  const adminUser = await requireAdmin(req, res);
+  if (!adminUser) {
+    return; // Response already handled with 401 or 403
   }
 
   try {

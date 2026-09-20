@@ -1,10 +1,23 @@
 // src/services/paymentService.ts
 import { getApiEndpoint } from '../config/api';
+import { auth } from '../config/firebase';
 
 declare global {
   interface Window {
     Razorpay?: any;
   }
+}
+
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  try {
+    const token = await auth.currentUser?.getIdToken();
+    if (token) {
+      return { 'Authorization': `Bearer ${token}` };
+    }
+  } catch (err) {
+    console.warn('[PaymentService] Failed to retrieve Firebase ID token:', err);
+  }
+  return {};
 }
 
 export interface RazorpayOrderResponse {
@@ -118,10 +131,12 @@ export const paymentService = {
   }): Promise<RazorpayOrderResponse> {
     try {
       const endpoint = getApiEndpoint('/razorpay/create-order');
+      const authHeaders = await getAuthHeaders();
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...authHeaders
         },
         body: JSON.stringify(params)
       });
@@ -151,10 +166,12 @@ export const paymentService = {
   }): Promise<{ success: boolean; verified: boolean; error?: string }> {
     try {
       const endpoint = getApiEndpoint('/razorpay/verify-payment');
+      const authHeaders = await getAuthHeaders();
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...authHeaders
         },
         body: JSON.stringify(payload)
       });
@@ -276,9 +293,13 @@ export const paymentService = {
     try {
       const paramKey = cleanId.startsWith('order_') ? 'orderId' : 'paymentId';
       const endpoint = getApiEndpoint(`/razorpay/fetch-payment?${paramKey}=${encodeURIComponent(cleanId)}`);
+      const authHeaders = await getAuthHeaders();
       const response = await fetch(endpoint, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders
+        }
       });
 
       const data = await response.json();
@@ -323,9 +344,13 @@ export const paymentService = {
   }): Promise<RazorpayRefundResponse> {
     try {
       const endpoint = getApiEndpoint('/razorpay/refund');
+      const authHeaders = await getAuthHeaders();
       const response = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders
+        },
         body: JSON.stringify(params)
       });
 
