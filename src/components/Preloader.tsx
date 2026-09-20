@@ -7,10 +7,10 @@ interface PreloaderProps {
 }
 
 const STATUS_STEPS = [
-  'Initializing encrypted workspace',
+  'Initializing research workspace',
   'Calibrating quantitative factor models',
-  'Synchronizing real-time portfolio ledger',
-  'Connecting to compliance telemetry',
+  'Synchronizing portfolio records',
+  'Establishing secure session',
   'Preparing institutional desk',
 ];
 

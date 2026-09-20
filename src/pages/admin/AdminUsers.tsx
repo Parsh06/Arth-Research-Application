@@ -37,7 +37,7 @@ export default function AdminUsers() {
       await fetchAllUsers();
     } catch (err: any) {
       console.error("Failed to update role:", err);
-      addToast(err.message || "Failed to update user role", 'error');
+      addToast("Failed to update user role. Please try again.", 'error');
     } finally {
       setIsUpdating(false);
     }
@@ -53,7 +53,7 @@ export default function AdminUsers() {
     if (!currentAdmin || !revocationTarget) return;
 
     if (!revocationReason.trim()) {
-      addToast("You must provide a compliance / regulatory reason for revoking access.", "error");
+      addToast("You must provide a compliance reason for revoking access.", "error");
       return;
     }
 
@@ -88,7 +88,7 @@ export default function AdminUsers() {
       await fetchAllUsers();
     } catch (err: any) {
       console.error("Revoke access failed:", err);
-      addToast(err.message || "Failed to revoke access", 'error');
+      addToast("Failed to revoke access. Please try again.", 'error');
     } finally {
       setIsRevoking(false);
     }
@@ -109,7 +109,7 @@ export default function AdminUsers() {
       await fetchAllUsers();
     } catch (err: any) {
       console.error("Reactivate access failed:", err);
-      addToast(err.message || "Failed to reactivate access", 'error');
+      addToast("Failed to reactivate access. Please try again.", 'error');
     } finally {
       setIsUpdating(false);
     }
@@ -117,7 +117,7 @@ export default function AdminUsers() {
 
   const handleDeleteUser = async (u: any) => {
     if (!currentAdmin) return;
-    if (!window.confirm(`PERMANENT ACTION: Completely delete user ${u.email} and all their portfolios, orders, and subscriptions from Firestore?`)) {
+    if (!window.confirm(`PERMANENT ACTION: Completely delete user ${u.email} and all associated portfolios, orders, and subscriptions from the platform?`)) {
       return;
     }
 
@@ -133,7 +133,7 @@ export default function AdminUsers() {
       await fetchAllUsers();
     } catch (err: any) {
       console.error("Delete user failed:", err);
-      addToast(err.message || "Failed to delete user", 'error');
+      addToast("Failed to delete user. Please try again.", 'error');
     } finally {
       setIsUpdating(false);
     }

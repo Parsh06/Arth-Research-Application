@@ -218,7 +218,7 @@ export default function NotificationsPage() {
             <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
               {searchQuery.trim() 
                 ? 'No alerts match your search query. Try clearing the filter.' 
-                : 'Your signal telemetry feed is up to date. Strategy rebalances and order executions will populate here in real-time.'}
+                : 'Your advisory notifications feed is up to date. Strategy rebalances and execution alerts will populate here in real-time.'}
             </p>
           </div>
         ) : (

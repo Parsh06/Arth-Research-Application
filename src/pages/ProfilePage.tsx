@@ -93,10 +93,10 @@ export default function ProfilePage() {
       };
       await userRepository.updateUserCompliance(user.uid, compliancePayload);
 
-      addToast('Profile and compliance records synchronized with database!', 'success');
+      addToast('Profile and compliance records updated successfully.', 'success');
     } catch (err: any) {
       console.error("Failed to save profile:", err);
-      addToast(err.message || 'Failed to save profile data.', 'error');
+      addToast('Failed to save profile data. Please try again.', 'error');
     } finally {
       setIsSaving(false);
     }
@@ -207,7 +207,7 @@ export default function ProfilePage() {
           >
             <div className="pb-4 border-b border-border mb-5">
               <h2 className="text-sm font-semibold text-foreground">Compliance & Identity Attributes</h2>
-              <p className="text-xs text-muted-foreground font-mono mt-0.5">Non-custodial cryptographic database records.</p>
+              <p className="text-xs text-muted-foreground font-mono mt-0.5">Verified non-custodial investor profile.</p>
             </div>
             
             <form onSubmit={handleSave} className="space-y-4 text-xs font-mono">

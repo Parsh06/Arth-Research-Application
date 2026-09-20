@@ -158,7 +158,7 @@ export function buildAnalystPortfolioClearanceEmail(data: PortfolioClearanceEmai
       </tr>
       <tr style="border-bottom: 1px solid #E2E8F0; background-color: #FFFFFF;">
         <td style="padding: 10px 16px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11.5px; color: #64748B;">AUDIT STATUS</td>
-        <td style="padding: 10px 16px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11.5px; color: #059669; font-weight: 700; text-transform: uppercase;">ACTIVE &bull; TELEMETRY LIVE</td>
+        <td style="padding: 10px 16px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11.5px; color: #059669; font-weight: 700; text-transform: uppercase;">ACTIVE &bull; SIGNALS LIVE</td>
       </tr>
       ${analystNote ? `
       <tr style="background-color: #F8FAFC;">
@@ -169,7 +169,7 @@ export function buildAnalystPortfolioClearanceEmail(data: PortfolioClearanceEmai
     </table>
 
     <p style="font-size: 13px; color: #475569; line-height: 1.6;">
-      Your portfolio dashboard is now unlocked with live position tracking, factor weight analytics, and algorithmic rebalance telemetry.
+      Your portfolio dashboard is now unlocked with live position tracking, factor weight analytics, and dynamic rebalance signals.
     </p>
   `;
 
@@ -180,7 +180,7 @@ export function buildAnalystPortfolioClearanceEmail(data: PortfolioClearanceEmai
       badgeText: 'MANDATE CLEARED',
       badgeColor: 'emerald',
       headline: 'Portfolio Approved & Mandate Active',
-      subheadline: `Research clearance granted for ${planName}. Live strategy telemetry is active.`,
+      subheadline: `Research clearance granted for ${planName}. Live strategy signals are active.`,
       bodyHtml,
       primaryCta: {
         text: 'Open Live Portfolio Desk',

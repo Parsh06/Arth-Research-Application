@@ -229,7 +229,7 @@ export function generateInvoicePdf(data: InvoiceData): jsPDF {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(100, 116, 139); // Slate 500
-  doc.text('Systematic algorithmic signals, target weights & dynamic risk telemetry', margin + 14, currentY + 11.5);
+  doc.text('Systematic research signals, target weights & dynamic risk monitoring', margin + 14, currentY + 11.5);
 
   doc.setTextColor(71, 85, 105);
   doc.text('998311', margin + 104, currentY + 6.5);

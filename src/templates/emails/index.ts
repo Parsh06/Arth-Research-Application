@@ -73,7 +73,7 @@ export const EMAIL_TEMPLATES_CATALOG: EmailTemplateDefinition[] = [
     number: 3,
     category: 'Auth',
     title: 'Security Login Alert',
-    description: 'Real-time telemetry alert whenever a new device or IP accesses the investor terminal.',
+    description: 'Real-time security alert whenever a new device or IP accesses the investor terminal.',
     badgeColor: 'garnet',
     defaultRecipient: 'investor@example.com',
     generateSample: (email = 'investor@example.com') => buildSecurityAlertEmail({
@@ -93,7 +93,7 @@ export const EMAIL_TEMPLATES_CATALOG: EmailTemplateDefinition[] = [
     number: 4,
     category: 'Billing',
     title: 'Payment Confirmation & GST Tax Invoice',
-    description: 'Statutory GST B2B/B2C invoice telemetry with breakdown and subscription activation.',
+    description: 'Statutory GST B2B/B2C invoice statement with tax breakdown and subscription activation.',
     badgeColor: 'emerald',
     defaultRecipient: 'investor@example.com',
     generateSample: (email = 'investor@example.com') => buildPaymentConfirmationEmail({
@@ -284,7 +284,7 @@ export const EMAIL_TEMPLATES_CATALOG: EmailTemplateDefinition[] = [
     number: 13,
     category: 'Advisory',
     title: 'Monthly Performance & Tax Digest',
-    description: 'Monthly statement with NAV telemetry, benchmark alpha, top winners, and FY STCG/LTCG breakdown.',
+    description: 'Monthly statement with NAV performance, benchmark alpha, top winners, and FY STCG/LTCG breakdown.',
     badgeColor: 'brass',
     defaultRecipient: 'investor@example.com',
     generateSample: (_email = 'investor@example.com') => buildMonthlyDigestEmail({

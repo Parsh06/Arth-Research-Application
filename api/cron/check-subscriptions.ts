@@ -1,14 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { applyCors, sendSafeError } from '../_lib/security';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS Preflight handling
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
+  // Strict CORS & Preflight handling
+  if (applyCors(req, res)) {
     return;
   }
 
@@ -27,19 +22,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const configuredSecret = process.env.CRON_SECRET || '';
 
   if (
-    configuredSecret && 
-    providedRaw !== configuredSecret && 
-    providedDecoded !== configuredSecret
+    !configuredSecret || 
+    (providedRaw !== configuredSecret && providedDecoded !== configuredSecret)
   ) {
-    res.status(401).json({ 
-      success: false, 
-      error: 'Unauthorized cron request. Invalid CRON_SECRET token.' 
-    });
-    return;
+    return sendSafeError(res, 401, 'Unauthorized cron request. Invalid or unconfigured CRON_SECRET token.');
   }
 
   try {
-    const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'researchapplication-3085c';
+    const projectId = process.env.VITE_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || '';
+    if (!projectId) {
+      return sendSafeError(res, 500, 'FIREBASE_PROJECT_ID environment variable is not configured on server.');
+    }
     const now = Date.now();
 
     console.log(`[CRON WEBHOOK] Executing subscription lifecycle check for Firestore project: ${projectId}...`);

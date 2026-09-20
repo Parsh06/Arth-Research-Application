@@ -69,7 +69,7 @@ export default function PortfolioRejectedPage() {
 
         <div className="p-3 rounded glass-panel-data mb-6 flex items-center justify-center gap-2 text-xs font-mono text-muted-foreground">
           <Mail className="w-3.5 h-3.5 text-primary" />
-          <span>Desk: <span className="font-semibold text-foreground">tatvarthcapital@gmail.com</span></span>
+          <span>Desk: <span className="font-semibold text-foreground">{import.meta.env.VITE_SUPPORT_EMAIL || 'support@arthresearch.com'}</span></span>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-2.5 justify-center">

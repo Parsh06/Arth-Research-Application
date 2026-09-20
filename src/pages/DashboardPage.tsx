@@ -120,7 +120,7 @@ export default function DashboardPage() {
             Complete Your Strategy Portfolio Setup
           </h2>
           <p className="text-xs text-muted-foreground font-mono max-w-md mx-auto leading-relaxed">
-            Your quantitative subscription is active. Submit your current stock positions to activate real-time factor telemetry, risk-parity weight monitoring, and rebalancing alerts.
+            Your quantitative subscription is active. Submit your current stock positions to activate real-time portfolio analytics, weight monitoring, and rebalancing alerts.
           </p>
           <div className="pt-2">
             <Link
@@ -146,7 +146,7 @@ export default function DashboardPage() {
               <div className="space-y-2">
                 <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-500 text-[11px] font-mono tracking-wider uppercase">
                   <Clock className="w-3.5 h-3.5 animate-pulse" />
-                  <span>Mandate Under Quantitative Desk Verification</span>
+                  <span>Mandate Under Desk Verification</span>
                 </div>
                 
                 <h2 className="text-xl sm:text-2xl font-display font-semibold text-foreground tracking-tight">
@@ -154,7 +154,7 @@ export default function DashboardPage() {
                 </h2>
                 
                 <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-2xl font-mono">
-                  Your submitted executed entries are currently undergoing factor integrity audit and weight-parity verification by our research team. Live terminal telemetry, factor weights, and rebalancing signals will activate automatically upon clearance.
+                  Your submitted executed entries are currently undergoing allocation and weight verification by our research team. Live portfolio tracking and rebalancing signals will activate automatically upon clearance.
                 </p>
               </div>
 
@@ -292,7 +292,7 @@ export default function DashboardPage() {
               <div className="p-4 rounded-md glass-panel-data text-xs flex items-start gap-2.5">
                 <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                 <p className="text-[11px] text-muted-foreground leading-relaxed font-mono">
-                  As soon as the research analyst verifies your entries in the Admin Desk, your portfolio factor breakdown and rebalancing telemetry will activate instantly.
+                  As soon as the research analyst verifies your entries in the Admin Desk, your portfolio factor breakdown and rebalancing signals will activate instantly.
                 </p>
               </div>
             </div>

@@ -494,6 +494,7 @@ export default function LandingPage() {
             <a href="#features" className="hover:text-foreground">Features</a>
             <a href="#faq" className="hover:text-foreground">FAQ</a>
             <button onClick={() => navigate('/plans')} className="hover:text-foreground cursor-pointer">Advisory Plans</button>
+            <button onClick={() => navigate('/legal')} className="hover:text-foreground cursor-pointer">Compliance & Terms</button>
           </div>
         </div>
       </footer>

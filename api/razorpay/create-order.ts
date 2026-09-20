@@ -1,35 +1,47 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { applyCors, sendSafeError } from '../_lib/security';
+import { createOrderSchema } from '../_lib/schemas';
+
+// Simple in-memory rate limiting map for order creation (per IP, 1-minute window)
+const orderRateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS Preflight handling
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
+  // Strict CORS & Preflight handling
+  if (applyCors(req, res)) {
     return;
   }
 
   if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed. Only POST is supported.' });
-    return;
+    return sendSafeError(res, 405, 'Method not allowed. Only POST is supported.');
+  }
+
+  // Rate limiting check
+  const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
+  const now = Date.now();
+  const clientRate = orderRateLimitMap.get(clientIp);
+
+  if (clientRate && now < clientRate.resetAt) {
+    if (clientRate.count >= 20) {
+      return sendSafeError(res, 429, 'Too many order requests. Please wait a minute before retrying.');
+    }
+    clientRate.count++;
+  } else {
+    orderRateLimitMap.set(clientIp, { count: 1, resetAt: now + 60 * 1000 });
   }
 
   try {
-    const { amountMinor, receipt, notes } = req.body || {};
+    const parseResult = createOrderSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      const issueMsg = parseResult.error.issues.map(i => i.message).join('; ');
+      return sendSafeError(res, 400, `Invalid order request payload: ${issueMsg}`);
+    }
+
+    const { amountMinor, receipt, notes } = parseResult.data;
     const keyId = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID || '';
     const keySecret = process.env.RAZORPAY_KEY_SECRET || '';
 
-    if (!amountMinor || amountMinor <= 0) {
-      res.status(400).json({ error: 'Valid amountMinor (in paise) is required' });
-      return;
-    }
-
     if (!keyId || !keySecret) {
-      res.status(500).json({ error: 'Razorpay API credentials not configured on backend server' });
-      return;
+      return sendSafeError(res, 500, 'Razorpay API credentials not configured on backend server');
     }
 
     const authHeader = 'Basic ' + Buffer.from(`${keyId}:${keySecret}`).toString('base64');

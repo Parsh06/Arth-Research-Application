@@ -20,7 +20,7 @@ export interface BaseEmailOptions {
 
 export function wrapEmailInBaseTemplate(options: BaseEmailOptions): string {
   const {
-    previewText = 'Arth Research Institutional Advisory Telemetry',
+    previewText = 'Arth Research Institutional Equities Advisory',
     badgeText = 'QUANTITATIVE ADVISORY DESK',
     badgeColor = 'brass',
     headline,

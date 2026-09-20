@@ -1,4 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { applyCors, sendSafeError } from '../_lib/security';
+import { refundSchema } from '../_lib/schemas';
 
 /**
  * POST /api/razorpay/refund
@@ -8,29 +10,23 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
  * If amountMinor is omitted, a full refund is issued.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS Preflight
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
+  // Strict CORS & Preflight handling
+  if (applyCors(req, res)) {
     return;
   }
 
   if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed. Only POST is supported.' });
-    return;
+    return sendSafeError(res, 405, 'Method not allowed. Only POST is supported.');
   }
 
   try {
-    const { paymentId, amountMinor, reason, notes } = req.body || {};
-
-    if (!paymentId || !paymentId.startsWith('pay_')) {
-      res.status(400).json({ error: 'Valid paymentId (e.g. pay_xxx) is required' });
-      return;
+    const parseResult = refundSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      const issueMsg = parseResult.error.issues.map(i => i.message).join('; ');
+      return sendSafeError(res, 400, `Invalid refund payload: ${issueMsg}`);
     }
+
+    const { paymentId, amountMinor, reason, notes } = parseResult.data;
 
     const keyId = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID || '';
     const keySecret = process.env.RAZORPAY_KEY_SECRET || '';

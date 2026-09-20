@@ -20,12 +20,14 @@ export default function SupportPage() {
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [loadingTickets, setLoadingTickets] = useState(true);
 
-  // Form State
+  // Form State & Bot Protection
   const [subject, setSubject] = useState('');
   const [category, setCategory] = useState<'portfolio' | 'billing' | 'technical' | 'advisory' | 'general'>('general');
   const [priority, setPriority] = useState<'low' | 'medium' | 'high' | 'urgent'>('medium');
   const [message, setMessage] = useState('');
+  const [honeypot, setHoneypot] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const mountTimeRef = useRef<number>(Date.now());
 
   // Reply State
   const [replyText, setReplyText] = useState('');
@@ -89,6 +91,23 @@ export default function SupportPage() {
   const handleCreateTicket = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+
+    // Anti-bot honeypot check
+    if (honeypot) {
+      console.warn('[SECURITY] Automated bot submission rejected via honeypot trap.');
+      addToast('Ticket received and dispatched.', 'success');
+      setSubject('');
+      setMessage('');
+      return;
+    }
+
+    // Rapid-submission bot detection (< 1.2s from page mount)
+    if (Date.now() - mountTimeRef.current < 1200) {
+      console.warn('[SECURITY] Automated submission rejected due to rapid submission rate.');
+      addToast('Please wait a moment before submitting your inquiry.', 'error');
+      return;
+    }
+
     if (!subject.trim() || !message.trim()) {
       addToast('Please provide both a subject and details for your ticket.', 'error');
       return;
@@ -159,7 +178,7 @@ export default function SupportPage() {
       setSelectedTicket(newTicket);
     } catch (err: any) {
       console.error('Failed to create ticket:', err);
-      addToast(err.message || 'Failed to submit ticket.', 'error');
+      addToast('Unable to submit inquiry. Please verify your connection and try again.', 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -195,7 +214,7 @@ export default function SupportPage() {
       setReplyText('');
     } catch (err: any) {
       console.error('Failed to send reply:', err);
-      addToast(err.message || 'Failed to send reply', 'error');
+      addToast('Unable to send message. Please try again.', 'error');
     } finally {
       setIsSendingReply(false);
     }
@@ -217,7 +236,7 @@ export default function SupportPage() {
           Direct Advisory & Portfolio Support
         </h1>
         <p className="text-xs text-muted-foreground font-mono mt-0.5">
-          Communicate directly with quantitative analysts, research engineers, and portfolio support specialists.
+          Communicate directly with quantitative analysts, mandate advisors, and investor support specialists.
         </p>
       </div>
 
@@ -236,6 +255,18 @@ export default function SupportPage() {
             </div>
             
             <form onSubmit={handleCreateTicket} className="space-y-3 text-xs font-mono">
+              {/* Anti-Bot Honeypot Field (Off-Screen) */}
+              <div style={{ position: 'absolute', opacity: 0, zIndex: -1, pointerEvents: 'none', left: '-9999px' }} aria-hidden="true">
+                <input
+                  type="text"
+                  name="website_source_verification"
+                  value={honeypot}
+                  onChange={(e) => setHoneypot(e.target.value)}
+                  tabIndex={-1}
+                  autoComplete="off"
+                />
+              </div>
+
               <div>
                 <label className="block text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 mb-1">Inquiry Subject</label>
                 <input 

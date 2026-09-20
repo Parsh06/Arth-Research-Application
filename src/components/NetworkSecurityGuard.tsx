@@ -6,7 +6,7 @@ export default function NetworkSecurityGuard() {
   const isOnline = useNetworkStatus();
 
   useEffect(() => {
-    // Only enable if the environment variable is set to 'true'
+    // Only enable if the environment variable is explicitly set to 'true'
     if (import.meta.env.VITE_NETWORK_SECURITY_GUARD !== 'true') {
       return;
     }
@@ -17,27 +17,52 @@ export default function NetworkSecurityGuard() {
 
     const disableShortcuts = (e: KeyboardEvent) => {
       // Prevent F12
-      if (e.key === 'F12') {
+      if (e.key === 'F12' || e.code === 'F12') {
         e.preventDefault();
+        e.stopPropagation();
       }
       
-      // Prevent Ctrl+Shift+I (DevTools)
-      if (e.ctrlKey && e.shiftKey && e.key === 'I') {
+      // Prevent Ctrl+Shift+I / Cmd+Opt+I (DevTools)
+      if (
+        (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.code === 'KeyI')) ||
+        (e.metaKey && e.altKey && (e.key === 'I' || e.key === 'i' || e.code === 'KeyI'))
+      ) {
         e.preventDefault();
+        e.stopPropagation();
       }
       
-      // Prevent Ctrl+Shift+J (Console)
-      if (e.ctrlKey && e.shiftKey && e.key === 'J') {
+      // Prevent Ctrl+Shift+J / Cmd+Opt+J (Console)
+      if (
+        (e.ctrlKey && e.shiftKey && (e.key === 'J' || e.key === 'j' || e.code === 'KeyJ')) ||
+        (e.metaKey && e.altKey && (e.key === 'J' || e.key === 'j' || e.code === 'KeyJ'))
+      ) {
         e.preventDefault();
+        e.stopPropagation();
+      }
+
+      // Prevent Ctrl+Shift+C / Cmd+Opt+C (Element Inspector)
+      if (
+        (e.ctrlKey && e.shiftKey && (e.key === 'C' || e.key === 'c' || e.code === 'KeyC')) ||
+        (e.metaKey && e.altKey && (e.key === 'C' || e.key === 'c' || e.code === 'KeyC'))
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
       }
       
-      // Prevent Ctrl+U (View Source)
-      if (e.ctrlKey && e.key === 'u') {
+      // Prevent Ctrl+U / Cmd+U (View Source)
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'u' || e.key === 'U' || e.code === 'KeyU')) {
         e.preventDefault();
+        e.stopPropagation();
+      }
+
+      // Prevent Ctrl+S / Cmd+S (Save Page)
+      if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S' || e.code === 'KeyS') && !e.shiftKey) {
+        e.preventDefault();
+        e.stopPropagation();
       }
     };
 
-    // Attempt to stall debugger if they somehow open devtools
+    // Stalls debugger execution if devtools window is forcibly opened
     const detectDevTools = () => {
       const threshold = 160;
       const widthThreshold = window.outerWidth - window.innerWidth > threshold;
@@ -50,26 +75,26 @@ export default function NetworkSecurityGuard() {
 
     // Attach event listeners
     window.addEventListener('contextmenu', disableRightClick);
-    window.addEventListener('keydown', disableShortcuts);
+    window.addEventListener('keydown', disableShortcuts, true);
     
     // Periodically check for DevTools
     const devToolsInterval = setInterval(detectDevTools, 1000);
 
     return () => {
       window.removeEventListener('contextmenu', disableRightClick);
-      window.removeEventListener('keydown', disableShortcuts);
+      window.removeEventListener('keydown', disableShortcuts, true);
       clearInterval(devToolsInterval);
     };
   }, []);
 
   if (!isOnline) {
     return (
-      <div className="fixed bottom-4 left-4 right-4 z-50 bg-neo-danger border-4 border-black p-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex items-center justify-between animate-pulse">
+      <div className="fixed bottom-4 left-4 right-4 z-50 bg-destructive border-2 border-border p-4 rounded-xl shadow-2xl flex items-center justify-between animate-pulse">
         <div className="flex items-center gap-3">
-          <WifiOff className="w-8 h-8 text-white stroke-[3]" />
+          <WifiOff className="w-6 h-6 text-white" />
           <div>
-            <h4 className="text-white font-black uppercase text-lg">You're Offline</h4>
-            <p className="text-white font-bold text-sm">Some features are unavailable until your connection is restored.</p>
+            <h4 className="text-white font-bold text-sm">Connection Interrupted</h4>
+            <p className="text-white/80 text-xs">Live advisory updates paused until internet is restored.</p>
           </div>
         </div>
       </div>
@@ -78,3 +103,4 @@ export default function NetworkSecurityGuard() {
 
   return null;
 }
+

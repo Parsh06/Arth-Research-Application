@@ -13,7 +13,8 @@ import {
   TrendingUp,
   Headphones,
   Shield,
-  ChevronRight
+  ChevronRight,
+  Layers
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../stores/authStore';
@@ -24,6 +25,7 @@ import { getTerminalTitle, getDefaultAdminRoute } from '../utils/rbac';
 const sidebarNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Portfolio', href: '/portfolio', icon: PieChart },
+  { name: 'Advisory Plans', href: '/plans', icon: Layers },
   { name: 'Research Signals', href: '/watchlist', icon: TrendingUp },
   { name: 'History & Audits', href: '/history', icon: History },
   { name: 'Alerts', href: '/notifications', icon: Bell },
@@ -58,7 +60,7 @@ export default function UserLayout() {
 
   const isItemActive = (href: string) => {
     if (href === '/dashboard') {
-      return location.pathname === '/dashboard' || location.pathname === '/';
+      return location.pathname === '/dashboard';
     }
     return location.pathname === href || location.pathname.startsWith(href + '/');
   };
@@ -68,14 +70,14 @@ export default function UserLayout() {
       
       {/* Desktop Sidebar */}
       <aside className="w-64 bg-[hsl(var(--card))] border-r border-[hsl(var(--border))] flex flex-col hidden lg:flex shrink-0 z-30">
-        {/* Brand Header */}
+        {/* Brand Header - Diverts to Landing Page */}
         <div className="h-18 flex items-center px-6 border-b border-[hsl(var(--border))]">
-          <Link to="/dashboard" className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[hsl(var(--primary)/0.12)] border border-[hsl(var(--primary)/0.25)] flex items-center justify-center p-1 overflow-hidden shadow-xs shrink-0">
+          <Link to="/" className="flex items-center gap-3 group" title="Go to Home Landing Page">
+            <div className="w-8 h-8 rounded-lg bg-[hsl(var(--primary)/0.12)] border border-[hsl(var(--primary)/0.25)] flex items-center justify-center p-1 overflow-hidden shadow-xs shrink-0 group-hover:border-[hsl(var(--primary)/0.5)] transition-all">
               <img src="/logo1.png" alt="Arth Research Logo" className="w-full h-full object-contain" />
             </div>
             <div>
-              <span className="font-display font-semibold text-base tracking-tight text-foreground block leading-tight">Arth Research</span>
+              <span className="font-display font-semibold text-base tracking-tight text-foreground block leading-tight group-hover:text-primary transition-colors">Arth Research</span>
               <span className="text-[10px] font-mono text-[hsl(var(--primary))] uppercase tracking-wider">Private Ledger</span>
             </div>
           </Link>
@@ -174,7 +176,12 @@ export default function UserLayout() {
                 className="h-16 flex items-center justify-between px-5 border-b shrink-0"
                 style={{ borderColor: 'hsl(var(--border))', backgroundColor: 'hsl(var(--card))' }}
               >
-                <div className="flex items-center gap-2.5">
+                <Link
+                  to="/"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-2.5 group"
+                  title="Go to Home Landing Page"
+                >
                   <div
                     className="w-9 h-9 rounded-lg flex items-center justify-center p-1.5 overflow-hidden shrink-0"
                     style={{ backgroundColor: 'hsl(var(--primary) / 0.12)', border: '1px solid hsl(var(--primary) / 0.25)' }}
@@ -182,10 +189,10 @@ export default function UserLayout() {
                     <img src="/logo1.png" alt="Arth Research Logo" className="w-full h-full object-contain" />
                   </div>
                   <div>
-                    <span className="font-display font-semibold text-sm block leading-tight" style={{ color: 'hsl(var(--foreground))' }}>Arth Research</span>
+                    <span className="font-display font-semibold text-sm block leading-tight group-hover:text-primary transition-colors" style={{ color: 'hsl(var(--foreground))' }}>Arth Research</span>
                     <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: 'hsl(var(--primary))' }}>Private Ledger</span>
                   </div>
-                </div>
+                </Link>
                 <button
                   onClick={() => setMobileMenuOpen(false)}
                   className="p-2 rounded-lg transition-colors cursor-pointer"

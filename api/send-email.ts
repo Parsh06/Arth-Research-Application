@@ -1,33 +1,43 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import nodemailer from 'nodemailer';
+import { applyCors, sendSafeError } from './_lib/security';
+import { sendEmailSchema } from './_lib/schemas';
+
+// Simple in-memory rate limiting map for email dispatch (per IP, 1-minute window)
+const emailRateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS Preflight handling
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
-  );
-
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
+  // Strict CORS & Preflight handling
+  if (applyCors(req, res)) {
     return;
   }
 
   if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed. Only POST is supported.' });
-    return;
+    return sendSafeError(res, 405, 'Method not allowed. Only POST is supported.');
+  }
+
+  // Rate limiting check
+  const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
+  const now = Date.now();
+  const clientRate = emailRateLimitMap.get(clientIp);
+
+  if (clientRate && now < clientRate.resetAt) {
+    if (clientRate.count >= 10) {
+      return sendSafeError(res, 429, 'Too many email dispatch requests. Please wait a minute before retrying.');
+    }
+    clientRate.count++;
+  } else {
+    emailRateLimitMap.set(clientIp, { count: 1, resetAt: now + 60 * 1000 });
   }
 
   try {
-    const { to, subject, html, text, fromName, attachments } = req.body || {};
-
-    if (!to || !subject || (!html && !text)) {
-      res.status(400).json({ error: 'Missing required parameters (to, subject, html or text)' });
-      return;
+    const parseResult = sendEmailSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      const issueMsg = parseResult.error.issues.map(i => i.message).join('; ');
+      return sendSafeError(res, 400, `Invalid email payload: ${issueMsg}`);
     }
+
+    const { to, subject, html, text, fromName, attachments } = parseResult.data;
 
     const gmailUser = process.env.GMAIL_USER || '';
     const gmailAppPassword = process.env.GMAIL_APP_PASSWORD || '';

@@ -171,7 +171,7 @@ export function buildSecurityLoginAlertEmail(data: SecurityLoginAlertEmailData):
     subject: '[Security Alert] New Login to Your Arth Research Terminal',
     html: wrapEmailInBaseTemplate({
       previewText: `New login detected from IP ${data.ipAddress} on ${data.timestampFormatted}.`,
-      badgeText: 'SECURITY TELEMETRY',
+      badgeText: 'SECURITY ALERT',
       badgeColor: 'sapphire',
       headline: 'New Terminal Session Detected',
       subheadline: 'An authentication event occurred from a new device or IP address.',
@@ -180,7 +180,7 @@ export function buildSecurityLoginAlertEmail(data: SecurityLoginAlertEmailData):
         text: 'Review Active Sessions',
         url: secureUrl
       },
-      footerNotice: 'Automated telemetry security alert triggered for your authenticated account session.'
+      footerNotice: 'Automated security alert triggered for your authenticated account session.'
     })
   };
 }

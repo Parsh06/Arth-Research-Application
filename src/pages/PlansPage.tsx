@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { ArrowRight, Check, Activity, Shield, Sparkles, Award } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../stores/authStore';
 import { usePlanStore } from '../stores/planStore';
 import { useCmsStore } from '../stores/cmsStore';
 import { useEffect, useState } from 'react';
@@ -63,6 +64,7 @@ const RiskMeter = ({ level }: { level: string }) => {
 
 export default function PlansPage() {
   const navigate = useNavigate();
+  const { user, dbUser } = useAuthStore();
   const { plans, fetchPlans, isLoadingPlans } = usePlanStore();
   const { siteContent, fetchSiteContent } = useCmsStore();
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
@@ -83,9 +85,15 @@ export default function PlansPage() {
     return billingCycle === 'yearly' ? Math.floor(baseMinor * 10 * 0.8) : baseMinor;
   };
 
+  const userActivePlanId = dbUser?.activePlanId;
+  const isSubscribed = Boolean(userActivePlanId);
+
   return (
     <div className="min-h-screen bg-mesh bg-background text-foreground selection:bg-primary selection:text-primary-foreground transition-colors duration-200 pb-24">
-      <TopNavBar backTo="/" label="Home" />
+      <TopNavBar 
+        backTo={user ? '/dashboard' : '/'} 
+        label={user ? 'Dashboard' : 'Home'} 
+      />
 
       <div className="max-w-7xl mx-auto pt-24 px-6 lg:px-12 relative z-10">
         
@@ -201,10 +209,10 @@ export default function PlansPage() {
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <button
-                onClick={() => navigate('/login')}
+                onClick={() => navigate(user ? '/dashboard' : '/login')}
                 className="w-full sm:w-auto bg-primary hover:opacity-90 text-primary-foreground text-xs font-semibold px-6 py-2.5 rounded-md shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
-                <span>Access Research Dashboard</span>
+                <span>{user ? 'Back to Dashboard' : 'Access Research Dashboard'}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
               <button
@@ -219,6 +227,7 @@ export default function PlansPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-16 items-stretch">
             {plans.map((plan, idx) => {
               const priceMinor = getCalculatedPriceMinor(plan);
+              const isCurrentPlan = userActivePlanId === plan.id;
 
               return (
                 <motion.div
@@ -227,17 +236,24 @@ export default function PlansPage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.1 }}
                   className={`relative flex flex-col glass-panel transition-all duration-300 ${
-                    plan.isPopular 
-                      ? 'border-primary shadow-xl lg:-translate-y-1' 
-                      : 'hover:border-primary/40'
+                    isCurrentPlan
+                      ? 'border-primary ring-2 ring-primary/25 shadow-2xl lg:-translate-y-1'
+                      : plan.isPopular 
+                        ? 'border-primary shadow-xl lg:-translate-y-1' 
+                        : 'hover:border-primary/40'
                   }`}
                 >
-                  {plan.isPopular && (
+                  {isCurrentPlan ? (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[hsl(var(--success))] text-black font-mono font-bold text-[10px] uppercase tracking-wider px-3 py-0.5 rounded-full shadow-sm flex items-center gap-1 z-10">
+                      <Check className="w-3 h-3 stroke-[3]" />
+                      <span>Current Active Plan</span>
+                    </div>
+                  ) : plan.isPopular ? (
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[10px] font-mono uppercase tracking-wider px-3 py-0.5 rounded-full shadow-sm flex items-center gap-1 z-10">
                       <Award className="w-3 h-3" />
                       <span>Most Subscribed</span>
                     </div>
-                  )}
+                  ) : null}
                   
                   <div className="p-6 pb-0 flex-1">
                     <div className="mb-4">
@@ -283,12 +299,20 @@ export default function PlansPage() {
                     <button
                       onClick={() => handleSelectPlan(plan.id)}
                       className={`w-full py-2.5 px-4 rounded-md font-semibold text-xs transition-all flex items-center justify-center gap-2 group cursor-pointer ${
-                        plan.isPopular 
-                          ? 'bg-primary hover:opacity-90 text-primary-foreground shadow-sm' 
-                          : 'glass-panel text-foreground hover:bg-muted/50 border-border'
+                        isCurrentPlan
+                          ? 'bg-[hsl(var(--success))/0.15] text-[hsl(var(--success))] border border-[hsl(var(--success))/0.3] hover:bg-[hsl(var(--success))/0.25]'
+                          : plan.isPopular 
+                            ? 'bg-primary hover:opacity-90 text-primary-foreground shadow-sm' 
+                            : 'glass-panel text-foreground hover:bg-muted/50 border-border'
                       }`}
                     >
-                      <span>Deploy Strategy</span>
+                      <span>
+                        {isCurrentPlan 
+                          ? 'Manage / Extend Plan' 
+                          : isSubscribed 
+                            ? 'Switch / Upgrade Strategy' 
+                            : 'Deploy Strategy'}
+                      </span>
                       <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                     </button>
                   </div>

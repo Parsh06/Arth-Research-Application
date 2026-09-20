@@ -7,7 +7,7 @@ import { usePlanStore } from '../stores/planStore';
 import { orderRepository } from '../repositories/orderRepository';
 import { userRepository } from '../repositories/userRepository';
 import TopNavBar from '../components/TopNavBar';
-import { formatINR, toMinorUnits } from '../utils/money';
+import { formatINR, toMinorUnits, toRupees } from '../utils/money';
 
 export default function CheckoutPage() {
   const { planId } = useParams();
@@ -18,10 +18,15 @@ export default function CheckoutPage() {
   const [upiId, setUpiId] = useState('investor@okhdfcbank');
   const [phone, setPhone] = useState('');
   
+  // Coupon & Billing State
   const [couponCode, setCouponCode] = useState('');
-  const [discountPercent, setDiscountPercent] = useState(0);
+  const [appliedCoupon, setAppliedCoupon] = useState<any | null>(null);
+  const [discountPercent, setDiscountPercent] = useState<number>(0);
+  const [discountMinorState, setDiscountMinorState] = useState<number>(0);
   const [couponApplied, setCouponApplied] = useState(false);
   const [couponError, setCouponError] = useState('');
+  const [couponSuccessMsg, setCouponSuccessMsg] = useState('');
+  const [isCheckingCoupon, setIsCheckingCoupon] = useState(false);
 
   const [activeSubscription, setActiveSubscription] = useState<any | null>(null);
   const [allowRepurchase, setAllowRepurchase] = useState<boolean>(false);
@@ -87,16 +92,16 @@ export default function CheckoutPage() {
     return () => { isMounted = false; };
   }, [user?.uid, planId]);
 
-  // Load existing phone from userPrivate or user profile if available
+  // Pre-fill phone number from profile if available
   useEffect(() => {
-    if (user?.uid) {
-      userRepository.getUserPrivate(user.uid).then(priv => {
-        if (priv?.phone) {
-          setPhone(priv.phone);
-        } else if ((dbUser as any)?.phone) {
-          setPhone((dbUser as any).phone);
-        }
-      }).catch(err => console.warn('[CheckoutPage] Load phone warning:', err));
+    if (user?.uid && !phone) {
+      if ((dbUser as any)?.phone) {
+        setPhone((dbUser as any).phone);
+      } else {
+        userRepository.getUserPrivate(user.uid).then(priv => {
+          if (priv?.phone) setPhone(priv.phone);
+        }).catch(() => {});
+      }
     }
   }, [user?.uid, dbUser]);
 
@@ -110,23 +115,68 @@ export default function CheckoutPage() {
     }
   };
 
-  const handleApplyCoupon = () => {
+  const handleApplyCoupon = async () => {
     const code = couponCode.trim().toUpperCase();
-    if (!code) return;
-
-    if (code === 'ARTH10' || code === 'WELCOME10') {
-      setDiscountPercent(10);
-      setCouponApplied(true);
-      setCouponError('');
-    } else if (code === 'ALPHA20' || code === 'EARLY20') {
-      setDiscountPercent(20);
-      setCouponApplied(true);
-      setCouponError('');
-    } else {
-      setCouponError('Invalid voucher code');
-      setCouponApplied(false);
-      setDiscountPercent(0);
+    if (!code) {
+      setCouponError('Please enter a voucher code');
+      return;
     }
+
+    if (!plan) return;
+
+    setIsCheckingCoupon(true);
+    setCouponError('');
+
+    try {
+      const { couponRepository } = await import('../repositories/couponRepository');
+      const baseMinor = (plan as any).priceMinor || toMinorUnits(plan.price);
+      const baseRupees = toRupees(baseMinor);
+
+      const result = await couponRepository.validateCouponForCheckout(code, {
+        planId: plan.id,
+        planName: plan.name,
+        userEmail: user?.email || undefined,
+        baseAmountRupees: baseRupees
+      });
+
+      if (result.isValid && result.coupon) {
+        setAppliedCoupon(result.coupon);
+        setDiscountMinorState(toMinorUnits(result.discountAmountRupees));
+        setDiscountPercent(result.discountPercent || 0);
+        setCouponApplied(true);
+        setCouponError('');
+        setCouponSuccessMsg(
+          result.coupon.discountType === 'percentage'
+            ? `Voucher "${result.coupon.code}" active! ${result.coupon.discountValue}% discount applied (Saved ${formatINR(toMinorUnits(result.discountAmountRupees))}).`
+            : `Voucher "${result.coupon.code}" active! Flat ${formatINR(toMinorUnits(result.discountAmountRupees))} reduction applied.`
+        );
+      } else {
+        setAppliedCoupon(null);
+        setDiscountMinorState(0);
+        setDiscountPercent(0);
+        setCouponApplied(false);
+        setCouponError(result.errorReason || 'Invalid voucher code');
+        setCouponSuccessMsg('');
+      }
+    } catch (err: any) {
+      console.error('[CheckoutPage] Coupon validation error:', err);
+      setCouponError(err?.message || 'Failed to validate voucher');
+      setCouponApplied(false);
+      setAppliedCoupon(null);
+      setDiscountMinorState(0);
+    } finally {
+      setIsCheckingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setCouponCode('');
+    setAppliedCoupon(null);
+    setCouponApplied(false);
+    setCouponError('');
+    setCouponSuccessMsg('');
+    setDiscountMinorState(0);
+    setDiscountPercent(0);
   };
 
   if (!plan) {
@@ -210,7 +260,7 @@ export default function CheckoutPage() {
   }
 
   const basePriceMinor = (plan as any).priceMinor || toMinorUnits(plan.price);
-  const discountMinor = Math.round(basePriceMinor * (discountPercent / 100));
+  const discountMinor = discountMinorState > 0 ? discountMinorState : Math.round(basePriceMinor * (discountPercent / 100));
   const taxableAmountMinor = Math.max(0, basePriceMinor - discountMinor);
   const taxMinor = Math.round(taxableAmountMinor * 0.18); // 18% GST
   const subtotalBeforeGatewayMinor = taxableAmountMinor + taxMinor;
@@ -345,7 +395,13 @@ export default function CheckoutPage() {
               acquirerUpiTxnId: realAcquirerUpiTxnId
             });
 
-            // 3. Ensure initial strategy portfolio exists
+            // 3. Ensure initial strategy portfolio exists & update coupon usage
+            if (appliedCoupon?.id) {
+              import('../repositories/couponRepository').then(({ couponRepository }) => {
+                couponRepository.incrementCouponUsage(appliedCoupon.id).catch(e => console.warn('[CheckoutPage] Coupon usage inc err:', e));
+              });
+            }
+
             try {
               const { portfolioRepository } = await import('../repositories/portfolioRepository');
               const userPorts = await portfolioRepository.getUserPortfolios(user.uid).catch(() => []);
@@ -547,26 +603,49 @@ export default function CheckoutPage() {
                   <input
                     type="text"
                     value={couponCode}
+                    disabled={couponApplied || isCheckingCoupon}
                     onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                     placeholder="e.g. ALPHA20"
-                    className="flex-1 glass-panel-data px-3 py-1.5 text-xs font-mono uppercase tracking-wider text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="flex-1 glass-panel-data px-3 py-1.5 text-xs font-mono uppercase tracking-wider text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-75"
                   />
-                  <button
-                    type="button"
-                    onClick={handleApplyCoupon}
-                    className="bg-primary hover:opacity-90 text-primary-foreground px-4 py-1.5 rounded-xs text-xs font-semibold transition-colors cursor-pointer"
-                  >
-                    Apply
-                  </button>
+                  {couponApplied ? (
+                    <button
+                      type="button"
+                      onClick={handleRemoveCoupon}
+                      className="glass-panel text-destructive hover:bg-destructive/10 border-destructive/30 px-3 py-1.5 rounded-xs text-xs font-semibold transition-colors cursor-pointer"
+                    >
+                      Remove
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={isCheckingCoupon || !couponCode.trim()}
+                      onClick={handleApplyCoupon}
+                      className="bg-primary hover:opacity-90 disabled:opacity-50 text-primary-foreground px-4 py-1.5 rounded-xs text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
+                    >
+                      {isCheckingCoupon ? (
+                        <>
+                          <div className="w-3 h-3 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                          <span>Checking...</span>
+                        </>
+                      ) : (
+                        <span>Apply</span>
+                      )}
+                    </button>
+                  )}
                 </div>
                 {couponApplied && (
-                  <p className="text-[11px] font-mono text-[hsl(var(--success))] mt-2 flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Voucher active! {discountPercent}% reduction applied.
-                  </p>
+                  <div className="p-2 mt-2 rounded-md bg-[hsl(var(--success))/0.1] border border-[hsl(var(--success))/0.25] text-[hsl(var(--success))] text-[11px] font-mono flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                      <span>{couponSuccessMsg || `Voucher active! ${discountPercent}% reduction applied.`}</span>
+                    </span>
+                    <span className="font-bold tabular-nums">-{formatINR(discountMinor)}</span>
+                  </div>
                 )}
                 {couponError && (
                   <p className="text-[11px] font-mono text-destructive mt-2 flex items-center gap-1">
-                    <AlertCircle className="w-3.5 h-3.5" /> {couponError}
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {couponError}
                   </p>
                 )}
               </div>
@@ -761,7 +840,7 @@ export default function CheckoutPage() {
                   <span>{isProcessing ? 'Authorizing Payment...' : `Simulate Payment ${formatINR(totalMinor)}`}</span>
                 </button>
                 <p className="text-[10px] font-mono text-center text-muted-foreground">
-                  Simulated sandbox transaction. Direct database provisioning.
+                  Simulated sandbox transaction. Instant mandate activation.
                 </p>
               </div>
             </motion.div>

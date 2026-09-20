@@ -1,35 +1,30 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'node:crypto';
+import { applyCors, sendSafeError } from '../_lib/security';
+import { verifyPaymentSchema } from '../_lib/schemas';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS Preflight handling
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
+  // Strict CORS & Preflight handling
+  if (applyCors(req, res)) {
     return;
   }
 
   if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed. Only POST is supported.' });
-    return;
+    return sendSafeError(res, 405, 'Method not allowed. Only POST is supported.');
   }
 
   try {
-    const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body || {};
-    const keySecret = process.env.RAZORPAY_KEY_SECRET || '';
-
-    if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
-      res.status(400).json({ error: 'Missing razorpayOrderId, razorpayPaymentId, or razorpaySignature' });
-      return;
+    const parseResult = verifyPaymentSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      const issueMsg = parseResult.error.issues.map(i => i.message).join('; ');
+      return sendSafeError(res, 400, `Invalid payment verification payload: ${issueMsg}`);
     }
 
+    const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = parseResult.data;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET || '';
+
     if (!keySecret) {
-      res.status(500).json({ error: 'RAZORPAY_KEY_SECRET not configured on backend server' });
-      return;
+      return sendSafeError(res, 500, 'RAZORPAY_KEY_SECRET not configured on backend server');
     }
 
     const expectedSignature = crypto
@@ -37,7 +32,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .update(`${razorpayOrderId}|${razorpayPaymentId}`)
       .digest('hex');
 
-    const isAuthentic = expectedSignature === razorpaySignature;
+    const expectedBuf = Buffer.from(expectedSignature, 'utf-8');
+    const receivedBuf = Buffer.from(String(razorpaySignature), 'utf-8');
+    const isAuthentic = expectedBuf.length === receivedBuf.length && crypto.timingSafeEqual(expectedBuf, receivedBuf);
 
     if (isAuthentic) {
       console.log(`[RAZORPAY PAYMENT VERIFIED] Payment ID: ${razorpayPaymentId}, Order ID: ${razorpayOrderId}`);

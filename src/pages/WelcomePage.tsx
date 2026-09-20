@@ -45,7 +45,7 @@ export default function WelcomePage() {
     fetchPlans();
   }, [fetchSiteContent, fetchPlans]);
 
-  // If subscriptionId is present, fetch the verified subscription record from Firestore
+  // If subscriptionId is present, fetch the verified subscription record
   useEffect(() => {
     if (!subscriptionId) {
       setLoadingSub(false);

@@ -39,7 +39,7 @@ export const AdminEmailHub: React.FC = () => {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>(EMAIL_TEMPLATES_CATALOG[0].id);
   const [previewMode, setPreviewMode] = useState<'visual' | 'code'>('visual');
   const [viewPort, setViewPort] = useState<'desktop' | 'mobile'>('desktop');
-  const [recipientEmail, setRecipientEmail] = useState<string>('jainparsh06@gmail.com');
+  const [recipientEmail, setRecipientEmail] = useState<string>(import.meta.env.VITE_ADMIN_NOTIFICATION_EMAIL || '');
   const [isSending, setIsSending] = useState<boolean>(false);
   const [sendResult, setSendResult] = useState<{ success: boolean; message: string; mocked?: boolean } | null>(null);
   const [auditLogs, setAuditLogs] = useState<EmailAuditLogEntry[]>([]);
@@ -227,14 +227,14 @@ export const AdminEmailHub: React.FC = () => {
             </span>
             <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-mono bg-emerald-500/10 text-emerald-500 px-2.5 py-0.5 rounded border border-emerald-500/20">
               <ShieldCheck className="w-3.5 h-3.5" />
-              Firestore Data Synchronized
+              Live Records Synchronized
             </span>
           </div>
           <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
-            Institutional Email Hub & Cron Telemetry
+            Institutional Email Hub & Delivery System
           </h1>
           <p className="text-xs text-muted-foreground font-mono mt-0.5">
-            Preview, test, and automate all investor communications with real-time Firestore synchronization and cron-job.org connectivity.
+            Preview, test, and automate all investor communications with real-time synchronization and automated schedule connectivity.
           </p>
         </div>
 
@@ -306,7 +306,7 @@ export const AdminEmailHub: React.FC = () => {
                   </div>
                   <div>
                     <h2 className="text-sm font-semibold text-foreground">Subscription Lifecycle Cron</h2>
-                    <p className="text-[11px] text-muted-foreground font-mono">Pulls real user data from Firestore and processes automated warnings</p>
+                    <p className="text-[11px] text-muted-foreground font-mono">Pulls active user records and processes automated warnings</p>
                   </div>
                 </div>
               </div>
@@ -315,7 +315,7 @@ export const AdminEmailHub: React.FC = () => {
                 <div className="text-[10px] font-mono text-primary uppercase font-bold tracking-wider">Automation Logic:</div>
                 <ul className="space-y-2 text-muted-foreground list-disc list-inside font-sans text-xs">
                   <li><strong>7-Day Expiry Warning:</strong> Scans active mandates expiring in &le; 7 days, pulls investor details, and dispatches Template #6.</li>
-                  <li><strong>Subscription Expired Notice:</strong> Detects expired subscriptions, transitions Firestore status to <code className="text-primary font-mono bg-primary/10 px-1 py-0.5 rounded">expired</code>, and dispatches Template #7.</li>
+                  <li><strong>Subscription Expired Notice:</strong> Detects expired subscriptions, transitions status to <code className="text-primary font-mono bg-primary/10 px-1 py-0.5 rounded">expired</code>, and dispatches Template #7.</li>
                   <li><strong>Deduplication Shield:</strong> Records <code className="text-primary font-mono bg-primary/10 px-1 py-0.5 rounded">warningEmailSentAt</code> and <code className="text-primary font-mono bg-primary/10 px-1 py-0.5 rounded">expiredNoticeSentAt</code> to prevent repeated emails.</li>
                 </ul>
               </div>
@@ -328,7 +328,7 @@ export const AdminEmailHub: React.FC = () => {
                 {isExecutingCron ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Evaluating Firestore Subscriptions...</span>
+                    <span>Evaluating Active Subscriptions...</span>
                   </>
                 ) : (
                   <>
@@ -482,7 +482,7 @@ export const AdminEmailHub: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-4">
             <div className="flex items-center gap-2">
               <Layers className="w-4 h-4 text-primary" />
-              <h2 className="text-sm font-semibold text-foreground">Firestore Active Subscriptions Registry</h2>
+              <h2 className="text-sm font-semibold text-foreground">Active Subscriptions Registry</h2>
               <span className="text-xs text-muted-foreground font-mono">({subscriptions.length} total mandates recorded)</span>
             </div>
             <button
@@ -491,7 +491,7 @@ export const AdminEmailHub: React.FC = () => {
               className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent text-foreground text-xs font-mono flex items-center gap-1.5 border border-border cursor-pointer transition-colors"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isLoadingSubs ? 'animate-spin' : ''}`} />
-              <span>Refresh Firestore Data</span>
+              <span>Refresh Subscription Data</span>
             </button>
           </div>
 
@@ -590,7 +590,7 @@ export const AdminEmailHub: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-4">
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-primary" />
-              <h2 className="text-sm font-semibold text-foreground">Recent Dispatch Telemetry</h2>
+              <h2 className="text-sm font-semibold text-foreground">Recent Dispatch Activity</h2>
               <span className="text-xs text-muted-foreground font-mono">({auditLogs.length} events logged)</span>
             </div>
             <div className="flex items-center gap-2">
@@ -946,7 +946,7 @@ export const AdminEmailHub: React.FC = () => {
               <div className="flex items-center justify-between border-b border-border pb-3">
                 <div className="flex items-center gap-2 font-semibold text-sm text-foreground">
                   <Mail className="w-4 h-4 text-primary" />
-                  <span>Email Dispatch Telemetry Detail</span>
+                  <span>Email Dispatch Details</span>
                 </div>
                 <button
                   onClick={() => setSelectedLog(null)}

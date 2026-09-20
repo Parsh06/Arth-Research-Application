@@ -694,7 +694,7 @@ export default function AdminContentHub() {
                             })}
                           {uniqueActiveSubscribers.length === 0 && (
                             <div className="py-4 text-center text-[11px] text-muted-foreground font-mono">
-                              No active subscribed clients found in database.
+                              No active subscribed clients found in records.
                             </div>
                           )}
                         </div>

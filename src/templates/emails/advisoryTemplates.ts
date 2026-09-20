@@ -265,7 +265,7 @@ export function buildMonthlyDigestEmail(data: MonthlyDigestEmailData): { subject
     <p style="margin-top: 0; font-size: 14px; color: #1E293B;">Dear <strong style="color: #0F172A;">${data.userName}</strong>,</p>
     
     <p style="font-size: 13.5px; color: #334155; line-height: 1.6;">
-      Your institutional portfolio summary and tax telemetry statement for <strong>${data.monthYear}</strong> is compiled and ready for review.
+      Your institutional portfolio summary and tax statement for <strong>${data.monthYear}</strong> is compiled and ready for review.
     </p>
 
     <!-- Key Stats Box -->
@@ -310,12 +310,12 @@ export function buildMonthlyDigestEmail(data: MonthlyDigestEmailData): { subject
       </tr>
     </table>
 
-    <!-- Realized Tax Telemetry -->
+    <!-- Realized Tax Summary -->
     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; margin: 16px 0; padding: 14px 18px;">
       <tr>
         <td>
           <div style="font-family: 'Cinzel', Georgia, serif; font-size: 12px; font-weight: 700; color: #0F172A; margin-bottom: 6px;">
-            Realized Capital Gains Telemetry (Fiscal Year To Date)
+            Realized Capital Gains Summary (Fiscal Year To Date)
           </div>
           <table border="0" cellpadding="0" cellspacing="0" width="100%">
             <tr>
@@ -344,7 +344,7 @@ export function buildMonthlyDigestEmail(data: MonthlyDigestEmailData): { subject
       badgeText: 'MONTHLY PERFORMANCE DIGEST',
       badgeColor: 'brass',
       headline: `${data.monthYear} Advisory Digest`,
-      subheadline: 'Performance telemetry, benchmark attribution, and capital gains statement.',
+      subheadline: 'Performance analytics, benchmark attribution, and capital gains statement.',
       bodyHtml,
       primaryCta: {
         text: 'Download Tax & Performance PDF',

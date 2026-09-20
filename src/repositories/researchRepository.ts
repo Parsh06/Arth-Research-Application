@@ -4,6 +4,7 @@ import {
   getDocs,
   query,
   orderBy,
+  limit,
   onSnapshot,
   setDoc,
   updateDoc
@@ -16,12 +17,13 @@ const COLLECTION = 'researchCalls';
 
 export const researchRepository = {
   /**
-   * Subscribe to live research calls / signals stream
+   * Subscribe to live research calls / signals stream (bounded to latest 100)
    */
   subscribeToCalls(callback: (calls: ResearchCall[]) => void) {
     const q = query(
       collection(db, COLLECTION),
-      orderBy('publishedAt', 'desc')
+      orderBy('publishedAt', 'desc'),
+      limit(100)
     );
 
     return onSnapshot(q, (snapshot) => {
@@ -39,12 +41,13 @@ export const researchRepository = {
   },
 
   /**
-   * Fetch all research calls once
+   * Fetch research calls once (bounded to latest 100)
    */
-  async getCalls(): Promise<ResearchCall[]> {
+  async getCalls(maxItems: number = 100): Promise<ResearchCall[]> {
     const q = query(
       collection(db, COLLECTION),
-      orderBy('publishedAt', 'desc')
+      orderBy('publishedAt', 'desc'),
+      limit(maxItems)
     );
     const snap = await getDocs(q);
     return snap.docs

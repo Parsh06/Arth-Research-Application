@@ -115,7 +115,12 @@ function emailDispatcherPlugin(env: Record<string, string>): Plugin {
         }
 
         try {
-          const projectId = env.VITE_FIREBASE_PROJECT_ID || 'researchapplication-3085c';
+          const projectId = env.VITE_FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID || '';
+          if (!projectId) {
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: 'VITE_FIREBASE_PROJECT_ID environment variable is missing' }));
+            return;
+          }
 
           console.log(`[CRON WEBHOOK] Executing subscription lifecycle check for ${projectId}...`);
 
@@ -527,6 +532,30 @@ export default defineConfig(({ mode }) => {
         "@": path.resolve(__dirname, "./src"),
       },
     },
+    build: {
+      sourcemap: false,
+      chunkSizeWarningLimit: 1000,
+      rollupOptions: {
+        output: {
+          manualChunks(id: string) {
+            if (id.includes('node_modules')) {
+              if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+                return 'vendor-react';
+              }
+              if (id.includes('firebase')) {
+                return 'vendor-firebase';
+              }
+              if (id.includes('lucide-react')) {
+                return 'vendor-icons';
+              }
+            }
+          }
+        }
+      }
+    },
+    esbuild: mode === 'production' ? {
+      drop: ['console', 'debugger'],
+    } : {},
   };
 });
 

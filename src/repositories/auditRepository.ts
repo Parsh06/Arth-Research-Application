@@ -1,7 +1,7 @@
 // src/repositories/auditRepository.ts
-// SEBI COMPLIANCE: Audit logs are write-once (append-only).
+// REGULATORY COMPLIANCE: Audit logs are write-once (append-only).
 // The clearAllLogs() method has been intentionally removed — audit trails are immutable.
-// Firebase Security Rules also enforce this at the DB layer (update/delete: false).
+// Database Security Rules also enforce this at the DB layer (update/delete: false).
 import {
   collection,
   addDoc,
@@ -22,6 +22,7 @@ export type AuditEntityType =
   | 'entitlement'
   | 'cms'
   | 'support_ticket'
+  | 'security_event'
   | 'system';
 
 export interface AuditLog {
@@ -55,10 +56,30 @@ export const auditRepository = {
         timestamp: new Date().toISOString()
       });
     } catch (e) {
-      // Audit log failures must never crash the calling operation —
-      // but they must be surfaced so ops can investigate.
       console.error('[AuditRepository] Failed to write audit log:', e);
     }
+  },
+
+  /**
+   * Records a security anomaly, rate violation, or authorization rejection event.
+   */
+  async logSecurityEvent(
+    action: string,
+    entityId: string,
+    details?: Record<string, unknown>,
+    actorUid: string = 'system',
+    actorEmail: string = 'system@security.guard'
+  ): Promise<void> {
+    return this.logAction({
+      adminId: actorUid,
+      adminEmail: actorEmail,
+      action: `[SECURITY] ${action}`,
+      entityType: 'security_event',
+      entityId,
+      details,
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Server',
+      ipAddress: 'client'
+    });
   },
 
   /**
@@ -120,7 +141,7 @@ export const auditRepository = {
   }
 
   // ⛔ clearAllLogs() has been intentionally removed.
-  // Audit logs are SEBI-regulated compliance records.
+  // Audit logs are regulatory compliance records.
   // They are immutable at both the application and Firestore Security Rules layers.
   // If purging is needed for legal data retention, it must be done via a
   // privileged Firebase Admin SDK server function with explicit legal authorization.

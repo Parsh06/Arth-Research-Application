@@ -13,19 +13,19 @@ export default function AdminSettings() {
   const [saving, setSaving] = useState(false);
 
   // Form State
-  const [platformName, setPlatformName] = useState('Arth Jain Advisory');
-  const [sebiRegNumber, setSebiRegNumber] = useState('INH000012345');
-  const [supportEmail, setSupportEmail] = useState('support@arthadvisory.com');
-  const [disclaimer, setDisclaimer] = useState('Investments in securities market are subject to market risks. Read all related documents carefully before investing.');
+  const [platformName, setPlatformName] = useState('Arth Research Private Desk');
+  const [entityLicenseNumber, setEntityLicenseNumber] = useState('');
+  const [supportEmail, setSupportEmail] = useState(import.meta.env.VITE_SUPPORT_EMAIL || 'support@arthresearch.com');
+  const [disclaimer, setDisclaimer] = useState('Quantitative research and model allocations are for informational purposes only. Securities investments carry risk.');
   const [maxStockWeight, setMaxStockWeight] = useState(25);
-  const [razorpayKeyId, setRazorpayKeyId] = useState('rzp_test_1234567890');
+  const [razorpayKeyId, setRazorpayKeyId] = useState(import.meta.env.VITE_RAZORPAY_KEY_ID || '');
 
   // Diagnostics State
   const [isRunningDiagnostics, setIsRunningDiagnostics] = useState(false);
   const [diagnosticReport, setDiagnosticReport] = useState<any | null>(null);
 
   // Maintenance / Purge State
-  const [targetEmail, setTargetEmail] = useState('korojitha@gmail.com');
+  const [targetEmail, setTargetEmail] = useState('');
   const [isPurgingUser, setIsPurgingUser] = useState(false);
   const [purgeUserResult, setPurgeUserResult] = useState<PurgeResult | null>(null);
   const [isPurgingLogs, setIsPurgingLogs] = useState(false);
@@ -42,7 +42,7 @@ export default function AdminSettings() {
       if (snap.exists()) {
         const data = snap.data();
         if (data.platformName) setPlatformName(data.platformName);
-        if (data.sebiRegNumber) setSebiRegNumber(data.sebiRegNumber);
+        if (data.entityLicenseNumber || data.licenseNumber) setEntityLicenseNumber(data.entityLicenseNumber || data.licenseNumber);
         if (data.supportEmail) setSupportEmail(data.supportEmail);
         if (data.disclaimer) setDisclaimer(data.disclaimer);
         if (data.maxStockWeight) setMaxStockWeight(data.maxStockWeight);
@@ -61,7 +61,7 @@ export default function AdminSettings() {
     try {
       await setDoc(doc(db, 'settings', 'platform_config'), {
         platformName,
-        sebiRegNumber,
+        entityLicenseNumber,
         supportEmail,
         disclaimer,
         maxStockWeight: Number(maxStockWeight),
@@ -72,7 +72,7 @@ export default function AdminSettings() {
       addToast('Platform configuration saved successfully!', 'success');
     } catch (err: any) {
       console.error("Failed to save settings:", err);
-      addToast(err.message || 'Failed to save settings', 'error');
+      addToast('Failed to save settings. Please try again.', 'error');
     } finally {
       setSaving(false);
     }
@@ -83,10 +83,10 @@ export default function AdminSettings() {
     try {
       const report = await integrityService.runSystemAudit();
       setDiagnosticReport(report);
-      addToast('Data integrity diagnostic complete.', 'success');
+      addToast('System integrity diagnostic complete.', 'success');
     } catch (err: any) {
       console.error("Diagnostic failed:", err);
-      addToast(err.message || 'Integrity check failed', 'error');
+      addToast('Integrity check failed. Please try again.', 'error');
     } finally {
       setIsRunningDiagnostics(false);
     }
@@ -109,14 +109,14 @@ export default function AdminSettings() {
       addToast(`Purged all records associated with ${targetEmail}`, 'success');
     } catch (err: any) {
       console.error("Purge user failed:", err);
-      addToast(err.message || 'Failed to purge user records', 'error');
+      addToast('Failed to purge user records. Please try again.', 'error');
     } finally {
       setIsPurgingUser(false);
     }
   };
 
   const handlePurgeAuditLogs = async () => {
-    if (!window.confirm("Permanently wipe all regulatory audit trail logs from the database?")) {
+    if (!window.confirm("Permanently wipe all administrative audit records from the system?")) {
       return;
     }
 
@@ -125,10 +125,10 @@ export default function AdminSettings() {
     try {
       const count = await adminMaintenanceService.purgeAllAuditLogs();
       setPurgedLogsCount(count);
-      addToast(`Successfully wiped ${count} audit log entries`, 'success');
+      addToast(`Successfully wiped ${count} audit entries`, 'success');
     } catch (err: any) {
       console.error("Purge audit logs failed:", err);
-      addToast(err.message || 'Failed to purge audit logs', 'error');
+      addToast('Failed to purge audit records. Please try again.', 'error');
     } finally {
       setIsPurgingLogs(false);
     }
@@ -148,14 +148,14 @@ export default function AdminSettings() {
       <div className="pb-4 border-b border-border">
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-mono uppercase tracking-wider text-primary bg-primary/10 px-2.5 py-0.5 rounded border border-primary/20">
-            Platform Settings
+            System Settings
           </span>
         </div>
         <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground mt-1">
-          Compliance & Gateway Architecture
+          Platform Governance & Controls
         </h1>
         <p className="text-xs text-muted-foreground font-mono mt-0.5">
-          Configure advisory entity credentials, risk parity constraints, and manage system data maintenance.
+          Configure advisory parameters, risk limits, and execute operational maintenance routines.
         </p>
       </div>
 
@@ -186,8 +186,8 @@ export default function AdminSettings() {
               <label className="block text-xs font-mono text-muted-foreground mb-1.5">Entity / License Identifier</label>
               <input
                 type="text"
-                value={sebiRegNumber}
-                onChange={(e) => setSebiRegNumber(e.target.value)}
+                value={entityLicenseNumber}
+                onChange={(e) => setEntityLicenseNumber(e.target.value)}
                 className="w-full bg-card border border-border rounded-md px-3.5 py-2 text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-colors"
                 required
               />
@@ -253,7 +253,7 @@ export default function AdminSettings() {
             <span>Administrative Maintenance & Data Purge Desk</span>
           </h3>
           <p className="text-xs font-mono text-muted-foreground mt-0.5">
-            Purge sandbox user registrations, test portfolios, filled plans, and reset regulatory audit trails.
+            Purge sandbox user registrations, test portfolios, filled plans, and reset audit trails.
           </p>
         </div>
 
@@ -276,7 +276,7 @@ export default function AdminSettings() {
                 type="email"
                 value={targetEmail}
                 onChange={(e) => setTargetEmail(e.target.value)}
-                placeholder="e.g. korojitha@gmail.com"
+                placeholder="e.g. user@example.com"
                 className="w-full bg-card border border-border rounded-md px-3 py-1.5 text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-destructive focus:border-destructive transition-colors"
               />
             </div>
@@ -310,10 +310,10 @@ export default function AdminSettings() {
             <div>
               <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                 <Trash2 className="w-3.5 h-3.5 text-primary" />
-                <span>Wipe Regulatory Audit Trail</span>
+                <span>Wipe Administrative Audit Records</span>
               </h4>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                Clears all historical administrative cryptographic action logs (e.g. APPROVE_PORTFOLIO, REJECT_PORTFOLIO).
+                Clears historical administrative action logs.
               </p>
             </div>
 
@@ -324,7 +324,7 @@ export default function AdminSettings() {
                 className="w-full bg-primary/10 hover:bg-primary/20 text-primary font-semibold text-xs py-2 px-3 rounded-md border border-primary/25 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
               >
                 <Trash2 className={`w-3.5 h-3.5 ${isPurgingLogs ? 'animate-spin' : ''}`} />
-                <span>{isPurgingLogs ? 'Wiping Audit Trail...' : 'Purge All Audit Trail Logs'}</span>
+                <span>{isPurgingLogs ? 'Wiping Records...' : 'Purge All Audit Records'}</span>
               </button>
             </div>
 
@@ -332,7 +332,7 @@ export default function AdminSettings() {
               <div className="p-3 rounded-md bg-[hsl(var(--success))/0.15] border border-[hsl(var(--success))/0.3] text-[11px] font-mono text-[hsl(var(--success))] space-y-1">
                 <div className="font-bold flex items-center gap-1">
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Audit Logs Purged: {purgedLogsCount} entries removed</span>
+                  <span>Records Purged: {purgedLogsCount} entries removed</span>
                 </div>
               </div>
             )}
@@ -351,10 +351,10 @@ export default function AdminSettings() {
           <div>
             <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <Database className="w-4 h-4 text-primary" />
-              <span>Database Integrity & Health Audit</span>
+              <span>System Integrity & Health Audit</span>
             </h3>
             <p className="text-xs font-mono text-muted-foreground mt-0.5">
-              Verify minor unit integer invariants, schema consistency, and orphaned references.
+              Verify monetary invariants, data consistency, and system health status.
             </p>
           </div>
 

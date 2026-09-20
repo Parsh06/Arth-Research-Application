@@ -4,6 +4,7 @@ import AuthGuard from './components/AuthGuard';
 import AppBootstrap from './components/AppBootstrap';
 import ErrorBoundary from './components/ErrorBoundary';
 import ScreenCaptureDefense from './components/ScreenCaptureDefense';
+import NetworkSecurityGuard from './components/NetworkSecurityGuard';
 import ToastContainer from './components/ToastContainer';
 
 // Lazy Loaded Pages
@@ -37,6 +38,7 @@ const AdminContentHub = lazy(() => import('./pages/admin/AdminContentHub'));
 const AdminEmailHub = lazy(() => import('./pages/admin/AdminEmailHub').then(m => ({ default: m.AdminEmailHub })));
 const SupportPage = lazy(() => import('./pages/SupportPage'));
 const WatchlistPage = lazy(() => import('./pages/WatchlistPage'));
+const LegalPage = lazy(() => import('./pages/LegalPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
 const PageLoader = () => (
@@ -50,6 +52,7 @@ function App() {
     <Router>
       <AppBootstrap>
         <ErrorBoundary>
+          <NetworkSecurityGuard />
           <ScreenCaptureDefense />
           <ToastContainer />
           <Suspense fallback={<PageLoader />}>
@@ -59,6 +62,7 @@ function App() {
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/plans" element={<PlansPage />} />
+                <Route path="/legal" element={<LegalPage />} />
               </Route>
               
               <Route path="/checkout/:planId" element={<CheckoutPage />} />

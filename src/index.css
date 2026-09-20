@@ -263,5 +263,6 @@
 /* Asset Drag & Selection Protection */
 img, canvas, svg {
   -webkit-user-drag: none;
-  user-drag: none;
+  user-select: none;
+  -webkit-user-select: none;
 }

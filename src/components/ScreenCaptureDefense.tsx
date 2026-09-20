@@ -270,7 +270,7 @@ export default function ScreenCaptureDefense() {
           </h2>
 
           <p className="text-xs sm:text-sm font-mono text-zinc-400 max-w-lg leading-relaxed mb-6">
-            Institutional quantitative strategies, research signals, and portfolio telemetry are protected under proprietary advisory terms. Screen capture, external grabbers, and recording are strictly prevented.
+            Institutional quantitative strategies, research signals, and portfolio analytics are protected under proprietary advisory terms. Screen capture, external grabbers, and recording are strictly prevented.
           </p>
 
           <div className="p-4 rounded-xl bg-zinc-900/90 border border-zinc-800 text-[11px] font-mono text-zinc-400 max-w-md w-full space-y-2 text-left shadow-2xl backdrop-blur-md">
@@ -317,7 +317,7 @@ export default function ScreenCaptureDefense() {
             </div>
             <div>
               <h4 className="text-xs font-semibold text-foreground font-mono">Network Connection Interrupted</h4>
-              <p className="text-[11px] text-muted-foreground font-mono">Real-time advisory telemetry paused until link restored.</p>
+              <p className="text-[11px] text-muted-foreground font-mono">Real-time advisory updates paused until link restored.</p>
             </div>
           </div>
         </div>

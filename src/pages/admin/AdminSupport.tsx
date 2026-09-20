@@ -98,7 +98,7 @@ export default function AdminSupport() {
       addToast('Response dispatched to investor portal and email alert sent.', 'success');
     } catch (err: any) {
       console.error('Failed to send reply:', err);
-      addToast(err.message || 'Failed to send reply', 'error');
+      addToast('Failed to send reply. Please try again.', 'error');
     } finally {
       setIsSending(false);
     }
@@ -123,7 +123,7 @@ export default function AdminSupport() {
       addToast(`Ticket status updated to ${status.replace('_', ' ')} & client notified via email.`, 'success');
     } catch (err: any) {
       console.error('Failed to update ticket status:', err);
-      addToast(err.message || 'Failed to update status', 'error');
+      addToast('Failed to update status. Please try again.', 'error');
     }
   };
 

@@ -197,7 +197,7 @@ export function buildExpiryWarning7DaysEmail(data: ExpiryWarning7DaysEmailData):
             Mandate Continuity Guarantee
           </div>
           <p style="font-size: 12.5px; color: #334155; line-height: 1.6; margin: 8px 0 0 0;">
-            Renewing before your expiry date guarantees uninterrupted real-time rebalancing telemetry, risk monitoring, and direct research desk access without needing to re-audit your portfolio.
+            Renewing before your expiry date guarantees uninterrupted real-time rebalancing signals, risk monitoring, and direct research desk access without needing to re-audit your portfolio.
           </p>
           ${data.generatedPnlFormatted ? `
           <div style="margin-top: 14px; padding-top: 10px; border-top: 1px solid #E2E8F0; font-size: 12px; color: #475569;">
@@ -216,7 +216,7 @@ export function buildExpiryWarning7DaysEmail(data: ExpiryWarning7DaysEmailData):
   return {
     subject: `[Notice] 7 Days Remaining on Your ${data.planName} Mandate • Arth Research`,
     html: wrapEmailInBaseTemplate({
-      previewText: `Your advisory mandate for ${data.planName} concludes on ${displayExpiry}. Renew to maintain active alpha telemetry.`,
+      previewText: `Your advisory mandate for ${data.planName} concludes on ${displayExpiry}. Renew to maintain active strategy signals.`,
       badgeText: 'SUBSCRIPTION LIFECYCLE',
       badgeColor: 'brass',
       headline: '7 Days Remaining on Your Mandate',
@@ -255,7 +255,7 @@ export function buildSubscriptionExpiredEmail(data: SubscriptionExpiredEmailData
 
     <!-- Suspension Notice Box -->
     <div style="background-color: #FEF2F2; border-left: 4px solid #DC2626; padding: 14px 16px; border-radius: 4px; margin: 20px 0;">
-      <div style="font-size: 12.5px; color: #991B1B; font-weight: 700;">Telemetry Paused</div>
+      <div style="font-size: 12.5px; color: #991B1B; font-weight: 700;">Live Alerts Paused</div>
       <div style="font-size: 12px; color: #7F1D1D; margin-top: 3px; line-height: 1.6;">
         Real-time model rebalancing alerts, target weight adjustments, and analyst desk communications for this portfolio are paused until the mandate is renewed.
       </div>
@@ -269,7 +269,7 @@ export function buildSubscriptionExpiredEmail(data: SubscriptionExpiredEmailData
   return {
     subject: `Your Advisory Subscription for ${data.planName} Has Expired • Arth Research`,
     html: wrapEmailInBaseTemplate({
-      previewText: `Advisory telemetry for ${data.planName} has concluded. Renew to reactivate real-time signals.`,
+      previewText: `Advisory access for ${data.planName} has concluded. Renew to reactivate real-time signals.`,
       badgeText: 'SUBSCRIPTION EXPIRED',
       badgeColor: 'garnet',
       headline: 'Advisory Mandate Concluded',

@@ -29,6 +29,14 @@ service cloud.firestore {
              getUserData().role in ['super_admin', 'admin', 'support_admin', 'research_admin'];
     }
 
+    // Ensures the authenticated user's account is not revoked, suspended, or disabled
+    function isUserActive() {
+      return isAuthenticated() &&
+             getUserData().status != 'revoked' &&
+             getUserData().status != 'suspended' &&
+             getUserData().status != 'disabled';
+    }
+
     // Checks if a user has a specific active, non-expired feature entitlement
     function hasEntitlement(featureKey) {
       let entitlementId = request.auth.uid + '_' + featureKey;
@@ -62,16 +70,16 @@ service cloud.firestore {
 
     // Private PII: phone, address, bank details — user can read/write own; admin read-only
     match /userPrivate/{userId} {
-      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow read: if isUserActive() && (request.auth.uid == userId || isAdmin());
       // Users update their own private data; admins cannot write (prevents admin from spoofing PII)
-      allow write: if isAuthenticated() && request.auth.uid == userId;
+      allow write: if isUserActive() && request.auth.uid == userId;
     }
 
-    // SEBI Compliance & Risk Profiling — user can read/write own; admin read-only
+    // Regulatory Compliance & Risk Profiling — user can read/write own; admin read-only
     match /userCompliance/{userId} {
-      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow read: if isUserActive() && (request.auth.uid == userId || isAdmin());
       // Users submit their own KYC/compliance data; admins cannot write from client
-      allow create, update: if isAuthenticated() && request.auth.uid == userId;
+      allow create, update: if isUserActive() && request.auth.uid == userId;
       allow delete: if false; // Compliance records are never deleted
     }
 
@@ -85,16 +93,28 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Promotional Discount Vouchers & Coupons
+    match /coupons/{couponId} {
+      // Authenticated users can read/query coupons to validate checkout discounts
+      allow read: if isAuthenticated();
+      // Admins have full write control; authenticated users can increment timesUsed during checkout
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        isAuthenticated() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['timesUsed', 'updatedAt'])
+      );
+    }
+
     // Instruments require authentication (protects stock universe from scraping)
     match /instruments/{instrumentId} {
-      allow read: if isAuthenticated();
+      allow read: if isUserActive() || isAdmin();
       allow write: if isAdmin();
     }
 
     // Research Content — read gated by active plan entitlement OR admin
     match /research_content/{contentId} {
       allow read: if isAdmin()
-                  || (isAuthenticated()
+                  || (isUserActive()
                       && (hasEntitlement('feature_research_signals')
                           || hasEntitlement('feature_portfolio_analytics')));
       allow write: if isAdmin();
@@ -103,7 +123,7 @@ service cloud.firestore {
     // Legacy alias — kept for backwards compatibility
     match /researchCalls/{callId} {
       allow read: if isAdmin()
-                  || (isAuthenticated() && hasEntitlement('feature_research_signals'));
+                  || (isUserActive() && hasEntitlement('feature_research_signals'));
       allow write: if isAdmin();
     }
 
@@ -113,18 +133,18 @@ service cloud.firestore {
 
     match /portfolios/{portfolioId} {
       // Owner or admin can read root portfolio document
-      allow read: if isAuthenticated()
+      allow read: if isUserActive()
                   && (resource.data.userId == request.auth.uid || isAdmin());
 
       // Owner can create their own portfolio
-      allow create: if isAuthenticated()
+      allow create: if isUserActive()
                     && request.resource.data.userId == request.auth.uid
                     && request.resource.data.status == 'pending';
 
       // Owner can update (resubmit); admin can update (approve/reject)
       // Users cannot flip status to 'active' or 'approved' themselves
       allow update: if isAdmin()
-                    || (isAuthenticated()
+                    || (isUserActive()
                         && resource.data.userId == request.auth.uid
                         && request.resource.data.diff(resource.data).affectedKeys()
                            .hasOnly(['status', 'holdings', 'totalInvestmentMinor',
@@ -155,17 +175,17 @@ service cloud.firestore {
 
     match /orders/{orderId} {
       // Owner or admin can read
-      allow read: if isAuthenticated()
+      allow read: if isUserActive()
                   && (resource.data.userId == request.auth.uid || isAdmin());
 
       // Client can create their own order
-      allow create: if isAuthenticated()
+      allow create: if isUserActive()
                     && request.resource.data.userId == request.auth.uid;
 
       // Admin can update any order; owner can update during payment completion/failure
       // NOTE: affectedKeys must include every field written by completePaymentAndProvision()
       allow update: if isAdmin()
-                    || (isAuthenticated()
+                    || (isUserActive()
                         && resource.data.userId == request.auth.uid
                         && request.resource.data.diff(resource.data).affectedKeys()
                            .hasOnly([
@@ -185,14 +205,16 @@ service cloud.firestore {
                              'emiDuration', 'international',
                              // Razorpay platform fees
                              'razorpayFeeMinor', 'razorpayTaxMinor',
-                             // Acquirer / bank telemetry
+                             // Acquirer / bank data
                              'acquirerAuthCode', 'acquirerBankTxnId',
                              'acquirerRrn', 'acquirerUpiTxnId',
                              // Error diagnostics (failed payments)
                              'errorCode', 'errorDescription', 'errorSource',
                              'errorStep', 'errorReason',
                              // Refund tracking
-                             'refundId', 'refundedAt', 'refundStatus', 'refundAmountMinor'
+                             'refundId', 'refundedAt', 'refundStatus', 'refundAmountMinor',
+                             // Coupons & discounts
+                             'couponCode', 'discountMinor'
                            ]));
 
       allow delete: if false; // Financial records are never deleted
@@ -200,22 +222,22 @@ service cloud.firestore {
 
     match /payments/{paymentId} {
       // Owner or admin can read
-      allow read: if isAuthenticated()
+      allow read: if isUserActive()
                   && (resource.data.userId == request.auth.uid || isAdmin());
 
       // Payment records can be created by authenticated user for their order
-      allow create: if isAuthenticated();
+      allow create: if isUserActive();
 
       // Only admin can update or delete payment records
       allow update, delete: if isAdmin();
     }
 
     match /subscriptions/{subscriptionId} {
-      allow read: if isAuthenticated()
+      allow read: if isUserActive()
                   && (resource.data.userId == request.auth.uid || isAdmin());
 
       // Subscriptions are created by the payment service on order completion or by admin during reconciliation
-      allow create: if isAuthenticated()
+      allow create: if isUserActive()
                     && (request.resource.data.userId == request.auth.uid || isAdmin())
                     && request.resource.data.status == 'active';
 
@@ -229,18 +251,18 @@ service cloud.firestore {
     // Entitlements — Document ID is always "{userId}_{featureKey}"
     // Users can read their own; only system/admin can write
     match /entitlements/{entitlementId} {
-      allow read: if isAuthenticated()
+      allow read: if isUserActive()
                   && (resource.data.userId == request.auth.uid
                       || entitlementId.matches(request.auth.uid + '_.*')
                       || isAdmin());
 
-      allow create: if isAuthenticated()
+      allow create: if isUserActive()
                     && (request.resource.data.userId == request.auth.uid
                         || entitlementId.matches(request.auth.uid + '_.*')
                         || isAdmin());
 
       allow update: if isAdmin()
-                    || (isAuthenticated()
+                    || (isUserActive()
                         && (resource.data.userId == request.auth.uid
                             || entitlementId.matches(request.auth.uid + '_.*')));
 
@@ -253,11 +275,11 @@ service cloud.firestore {
 
     match /notifications/{notificationId} {
       // Users read their own; admins read all
-      allow read: if isAuthenticated()
+      allow read: if isUserActive()
                   && (resource.data.userId == request.auth.uid || isAdmin());
 
       // Users can only mark as read — cannot change type, message, or userId
-      allow update: if isAuthenticated()
+      allow update: if isUserActive()
                     && resource.data.userId == request.auth.uid
                     && request.resource.data.diff(resource.data).affectedKeys()
                        .hasOnly(['isRead', 'readAt']);
@@ -271,30 +293,38 @@ service cloud.firestore {
     // ============================================================================
 
     match /support_tickets/{ticketId} {
-      allow read: if isAuthenticated()
+      allow read: if isUserActive()
                   && (resource.data.userId == request.auth.uid || isSupportOrAdmin());
 
-      // User creates their own ticket
-      allow create: if isAuthenticated()
-                    && request.resource.data.userId == request.auth.uid;
+      // User creates their own ticket with bounded payload sizes to prevent storage exhaustion
+      allow create: if isUserActive()
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.subject.size() <= 200
+                    && request.resource.data.message.size() <= 4000;
 
-      // User can add replies (messages array update); support/admin can update status
-      allow update: if isAuthenticated()
+      // User can add replies; support/admin can update status
+      allow update: if isUserActive()
                     && (resource.data.userId == request.auth.uid || isSupportOrAdmin());
 
       allow delete: if isAdmin();
 
-      // Messages subcollection — scoped to ticket owner or support/admin
+      // Messages subcollection — scoped to ticket owner or support/admin with bounds
       match /messages/{messageId} {
         allow read: if isAuthenticated()
                     && (get(/databases/$(database)/documents/support_tickets/$(ticketId)).data.userId
                         == request.auth.uid || isSupportOrAdmin());
         allow create: if isAuthenticated()
                       && (get(/databases/$(database)/documents/support_tickets/$(ticketId)).data.userId
-                          == request.auth.uid || isSupportOrAdmin());
+                          == request.auth.uid || isSupportOrAdmin())
+                      && request.resource.data.message.size() <= 4000;
         // Messages are immutable once sent
         allow update, delete: if false;
       }
+    }
+
+    // Processed Webhook & Payment Idempotency Ledger
+    match /processed_webhook_events/{eventId} {
+      allow read, write: if isAdmin();
     }
 
     // Legacy collection name alias
@@ -335,7 +365,7 @@ service cloud.firestore {
     }
 
     // ============================================================================
-    // SYSTEM GOVERNANCE & SEBI AUDIT LOGS (TAMPER-EVIDENT)
+    // SYSTEM GOVERNANCE & REGULATORY AUDIT LOGS (TAMPER-EVIDENT)
     // ============================================================================
 
     match /auditLogs/{logId} {

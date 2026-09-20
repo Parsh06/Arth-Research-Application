@@ -132,11 +132,11 @@ export default function AdminPayments() {
         setRefundOrder(null);
         setSelectedOrder(null);
       } else {
-        addToast(result.error || 'Refund failed. Check gateway console.', 'error');
+        addToast(result.error || 'Refund initiation failed. Please verify transaction status and retry.', 'error');
       }
     } catch (err: any) {
       console.error('[AdminPayments] handleRefund error:', err);
-      addToast(err.message || 'An unexpected error occurred during refund.', 'error');
+      addToast('An unexpected error occurred during refund processing. Please retry.', 'error');
     } finally {
       setIsRefunding(false);
     }
@@ -429,7 +429,7 @@ export default function AdminPayments() {
             </span>
           </div>
           <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground mt-1">
-            Payments, Revenue & Gateway Telemetry
+            Payments, Revenue & Gateway Ledger
           </h1>
           <p className="text-xs text-muted-foreground font-mono mt-0.5">
             Audit all subscription transactions, gateway settlement IDs, tax breakdowns, and diagnostic failure records.
@@ -629,7 +629,7 @@ export default function AdminPayments() {
         {isLoading ? (
           <div className="py-20 flex flex-col items-center justify-center gap-3">
             <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            <span className="text-xs font-mono tracking-wider text-muted-foreground">Streaming Ledger Telemetry...</span>
+            <span className="text-xs font-mono tracking-wider text-muted-foreground">Streaming Transaction Ledger...</span>
           </div>
         ) : filteredOrders.length === 0 ? (
           <div className="py-16 text-center space-y-3">
@@ -1114,7 +1114,7 @@ export default function AdminPayments() {
                 <div className="space-y-2">
                   <h4 className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider flex items-center gap-2">
                     <span className="w-3 h-3 rounded-full bg-amber-500/30 border border-amber-500/40 inline-block" />
-                    Acquirer & Bank Telemetry
+                    Acquirer & Bank Reference Data
                   </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
                     {(selectedOrder as any).acquirerAuthCode && (

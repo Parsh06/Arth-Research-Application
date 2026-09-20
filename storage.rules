@@ -1,0 +1,40 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Invoices and Tax Statements — only document owner or admin can read; write restricted
+    match /invoices/{userId}/{invoiceId} {
+      allow read: if isOwner(userId);
+      allow write: if false; // Provisioned exclusively via privileged backend
+    }
+
+    // User KYC & Compliance Documents (PAN, address proof) — owner & admin read; owner can upload max 5MB
+    match /compliance/{userId}/{fileName} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId)
+                    && request.resource.size < 5 * 1024 * 1024
+                    && request.resource.contentType.matches('image/.*|application/pdf');
+      allow update, delete: if false;
+    }
+
+    // Public brand assets (read-only)
+    match /public/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Deny all other unmatched storage paths by default
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

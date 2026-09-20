@@ -2,6 +2,7 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { SubscriptionStatus } from '../types/models';
 import { isPathAllowedForRole, getDefaultAdminRoute } from '../utils/rbac';
+import { useIdleTimer } from '../hooks/useIdleTimer';
 
 interface AuthGuardProps {
   requireAuth?: boolean;
@@ -17,12 +18,18 @@ export default function AuthGuard({
   const { user, dbUser, isAdmin, isInitializing, subscriptionStatus } = useAuthStore();
   const location = useLocation();
 
+  // Watchdog: Terminate session after 15 minutes of inactivity for authenticated users
+  useIdleTimer({
+    enabled: !!user,
+    timeoutMs: 15 * 60 * 1000 // 15 minutes
+  });
+
   if (isInitializing) {
     return null;
   }
 
   // 1. Check if user account is suspended or revoked by Super Admin
-  const isRevoked = dbUser?.status === 'revoked' || dbUser?.status === 'suspended';
+  const isRevoked = dbUser?.status === 'revoked' || dbUser?.status === 'suspended' || dbUser?.status === 'disabled' || dbUser?.status === 'banned';
   if (user && !isAdmin && isRevoked) {
     if (location.pathname !== '/access-revoked') {
       return <Navigate to="/access-revoked" replace />;
