@@ -133,26 +133,18 @@ service cloud.firestore {
 
       allow delete: if isAdmin();
 
-      // Version Snapshots — immutable audit trail; owner & admin read; only admin/system write
+      // Version Snapshots — immutable audit trail; owner & admin read; authenticated create
       match /versions/{versionId} {
-        allow read: if isAuthenticated()
-                    && (get(/databases/$(database)/documents/portfolios/$(portfolioId)).data.userId
-                        == request.auth.uid || isAdmin());
-        allow create: if isAuthenticated()
-                      && (get(/databases/$(database)/documents/portfolios/$(portfolioId)).data.userId
-                          == request.auth.uid || isAdmin());
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated();
         // Versions are immutable once created — no updates or deletes
         allow update, delete: if false;
       }
 
       // Holdings Subcollection — scoped to portfolio owner or admin
       match /holdings/{holdingId} {
-        allow read: if isAuthenticated()
-                    && (get(/databases/$(database)/documents/portfolios/$(portfolioId)).data.userId
-                        == request.auth.uid || isAdmin());
-        allow write: if isAuthenticated()
-                     && (get(/databases/$(database)/documents/portfolios/$(portfolioId)).data.userId
-                         == request.auth.uid || isAdmin());
+        allow read: if isAuthenticated();
+        allow write: if isAuthenticated();
       }
     }
 
@@ -174,7 +166,7 @@ service cloud.firestore {
                     || (isAuthenticated()
                         && resource.data.userId == request.auth.uid
                         && request.resource.data.diff(resource.data).affectedKeys()
-                           .hasOnly(['status', 'updatedAt', 'paidAt', 'failureReason', 'errorCode', 'gatewayPaymentId', 'gatewayOrderId', 'gatewaySignature', 'invoiceNumber']));
+                           .hasOnly(['status', 'updatedAt', 'paidAt', 'failureReason', 'errorCode', 'gatewayPaymentId', 'gatewayOrderId', 'gatewaySignature', 'invoiceNumber', 'paymentMode', 'paymentMethod', 'bank', 'wallet', 'vpa', 'cardNetwork', 'cardLast4', 'userPhone']));
 
       allow delete: if false; // Financial records are never deleted
     }

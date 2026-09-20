@@ -18,6 +18,8 @@ export interface InvoiceData {
   taxMinor: number;
   gatewayFeeMinor: number;
   totalMinor: number;
+  paymentMode?: string;
+  paymentMethod?: string;
 }
 
 /**
@@ -284,7 +286,8 @@ export function generateInvoicePdf(data: InvoiceData): jsPDF {
   doc.setTextColor(51, 65, 85); // Slate 700
   doc.text('Payment Gateway: Razorpay Standard Payment', margin + 4, summaryBlockStartY + 13);
   doc.text(`Reference ID: ${data.paymentId}`, margin + 4, summaryBlockStartY + 18.5);
-  doc.text('Payment Mode: UPI / Net Banking / Cards', margin + 4, summaryBlockStartY + 24);
+  const paymentModeDisplay = data.paymentMode || data.paymentMethod || 'UPI / Instant Transfer';
+  doc.text(`Payment Mode: ${paymentModeDisplay}`, margin + 4, summaryBlockStartY + 24);
   doc.text('Settlement Currency: INR (Indian National Rupee)', margin + 4, summaryBlockStartY + 29.5);
 
   // Amount In Words Sub-box
@@ -352,65 +355,38 @@ export function generateInvoicePdf(data: InvoiceData): jsPDF {
   currentY = Math.max(summaryBlockStartY + 52, calcRowY + 4);
 
   // ---------------------------------------------------------------------------
-  // 5. STATUTORY DECLARATION & AUTHORIZED SIGNATURE
+  // 5. STATUTORY DECLARATION & TERMS
   // ---------------------------------------------------------------------------
-  const signBlockY = currentY + 2;
+  const signBlockY = currentY + 3;
 
-  // Terms & Statutory Declaration (Left 110mm)
   doc.setTextColor(71, 85, 105);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
   doc.text('STATUTORY TERMS & REGULATORY DECLARATION:', margin, signBlockY + 4);
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6.8);
+  doc.setFontSize(7);
   doc.setTextColor(100, 116, 139);
   doc.text(
     '1. Arth Research provides quantitative equities research and stock recommendations. All model strategies are algorithmic.',
     margin,
-    signBlockY + 8.5
+    signBlockY + 9.5
   );
   doc.text(
     '2. Advisory fees are non-refundable once strategy signals and portfolio rebalance weights are provisioned to the client.',
     margin,
-    signBlockY + 12.5
+    signBlockY + 14.5
   );
   doc.text(
     '3. This is an authentic digital Tax Invoice issued under Rule 46 of CGST Rules, 2017 and Section 31 of CGST Act, 2017.',
     margin,
-    signBlockY + 16.5
+    signBlockY + 19.5
   );
   doc.text(
     '4. Client assets remain 100% self-custodied in their verified Demat trading account with their respective chosen broker.',
     margin,
-    signBlockY + 20.5
+    signBlockY + 24.5
   );
-
-  // Authorized Signatory Seal (Right 60mm)
-  const sealX = pageWidth - margin - 58;
-  doc.setFillColor(248, 250, 252);
-  doc.setDrawColor(226, 232, 240);
-  doc.roundedRect(sealX, signBlockY, 58, 24, 1.5, 1.5, 'FD');
-
-  doc.setTextColor(100, 116, 139);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6.5);
-  doc.text('For ARTH RESEARCH PRIVATE DESK', sealX + 4, signBlockY + 4.5);
-
-  doc.setTextColor(15, 23, 42);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.text('COMPLIANCE OFFICER', sealX + 4, signBlockY + 11);
-
-  doc.setTextColor(22, 101, 52);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.text('[ Digitally Signed & Authenticated ]', sealX + 4, signBlockY + 16.5);
-
-  doc.setTextColor(148, 163, 184);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6.5);
-  doc.text(`Issued: ${data.paymentDate}`, sealX + 4, signBlockY + 21);
 
   // ---------------------------------------------------------------------------
   // 6. BOTTOM CORPORATE FOOTER

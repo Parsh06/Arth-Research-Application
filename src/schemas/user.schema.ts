@@ -17,6 +17,7 @@ export const UserProfileSchema = z.object({
   email: z.string().email(),
   displayName: z.string().min(1),
   photoURL: z.string().url().optional(),
+  phone: z.string().optional(),
   role: RoleEnum.default('user'),
   status: z.enum(['active', 'suspended', 'revoked']).default('active'),
   revocationReason: z.string().optional(),

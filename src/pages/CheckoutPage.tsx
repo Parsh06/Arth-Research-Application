@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldCheck, CreditCard, Lock, LogIn, Tag, CheckCircle2, AlertCircle, X, Sparkles, Check } from 'lucide-react';
+import { ShieldCheck, CreditCard, Lock, LogIn, Tag, CheckCircle2, AlertCircle, X, Sparkles, Check, Phone } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { usePlanStore } from '../stores/planStore';
 import { orderRepository } from '../repositories/orderRepository';
@@ -16,6 +16,7 @@ export default function CheckoutPage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'upi' | 'card' | 'netbanking'>('upi');
   const [upiId, setUpiId] = useState('investor@okhdfcbank');
+  const [phone, setPhone] = useState('');
   
   const [couponCode, setCouponCode] = useState('');
   const [discountPercent, setDiscountPercent] = useState(0);
@@ -28,6 +29,19 @@ export default function CheckoutPage() {
   useEffect(() => {
     fetchPlans();
   }, [fetchPlans]);
+
+  // Load existing phone from userPrivate or user profile if available
+  useEffect(() => {
+    if (user?.uid) {
+      userRepository.getUserPrivate(user.uid).then(priv => {
+        if (priv?.phone) {
+          setPhone(priv.phone);
+        } else if ((dbUser as any)?.phone) {
+          setPhone((dbUser as any).phone);
+        }
+      }).catch(err => console.warn('[CheckoutPage] Load phone warning:', err));
+    }
+  }, [user?.uid, dbUser]);
 
   const plan = plans.find(p => p.id === planId);
 
@@ -89,18 +103,25 @@ export default function CheckoutPage() {
         });
       }
 
+      const modeStr = paymentMethod === 'upi' ? 'UPI' : paymentMethod === 'card' ? 'CARD' : 'NETBANKING';
+      const methodStr = paymentMethod === 'upi' ? `UPI (${upiId})` : paymentMethod === 'card' ? 'Credit / Debit Card' : 'Net Banking';
+      const userPhoneClean = phone.trim();
+
       // 1. Create order record in Firestore
       const order = await orderRepository.createOrder({
         userId: user.uid,
         userEmail: user.email || '',
         userName: user.displayName || 'Valued Investor',
+        userPhone: userPhoneClean || undefined,
         planId: plan.id,
         planName: plan.name,
         priceMinor: basePriceMinor,
         discountMinor,
         gatewayFeeMinor,
         couponCode: couponApplied ? couponCode.trim().toUpperCase() : undefined,
-        validityDays: plan.validityDays
+        validityDays: plan.validityDays,
+        paymentMode: modeStr,
+        paymentMethod: methodStr
       });
 
       // 2. Launch Razorpay Standard Checkout SDK
@@ -111,9 +132,16 @@ export default function CheckoutPage() {
         amountMinor: totalMinor,
         userName: user.displayName || 'Valued Investor',
         userEmail: user.email || '',
+        userPhone: userPhoneClean || undefined,
         receipt: `ARTH_${order.id.slice(0, 8)}`,
         onSuccess: async (rzpResponse) => {
           try {
+            // Save phone to user profile and private record if provided
+            if (userPhoneClean) {
+              userRepository.updateUserPrivate(user.uid, { phone: userPhoneClean }).catch(e => console.warn(e));
+              userRepository.updateUser(user.uid, { phone: userPhoneClean }).catch(e => console.warn(e));
+            }
+
             // 3. Complete payment & provision in Firestore
             const { subscriptionId } = await orderRepository.completePaymentAndProvision(order, {
               gatewayPaymentId: rzpResponse.razorpay_payment_id,
@@ -122,7 +150,11 @@ export default function CheckoutPage() {
               validityDays: plan.validityDays,
               planName: plan.name,
               userEmail: user.email || '',
-              userName: user.displayName || 'Valued Investor'
+              userName: user.displayName || 'Valued Investor',
+              userPhone: userPhoneClean || undefined,
+              paymentMode: modeStr,
+              paymentMethod: methodStr,
+              vpa: paymentMethod === 'upi' ? upiId : undefined
             });
 
             // 4. Generate official Tax Invoice PDF & send via email with attachment
@@ -144,7 +176,9 @@ export default function CheckoutPage() {
                 discountPercent: couponApplied ? discountPercent : 0,
                 taxMinor,
                 gatewayFeeMinor,
-                totalMinor
+                totalMinor,
+                paymentMode: modeStr,
+                paymentMethod: methodStr
               };
 
               // Generate PDF base64
@@ -174,7 +208,7 @@ export default function CheckoutPage() {
                   amountPaid: formatINR(totalMinor),
                   baseAmount: formatINR(taxableAmountMinor),
                   gstAmount: `${formatINR(taxMinor)} (18% GST)`,
-                  paymentMethod: `Razorpay (${rzpResponse.razorpay_payment_id})`,
+                  paymentMethod: `${methodStr} • Razorpay (${rzpResponse.razorpay_payment_id})`,
                   period: `${plan.validityDays} Days Operational Mandate`,
                   invoiceUrl: window.location.origin + `/history`
                 },
@@ -307,6 +341,25 @@ export default function CheckoutPage() {
                     <AlertCircle className="w-3.5 h-3.5" /> {couponError}
                   </p>
                 )}
+              </div>
+
+              {/* Mobile Phone Input Section */}
+              <div className="pt-3 border-t border-border mt-3">
+                <label className="block text-[11px] font-mono text-muted-foreground mb-1.5 flex items-center gap-1.5 uppercase">
+                  <Phone className="w-3.5 h-3.5 text-primary" /> Investor Contact Number (For Trade Signals & Alerts)
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="e.g. +91 98765 43210"
+                    className="w-full glass-panel-data px-3 py-1.5 text-xs font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+                <span className="text-[10px] font-mono text-muted-foreground mt-1 block">
+                  Synchronized with Razorpay checkout & investor compliance verification.
+                </span>
               </div>
             </motion.div>
 

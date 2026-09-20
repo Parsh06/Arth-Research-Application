@@ -34,6 +34,7 @@ export interface CreateOrderParams {
   userId: string;
   userEmail?: string;
   userName?: string;
+  userPhone?: string;
   planId: string;
   planVersionId?: string;
   planName: string;
@@ -42,6 +43,8 @@ export interface CreateOrderParams {
   couponCode?: string;
   validityDays: number;
   gatewayFeeMinor?: number;
+  paymentMode?: string;
+  paymentMethod?: string;
 }
 
 export const orderRepository = {
@@ -63,6 +66,7 @@ export const orderRepository = {
       userId: params.userId,
       userEmail: params.userEmail || '',
       userName: params.userName || '',
+      userPhone: params.userPhone || '',
       planId: params.planId,
       planName: params.planName,
       planVersionId: params.planVersionId || 'version_1',
@@ -72,6 +76,8 @@ export const orderRepository = {
       taxMinor,
       gatewayFeeMinor,
       totalMinor,
+      paymentMode: params.paymentMode || 'UPI',
+      paymentMethod: params.paymentMethod || 'UPI',
       status: 'created',
       currency: 'INR',
       createdAt: now,
@@ -105,6 +111,14 @@ export const orderRepository = {
       invoiceNumber?: string;
       userEmail?: string;
       userName?: string;
+      userPhone?: string;
+      paymentMode?: string;
+      paymentMethod?: string;
+      bank?: string;
+      wallet?: string;
+      vpa?: string;
+      cardNetwork?: string;
+      cardLast4?: string;
     }
   ): Promise<{ paymentId: string; subscriptionId: string }> {
     const now = new Date().toISOString();
@@ -119,6 +133,7 @@ export const orderRepository = {
       userId: order.userId,
       userEmail: paymentDetails.userEmail || order.userEmail || '',
       userName: paymentDetails.userName || order.userName || '',
+      userPhone: paymentDetails.userPhone || order.userPhone || '',
       planName: paymentDetails.planName || order.planName || '',
       amountMinor: order.totalMinor,
       currency: 'INR',
@@ -126,6 +141,13 @@ export const orderRepository = {
       gatewayPaymentId: paymentDetails.gatewayPaymentId || `pay_mock_${Date.now()}`,
       gatewayOrderId: paymentDetails.gatewayOrderId || `order_mock_${Date.now()}`,
       gatewaySignature: paymentDetails.gatewaySignature || `sig_mock_${Math.random().toString(36).substring(2)}`,
+      paymentMode: paymentDetails.paymentMode || order.paymentMode || 'UPI',
+      paymentMethod: paymentDetails.paymentMethod || order.paymentMethod || 'UPI',
+      bank: paymentDetails.bank || '',
+      wallet: paymentDetails.wallet || '',
+      vpa: paymentDetails.vpa || '',
+      cardNetwork: paymentDetails.cardNetwork || '',
+      cardLast4: paymentDetails.cardLast4 || '',
       status: 'captured',
       paidAt: now,
       createdAt: now
@@ -135,15 +157,24 @@ export const orderRepository = {
 
     // 2. Update Order Status & Gateway Identifiers
     const orderRef = doc(db, COLLECTION_ORDERS, order.id);
-    batch.update(orderRef, {
+    const orderUpdatePayload: any = {
       status: 'completed',
       gatewayPaymentId: paymentDetails.gatewayPaymentId || '',
       gatewayOrderId: paymentDetails.gatewayOrderId || '',
       gatewaySignature: paymentDetails.gatewaySignature || '',
       invoiceNumber: paymentDetails.invoiceNumber || `INV-ARTH-${new Date().getFullYear()}-${order.id.slice(0, 6).toUpperCase()}`,
+      userPhone: paymentDetails.userPhone || order.userPhone || '',
+      paymentMode: paymentDetails.paymentMode || 'UPI',
+      paymentMethod: paymentDetails.paymentMethod || 'UPI',
+      bank: paymentDetails.bank || '',
+      wallet: paymentDetails.wallet || '',
+      vpa: paymentDetails.vpa || '',
+      cardNetwork: paymentDetails.cardNetwork || '',
+      cardLast4: paymentDetails.cardLast4 || '',
       paidAt: now,
       updatedAt: now
-    });
+    };
+    batch.update(orderRef, sanitizeForFirestore(orderUpdatePayload));
 
     // 3. Create Subscription Record
     const subscriptionRef = doc(collection(db, COLLECTION_SUBSCRIPTIONS));

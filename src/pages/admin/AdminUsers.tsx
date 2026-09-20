@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, AlertTriangle, X, ShieldAlert, Trash2, RotateCcw, FileText } from 'lucide-react';
+import { Search, AlertTriangle, X, ShieldAlert, Trash2, RotateCcw, FileText, Phone } from 'lucide-react';
 import { useUserStore } from '../../stores/userStore';
 import { useToastStore } from '../../stores/toastStore';
 import { userRepository } from '../../repositories/userRepository';
@@ -105,24 +105,11 @@ export default function AdminUsers() {
         currentAdmin.uid,
         currentAdmin.email || 'admin@arthadvisory.com'
       );
-
-      // Dispatch Account Reactivated Email
-      if (u.email) {
-        import('../../services/emailService').then(({ emailService }) => {
-          emailService.sendAccountReactivatedEmail(u.email, {
-            userName: u.displayName || 'Investor',
-            userEmail: u.email,
-            reactivationDate: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) + ' IST',
-            portalUrl: window.location.origin + '/login'
-          }).catch(e => console.warn('[AdminUsers] Reactivate email error:', e));
-        });
-      }
-
-      addToast(`Account reactivated for ${u.email}`, 'success');
+      addToast(`Access reactivated for ${u.email}`, 'success');
       await fetchAllUsers();
     } catch (err: any) {
-      console.error("Reactivate failed:", err);
-      addToast(err.message || "Failed to reactivate user", 'error');
+      console.error("Reactivate access failed:", err);
+      addToast(err.message || "Failed to reactivate access", 'error');
     } finally {
       setIsUpdating(false);
     }
@@ -156,6 +143,7 @@ export default function AdminUsers() {
     const matchesSearch = 
       (u.displayName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (u.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (u.phone || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       u.uid.toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesRole = roleFilter === 'all' || u.role === roleFilter;
@@ -202,7 +190,7 @@ export default function AdminUsers() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by name, email, or UID..."
+              placeholder="Search by name, email, phone, or UID..."
               className="w-full glass-panel pl-9 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary font-mono"
             />
           </div>
@@ -253,7 +241,13 @@ export default function AdminUsers() {
                     <td className="py-3 px-3">
                       <div className="font-semibold text-foreground">{u.displayName || 'Investor'}</div>
                       <div className="text-[10px] font-mono text-muted-foreground">{u.email}</div>
-                      <span className="font-mono text-[9px] text-muted-foreground opacity-75">{u.uid.slice(0, 12)}...</span>
+                      {u.phone ? (
+                        <div className="text-[10px] font-mono text-primary flex items-center gap-1 mt-0.5">
+                          <Phone className="w-2.5 h-2.5 shrink-0" />
+                          <span>{u.phone}</span>
+                        </div>
+                      ) : null}
+                      <span className="font-mono text-[9px] text-muted-foreground opacity-75 block mt-0.5">{u.uid.slice(0, 12)}...</span>
                       
                       {isSuspendedOrRevoked && u.revocationReason && (
                         <div className="mt-1 flex items-start gap-1 text-[10px] font-mono text-destructive max-w-xs truncate" title={u.revocationReason}>
