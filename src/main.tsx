@@ -6,6 +6,18 @@ import App from './App.tsx'
 
 import SystemErrorBoundary from './components/SystemErrorBoundary.tsx';
 
+// Production Anti-Data-Leak Guard: Neutralize all console telemetry in client browser
+if (import.meta.env.PROD) {
+  const noop = () => {};
+  window.console.log = noop;
+  window.console.info = noop;
+  window.console.debug = noop;
+  window.console.warn = noop;
+  window.console.error = noop;
+  window.console.table = noop;
+  window.console.trace = noop;
+}
+
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN || "",
   integrations: [

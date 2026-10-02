@@ -20,7 +20,7 @@ export default function CheckoutPage() {
   
   // Coupon & Billing State
   const [couponCode, setCouponCode] = useState('');
-  const [appliedCoupon, setAppliedCoupon] = useState<any | null>(null);
+  const [, setAppliedCoupon] = useState<any | null>(null);
   const [discountPercent, setDiscountPercent] = useState<number>(0);
   const [discountMinorState, setDiscountMinorState] = useState<number>(0);
   const [couponApplied, setCouponApplied] = useState(false);
@@ -284,16 +284,28 @@ export default function CheckoutPage() {
       const userPhoneClean = phone.trim();
       const receiptCode = `ARTH_${Date.now().toString(36).toUpperCase()}_${user.uid.slice(0, 4).toUpperCase()}`;
 
-      // Launch Razorpay Standard Checkout SDK directly — ZERO draft orders in Firestore
+      // Launch Razorpay Standard Checkout SDK directly with server-side pricing & provisioning
       const { paymentService } = await import('../services/paymentService');
 
       await paymentService.launchRazorpayCheckout({
+        planId: plan.id,
+        duration: 'yearly',
+        couponCode: couponApplied ? couponCode.trim().toUpperCase() : undefined,
         planName: plan.name,
         amountMinor: totalMinor,
         userName: user.displayName || 'Valued Investor',
         userEmail: user.email || '',
         userPhone: userPhoneClean || undefined,
         receipt: receiptCode,
+        orderMetadata: {
+          planVersionId: (plan as any).versionId || 'version_1',
+          validityDays: plan.validityDays,
+          priceMinor: basePriceMinor,
+          discountMinor,
+          taxMinor,
+          gatewayFeeMinor,
+          totalMinor
+        },
         onSuccess: async (rzpResponse) => {
           try {
             // Save phone to user profile and private record if provided
@@ -305,116 +317,61 @@ export default function CheckoutPage() {
             // 1. Fetch REAL verified payment details from Razorpay API
             let realPaymentMode = 'UNKNOWN';
             let realPaymentMethod = 'Razorpay Gateway';
-            let realVpa: string | undefined;
-            let realCardNetwork: string | undefined;
-            let realCardLast4: string | undefined;
-            let realCardName: string | undefined;
-            let realCardIssuer: string | undefined;
-            let realCardType: string | undefined;
-            let realCardSubType: string | undefined;
-            let realCardInternational: boolean | undefined;
-            let realBank: string | undefined;
-            let realWallet: string | undefined;
-            let realEmiDuration: number | undefined;
-            let realInternational: boolean | undefined;
-            let realRazorpayFeeMinor: number | undefined;
-            let realRazorpayTaxMinor: number | undefined;
-            let realAcquirerAuthCode: string | undefined;
-            let realAcquirerBankTxnId: string | undefined;
-            let realAcquirerRrn: string | undefined;
-            let realAcquirerUpiTxnId: string | undefined;
 
             try {
               const { paymentService: ps } = await import('../services/paymentService');
               const rzpDetails = await ps.fetchPaymentDetails(rzpResponse.razorpay_payment_id);
               if (rzpDetails.success) {
-                realPaymentMode        = rzpDetails.paymentMode;
-                realPaymentMethod      = rzpDetails.paymentMethod;
-                realVpa                = rzpDetails.paymentMode === 'UPI' ? (rzpDetails.vpa || undefined) : undefined;
-                realCardNetwork        = rzpDetails.cardNetwork;
-                realCardLast4          = rzpDetails.cardLast4;
-                realCardName           = rzpDetails.cardName;
-                realCardIssuer         = rzpDetails.cardIssuer;
-                realCardType           = rzpDetails.cardType;
-                realCardSubType        = rzpDetails.cardSubType;
-                realCardInternational  = rzpDetails.cardInternational;
-                realBank               = rzpDetails.bank;
-                realWallet             = rzpDetails.wallet;
-                realEmiDuration        = rzpDetails.emiDuration ?? undefined;
-                realInternational      = rzpDetails.international;
-                realRazorpayFeeMinor   = rzpDetails.razorpayFeeMinor;
-                realRazorpayTaxMinor   = rzpDetails.razorpayTaxMinor;
-                realAcquirerAuthCode   = rzpDetails.acquirerData?.authCode;
-                realAcquirerBankTxnId  = rzpDetails.acquirerData?.bankTransactionId;
-                realAcquirerRrn        = rzpDetails.acquirerData?.rrn;
-                realAcquirerUpiTxnId   = rzpDetails.acquirerData?.upiTransactionId;
+                realPaymentMode   = rzpDetails.paymentMode;
+                realPaymentMethod = rzpDetails.paymentMethod;
               }
             } catch (fetchErr) {
               console.warn('[CheckoutPage] fetchPaymentDetails warning:', fetchErr);
             }
 
-            // 2. Create the official completed Order & provision Subscriptions and Entitlements atomically
-            const { order, subscriptionId } = await orderRepository.createOrderAndProvisionOnSuccess({
-              userId: user.uid,
-              userEmail: user.email || '',
-              userName: user.displayName || 'Valued Investor',
-              userPhone: userPhoneClean || undefined,
-              planId: plan.id,
-              planName: plan.name,
-              planVersionId: (plan as any).versionId || 'version_1',
-              validityDays: plan.validityDays,
-              priceMinor: basePriceMinor,
-              discountMinor,
-              couponCode: couponApplied ? couponCode.trim().toUpperCase() : undefined,
-              taxMinor,
-              gatewayFeeMinor,
-              totalMinor,
-              // Real Gateway & Instrument Details
-              gatewayPaymentId: rzpResponse.razorpay_payment_id,
-              gatewayOrderId: rzpResponse.razorpay_order_id,
-              gatewaySignature: rzpResponse.razorpay_signature,
-              paymentMode: realPaymentMode,
-              paymentMethod: realPaymentMethod,
-              vpa: realVpa,
-              cardNetwork: realCardNetwork,
-              cardLast4: realCardLast4,
-              cardName: realCardName,
-              cardIssuer: realCardIssuer,
-              cardType: realCardType,
-              cardSubType: realCardSubType,
-              cardInternational: realCardInternational,
-              bank: realBank,
-              wallet: realWallet,
-              emiDuration: realEmiDuration,
-              international: realInternational,
-              razorpayFeeMinor: realRazorpayFeeMinor,
-              razorpayTaxMinor: realRazorpayTaxMinor,
-              acquirerAuthCode: realAcquirerAuthCode,
-              acquirerBankTxnId: realAcquirerBankTxnId,
-              acquirerRrn: realAcquirerRrn,
-              acquirerUpiTxnId: realAcquirerUpiTxnId
-            });
+            // 2. Consume Server-Provisioned Order & Subscription
+            let orderId = rzpResponse.orderId;
+            let subscriptionId = rzpResponse.subscriptionId;
 
-            // 3. Update coupon usage if applicable
-            if (appliedCoupon?.id) {
-              import('../repositories/couponRepository').then(({ couponRepository }) => {
-                couponRepository.incrementCouponUsage(appliedCoupon.id).catch(e => console.warn('[CheckoutPage] Coupon usage inc err:', e));
+            if (!orderId || !subscriptionId) {
+              // Graceful fallback if backend did not return IDs
+              const fallback = await orderRepository.createOrderAndProvisionOnSuccess({
+                userId: user.uid,
+                userEmail: user.email || '',
+                userName: user.displayName || 'Valued Investor',
+                userPhone: userPhoneClean || undefined,
+                planId: plan.id,
+                planName: plan.name,
+                planVersionId: (plan as any).versionId || 'version_1',
+                validityDays: plan.validityDays,
+                priceMinor: basePriceMinor,
+                discountMinor,
+                couponCode: couponApplied ? couponCode.trim().toUpperCase() : undefined,
+                taxMinor,
+                gatewayFeeMinor,
+                totalMinor,
+                gatewayPaymentId: rzpResponse.razorpay_payment_id,
+                gatewayOrderId: rzpResponse.razorpay_order_id,
+                gatewaySignature: rzpResponse.razorpay_signature,
+                paymentMode: realPaymentMode,
+                paymentMethod: realPaymentMethod
               });
+              orderId = fallback.order.id;
+              subscriptionId = fallback.subscriptionId;
             }
 
+            const invoiceNumber = `INV-ARTH-${new Date().getFullYear()}-${orderId.slice(0, 6).toUpperCase()}`;
 
             // 4. Generate official Tax Invoice PDF & send via email with attachment
             if (user.email) {
               const { emailService } = await import('../services/emailService');
               const { getInvoicePdfBase64 } = await import('../utils/invoicePdfGenerator');
 
-              const invoiceNumber = order.invoiceNumber || `INV-ARTH-${new Date().getFullYear()}-${order.id.slice(0, 6).toUpperCase()}`;
-
               const invoiceData = {
                 invoiceNumber,
                 paymentDate: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
                 paymentId: rzpResponse.razorpay_payment_id,
-                orderId: order.id,
+                orderId: orderId,
                 userName: user.displayName || 'Valued Investor',
                 userEmail: user.email || '',
                 planName: plan.name,
@@ -445,24 +402,26 @@ export default function CheckoutPage() {
                 }
               ] : undefined;
 
-              emailService.sendPaymentConfirmationEmail(
-                user.email,
-                {
-                  userName: user.displayName || 'Valued Investor',
-                  planName: plan.name,
-                  invoiceNumber: invoiceData.invoiceNumber,
-                  paymentDate: invoiceData.paymentDate,
-                  amountPaid: formatINR(totalMinor),
-                  baseAmount: formatINR(taxableAmountMinor),
-                  gstAmount: `${formatINR(taxMinor)} (18% GST)`,
-                  paymentMethod: `${realPaymentMethod} • Razorpay (${rzpResponse.razorpay_payment_id})`,
-                  period: `${plan.validityDays} Days Operational Mandate`,
-                  invoiceUrl: window.location.origin + `/history`
-                },
-                attachments
-              ).catch(emailErr => {
+              try {
+                await emailService.sendPaymentConfirmationEmail(
+                  user.email,
+                  {
+                    userName: user.displayName || 'Valued Investor',
+                    planName: plan.name,
+                    invoiceNumber: invoiceData.invoiceNumber,
+                    paymentDate: invoiceData.paymentDate,
+                    amountPaid: formatINR(totalMinor),
+                    baseAmount: formatINR(taxableAmountMinor),
+                    gstAmount: `${formatINR(taxMinor)} (18% GST)`,
+                    paymentMethod: `${realPaymentMethod} • Razorpay (${rzpResponse.razorpay_payment_id})`,
+                    period: `${plan.validityDays} Days Operational Mandate`,
+                    invoiceUrl: window.location.origin + `/history`
+                  },
+                  attachments
+                );
+              } catch (emailErr) {
                 console.warn('[CheckoutPage] Tax invoice email error:', emailErr);
-              });
+              }
             }
 
             // 5. Store completed checkout state in sessionStorage so refreshing or navigating never loses receipt
@@ -477,7 +436,7 @@ export default function CheckoutPage() {
                 taxableAmountMinor,
                 basePriceMinor,
                 discountMinor,
-                invoiceNumber: order.invoiceNumber || `INV-ARTH-${new Date().getFullYear()}-${order.id.slice(0, 6).toUpperCase()}`,
+                invoiceNumber,
                 paymentId: rzpResponse.razorpay_payment_id,
                 paymentMode: realPaymentMode,
                 paymentMethod: realPaymentMethod,
@@ -515,16 +474,19 @@ export default function CheckoutPage() {
 
           // Send payment failed email if it was an actual gateway failure, not a simple window close
           if (!isUserDismissal && user?.email && plan) {
-            import('../services/emailService').then(({ emailService }) => {
-              emailService.sendPaymentFailedEmail(user.email!, {
+            try {
+              const { emailService } = await import('../services/emailService');
+              await emailService.sendPaymentFailedEmail(user.email, {
                 userName: user.displayName || 'Valued Investor',
                 planName: plan.name,
                 amount: formatINR(totalMinor),
                 attemptDate: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
                 reason: failureMsg,
                 retryUrl: window.location.href
-              }).catch(e => console.warn('[CheckoutPage] Payment failed email error:', e));
-            });
+              });
+            } catch (e) {
+              console.warn('[CheckoutPage] Payment failed email error:', e);
+            }
           }
 
           if (!isUserDismissal) {
@@ -708,7 +670,36 @@ export default function CheckoutPage() {
                 </p>
               </div>
 
-              {user ? (
+              {activeSubscription && !allowRepurchase ? (
+                <div className="space-y-4">
+                  <div className="p-4 rounded-lg bg-[hsl(var(--success))/0.1] border border-[hsl(var(--success))/0.3] text-foreground">
+                    <div className="flex items-center gap-2 text-[hsl(var(--success))] text-xs font-semibold font-mono mb-1.5">
+                      <CheckCircle2 className="w-4 h-4 shrink-0" />
+                      <span>Active Advisory Mandate Found</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground font-mono leading-relaxed">
+                      Your subscription for <strong className="text-foreground">{plan.name}</strong> is currently active and paid.
+                    </p>
+                  </div>
+                  
+                  <button
+                    onClick={() => navigate(`/setup-portfolio?planId=${plan.id}&subscriptionId=${activeSubscription.id || ''}`)}
+                    className="w-full bg-primary hover:opacity-90 text-primary-foreground font-semibold text-xs py-3.5 px-4 rounded-md shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer font-mono"
+                  >
+                    <span>Proceed to Portfolio Setup</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+
+                  <div className="text-center pt-1">
+                    <button
+                      onClick={() => setAllowRepurchase(true)}
+                      className="text-[11px] font-mono text-muted-foreground hover:text-foreground underline transition-colors cursor-pointer"
+                    >
+                      Renew or repurchase an additional tier instead
+                    </button>
+                  </div>
+                </div>
+              ) : user ? (
                 <button
                   onClick={handleExecutePayment}
                   disabled={isProcessing}

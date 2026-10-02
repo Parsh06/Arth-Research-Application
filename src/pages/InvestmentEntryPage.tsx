@@ -20,7 +20,7 @@ interface StockEntry {
 }
 
 export default function InvestmentEntryPage() {
-  const { user } = useAuthStore();
+  const { user, dbUser } = useAuthStore();
   const { plans, fetchPlans } = usePlanStore();
   const { siteContent, fetchSiteContent } = useCmsStore();
   const { submitPortfolio } = usePortfolioStore();
@@ -35,13 +35,14 @@ export default function InvestmentEntryPage() {
   const [error, setError] = useState<string | null>(null);
   const [activePlanId, setActivePlanId] = useState<string | null>(urlPlanId);
   const [isLoading, setIsLoading] = useState(true);
+  const [draftRestored, setDraftRestored] = useState(false);
 
   useEffect(() => {
     fetchPlans();
     fetchSiteContent();
   }, [fetchPlans, fetchSiteContent]);
 
-  // Load existing portfolio or initialize from plan
+  // Load existing portfolio or initialize from plan with full multi-source fallback
   const portfolioIdParam = searchParams.get('portfolioId');
 
   useEffect(() => {
@@ -71,10 +72,52 @@ export default function InvestmentEntryPage() {
           }
         }
 
-        // 2. If a specific planId is targeted
-        const targetPlanId = urlPlanId || (userPorts.length > 0 ? userPorts[0].planId : null);
+        // 2. Resolve target plan ID with multi-source fallback:
+        // Query param -> User profile activePlanId -> Active subscription doc -> User portfolio -> Default plan
+        let targetPlanId = urlPlanId || (dbUser as any)?.activePlanId;
+
+        if (!targetPlanId) {
+          try {
+            const { subscriptionRepository } = await import('../repositories/subscriptionRepository');
+            const userSubs = await subscriptionRepository.getUserSubscriptions(user.uid);
+            const activeSub = userSubs.find(s => s.status === 'active' && (!s.expiresAt || (typeof s.expiresAt === 'number' ? s.expiresAt : new Date(s.expiresAt).getTime()) > Date.now()));
+            if (activeSub?.planId) {
+              targetPlanId = activeSub.planId;
+            }
+          } catch (subErr) {
+            console.warn('[InvestmentEntryPage] Error fetching user subscriptions:', subErr);
+          }
+        }
+
+        if (!targetPlanId && userPorts.length > 0) {
+          targetPlanId = userPorts[0].planId;
+        }
+
+        if (!targetPlanId && plans.length > 0) {
+          targetPlanId = plans[0].id;
+        }
+
+        setActivePlanId(targetPlanId);
+
+        // 3. Check for saved local draft (prevents data loss if user refreshed or connection dropped)
+        const draftKey = `arth_draft_holdings_${user.uid}_${targetPlanId || 'generic'}`;
+        try {
+          const savedDraft = localStorage.getItem(draftKey);
+          if (savedDraft) {
+            const parsed = JSON.parse(savedDraft);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setStocks(parsed);
+              setDraftRestored(true);
+              setIsLoading(false);
+              return;
+            }
+          }
+        } catch {
+          // Ignore localstorage parse issues
+        }
+
+        // 4. Pre-fill rows from recommended strategy basket if available
         if (targetPlanId) {
-          setActivePlanId(targetPlanId);
           const plan: any = plans.find(p => p.id === targetPlanId);
           if (plan && plan.holdings && plan.holdings.length > 0) {
             setStocks(plan.holdings.map((h: any, i: number) => ({
@@ -111,9 +154,22 @@ export default function InvestmentEntryPage() {
     if (plans.length > 0 && user) {
       initializePage();
     }
-  }, [user, urlPlanId, portfolioIdParam, plans, navigate]);
+  }, [user, dbUser, urlPlanId, portfolioIdParam, plans, navigate]);
 
   const activePlan = useMemo(() => plans.find(p => p.id === activePlanId), [plans, activePlanId]);
+
+  // Autosave draft holdings to localStorage on any stock changes
+  useEffect(() => {
+    if (!user || isLoading) return;
+    const draftKey = `arth_draft_holdings_${user.uid}_${activePlanId || 'generic'}`;
+    try {
+      if (stocks.length > 0) {
+        localStorage.setItem(draftKey, JSON.stringify(stocks));
+      }
+    } catch {
+      // Ignore localStorage quotas
+    }
+  }, [stocks, user, activePlanId, isLoading]);
 
   const updateStock = (id: string, field: keyof StockEntry, value: string) => {
     setStocks(stocks.map(s => s.id === id ? { ...s, [field]: value } : s));
@@ -203,29 +259,36 @@ export default function InvestmentEntryPage() {
         });
       }
 
+      // Clear autosaved draft upon successful submission
+      try {
+        const draftKey = `arth_draft_holdings_${user.uid}_${activePlanId || 'generic'}`;
+        localStorage.removeItem(draftKey);
+      } catch {}
 
       // Dispatch Holdings Submitted Confirmation Email with actual submitted holdings
       if (user.email) {
-        import('../services/emailService').then(({ emailService }) => {
-          import('../utils/money').then(({ formatINR }) => {
-            const formattedTotal = formatINR(calculateTotalInvestmentMinor());
-            emailService.sendHoldingsSubmittedEmail(user.email!, {
-              userName: user.displayName || 'Valued Investor',
-              mandateName: activePlan?.name || 'Institutional Advisory Mandate',
-              submissionDate: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) + ' IST',
-              totalHoldingsCount: formattedHoldings.length,
-              totalPortfolioValue: formattedTotal,
-              totalInvestmentFormatted: formattedTotal,
-              holdingsList: formattedHoldings.map(h => ({
-                ticker: h.symbol,
-                quantity: h.quantity,
-                avgPriceFormatted: formatINR(h.buyPriceMinor),
-                totalValueFormatted: formatINR(h.quantity * h.buyPriceMinor)
-              })),
-              portalUrl: window.location.origin + '/portfolio-pending'
-            }).catch(e => console.warn('[InvestmentEntryPage] Holdings email error:', e));
+        try {
+          const { emailService } = await import('../services/emailService');
+          const { formatINR } = await import('../utils/money');
+          const formattedTotal = formatINR(calculateTotalInvestmentMinor());
+          await emailService.sendHoldingsSubmittedEmail(user.email, {
+            userName: user.displayName || 'Valued Investor',
+            mandateName: activePlan?.name || 'Institutional Advisory Mandate',
+            submissionDate: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) + ' IST',
+            totalHoldingsCount: formattedHoldings.length,
+            totalPortfolioValue: formattedTotal,
+            totalInvestmentFormatted: formattedTotal,
+            holdingsList: formattedHoldings.map(h => ({
+              ticker: h.symbol,
+              quantity: h.quantity,
+              avgPriceFormatted: formatINR(h.buyPriceMinor),
+              totalValueFormatted: formatINR(h.quantity * h.buyPriceMinor)
+            })),
+            portalUrl: window.location.origin + '/portfolio-pending'
           });
-        });
+        } catch (e) {
+          console.warn('[InvestmentEntryPage] Holdings email error:', e);
+        }
       }
       
       navigate('/portfolio-pending');
@@ -308,6 +371,26 @@ export default function InvestmentEntryPage() {
                 <div className="p-3.5 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-xs font-mono mb-4 flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>{error}</span>
+                </div>
+              )}
+
+              {draftRestored && (
+                <div className="p-3 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-500 text-xs font-mono mb-4 flex items-center justify-between gap-2 shadow-xs">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 shrink-0 text-amber-500" />
+                    <span>Session Restored: We recovered your unsaved stock entries from your previous session.</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDraftRestored(false);
+                      const draftKey = `arth_draft_holdings_${user?.uid}_${activePlanId || 'generic'}`;
+                      try { localStorage.removeItem(draftKey); } catch {}
+                    }}
+                    className="text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground underline cursor-pointer shrink-0"
+                  >
+                    Dismiss
+                  </button>
                 </div>
               )}
 

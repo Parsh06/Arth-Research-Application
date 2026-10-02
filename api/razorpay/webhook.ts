@@ -1,7 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'node:crypto';
 import { sendSafeError } from '../_lib/security.js';
-
+import { provisionSubscriptionServer } from '../_lib/provisioning.js';
+import { adminDb } from '../_lib/firebaseAdmin.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -40,9 +41,64 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const event = typeof req.body === 'object' ? req.body : JSON.parse(rawBody);
     const eventType = event.event;
-    console.log(`[RAZORPAY WEBHOOK VERIFIED] Event: ${eventType}, ID: ${event.payload?.payment?.entity?.id || 'N/A'}`);
+    const eventId = event.id || `evt_${Date.now()}`;
 
-    // Acknowledge receipt immediately with 200 OK (Razorpay expects HTTP 200 response)
+    console.log(`[RAZORPAY WEBHOOK VERIFIED] Event: ${eventType}, Event ID: ${eventId}`);
+
+    // Check Idempotency for Webhook Event
+    const eventDocRef = adminDb.collection('processed_webhook_events').doc(eventId);
+    const eventDoc = await eventDocRef.get();
+    if (eventDoc.exists) {
+      return res.status(200).json({ status: 'ok', message: 'Event already processed' });
+    }
+
+    // Process payment.captured or order.paid
+    if (eventType === 'payment.captured' || eventType === 'order.paid') {
+      const paymentEntity = event.payload?.payment?.entity;
+      if (paymentEntity && paymentEntity.status === 'captured') {
+        const notes = paymentEntity.notes || {};
+        const userId = notes.userId;
+        const userEmail = notes.userEmail || paymentEntity.email;
+
+        if (userId && userEmail) {
+          await provisionSubscriptionServer({
+            userId,
+            userEmail,
+            userName: notes.userName || 'Investor',
+            userPhone: paymentEntity.contact,
+            planId: notes.planId,
+            planName: notes.planName,
+            totalMinor: paymentEntity.amount,
+            gatewayOrderId: paymentEntity.order_id,
+            gatewayPaymentId: paymentEntity.id,
+            paymentMode: (paymentEntity.method || 'UNKNOWN').toUpperCase(),
+            paymentMethod: paymentEntity.method || 'Razorpay Gateway',
+            bank: paymentEntity.bank,
+            wallet: paymentEntity.wallet,
+            vpa: paymentEntity.vpa,
+            cardNetwork: paymentEntity.card?.network,
+            cardLast4: paymentEntity.card?.last4,
+            cardName: paymentEntity.card?.name,
+            cardIssuer: paymentEntity.card?.issuer,
+            cardType: paymentEntity.card?.type,
+            cardSubType: paymentEntity.card?.sub_type,
+            cardInternational: paymentEntity.card?.international,
+            emiDuration: paymentEntity.emi_duration,
+            international: paymentEntity.international,
+            razorpayFeeMinor: paymentEntity.fee,
+            razorpayTaxMinor: paymentEntity.tax
+          });
+        }
+      }
+    }
+
+    // Mark event as processed
+    await eventDocRef.set({
+      eventId,
+      eventType,
+      processedAt: new Date().toISOString()
+    });
+
     return res.status(200).json({
       status: 'ok',
       event: eventType,

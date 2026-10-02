@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { type User as FirebaseUser, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 import { portfolioRepository } from '../repositories/portfolioRepository';
 import { SubscriptionStatus } from '../types/models';
@@ -37,16 +37,39 @@ export const useAuthStore = create<AuthState>((set) => ({
       const userRef = doc(db, 'users', user.uid);
       const userSnap = await getDoc(userRef);
       
-      let dbUser = null;
+      let dbUser: any = null;
       if (userSnap.exists()) {
         dbUser = userSnap.data();
+
+        // Update last login timestamp
+        const now = new Date().toISOString();
+        updateDoc(userRef, { updatedAt: now }).catch(() => {});
+
+        // Trigger Personalized Security Login Alert Email on successful sign-in
+        if (user.email) {
+          import('../services/emailService').then(({ emailService }) => {
+            const browserInfo = typeof navigator !== 'undefined'
+              ? (navigator.userAgent.includes('Chrome') ? 'Google Chrome' : navigator.userAgent.includes('Firefox') ? 'Mozilla Firefox' : navigator.userAgent.includes('Safari') ? 'Apple Safari' : 'Secure Browser')
+              : 'Web Terminal';
+
+            emailService.sendSecurityAlertEmail(user.email!, {
+              userName: user.displayName || dbUser?.displayName || 'Valued Investor',
+              userEmail: user.email!,
+              ipAddress: 'Active Web Session',
+              deviceBrowser: `${browserInfo} • ${typeof navigator !== 'undefined' ? navigator.platform || 'Desktop' : 'Client Terminal'}`,
+              locationCityCountry: 'Verified Investor Session',
+              timestampFormatted: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) + ' IST',
+              secureAccountUrl: window.location.origin + '/profile'
+            }).catch(e => console.warn('[AuthStore] Security login alert email error:', e));
+          });
+        }
       } else {
         const now = new Date().toISOString();
         const initialTheme = (localStorage.getItem('arth_theme') as 'dark' | 'light') || 'dark';
         dbUser = {
           uid: user.uid,
           email: user.email || '',
-          displayName: user.displayName || 'Client',
+          displayName: user.displayName || 'Valued Investor',
           photoURL: user.photoURL || '',
           role: 'user',
           status: 'active',
@@ -58,11 +81,11 @@ export const useAuthStore = create<AuthState>((set) => ({
         };
         await setDoc(userRef, dbUser, { merge: true });
 
-        // Trigger Welcome & Orientation Email
+        // Trigger Welcome & Orientation Email on Brand New Registration
         if (user.email) {
           import('../services/emailService').then(({ emailService }) => {
             emailService.sendWelcomeEmail(user.email!, {
-              userName: user.displayName || 'Client',
+              userName: user.displayName || 'Valued Investor',
               userEmail: user.email!,
               portalUrl: window.location.origin + '/dashboard'
             }).catch(e => console.warn('[AuthStore] Welcome email error:', e));

@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { applyCors, sendSafeError } from '../_lib/security.js';
-
+import { adminDb } from '../_lib/firebaseAdmin.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Strict CORS & Preflight handling
@@ -30,35 +30,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const projectId = process.env.VITE_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || '';
-    if (!projectId) {
-      return sendSafeError(res, 500, 'FIREBASE_PROJECT_ID environment variable is not configured on server.');
-    }
     const now = Date.now();
+    console.log('[CRON WEBHOOK] Executing subscription lifecycle check via Firebase Admin SDK...');
 
-    console.log(`[CRON WEBHOOK] Executing subscription lifecycle check for Firestore project: ${projectId}...`);
-
-    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/subscriptions`;
-    const firestoreRes = await fetch(url);
+    const subsSnap = await adminDb.collection('subscriptions').get();
     
-    let docs: any[] = [];
-    if (firestoreRes.ok) {
-      const data: any = await firestoreRes.json();
-      docs = data.documents || [];
-    }
-
     let activeCount = 0;
     let expiredCount = 0;
     let warningCount = 0;
 
-    docs.forEach(doc => {
-      const fields = doc.fields || {};
-      const status = fields.status?.stringValue || 'inactive';
-      const expiresAt = fields.expiresAt?.integerValue 
-        ? parseInt(fields.expiresAt.integerValue, 10) 
-        : (fields.expiresAt?.timestampValue ? new Date(fields.expiresAt.timestampValue).getTime() : 0);
+    subsSnap.docs.forEach(doc => {
+      const data = doc.data() || {};
+      const status = (data.status || 'inactive').toLowerCase();
+      
+      let expiresAt = 0;
+      if (typeof data.expiresAt === 'number') {
+        expiresAt = data.expiresAt;
+      } else if (typeof data.expiresAt === 'string') {
+        expiresAt = new Date(data.expiresAt).getTime();
+      }
 
-      if (status === 'active' || status === 'ACTIVE') {
+      if (status === 'active') {
         if (expiresAt > 0 && expiresAt < now) {
           expiredCount++;
         } else if (expiresAt > 0 && expiresAt - now <= 7 * 24 * 60 * 60 * 1000) {
@@ -74,14 +66,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       success: true,
       timestamp: new Date().toISOString(),
       cadence: '15_MINUTES_ACTIVE',
-      subscriptionsScanned: docs.length,
+      subscriptionsScanned: subsSnap.size,
       metrics: {
         activeMandates: activeCount,
         warningCandidates: warningCount,
         expiredMandates: expiredCount
       },
       status: 'CRON_EVALUATED',
-      message: `Automated lifecycle scan complete. Evaluated ${docs.length} subscription mandate(s). Next evaluation in 15 minutes.`
+      message: `Automated lifecycle scan complete. Evaluated ${subsSnap.size} subscription mandate(s). Next evaluation in 15 minutes.`
     });
   } catch (cronErr: any) {
     console.error('[CRON WEBHOOK ERROR]', cronErr);

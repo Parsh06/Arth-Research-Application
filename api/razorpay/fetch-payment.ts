@@ -97,6 +97,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
+    // IDOR PROTECTION: Only admins or the customer who made the payment can view telemetry
+    const userRole = user.role || 'user';
+    const isAdmin = ['super_admin', 'admin', 'research_admin', 'support_admin'].includes(userRole);
+    if (!isAdmin) {
+      const paymentEmail = (p.email || '').toLowerCase().trim();
+      const userEmail = (user.email || '').toLowerCase().trim();
+      const paymentUserId = p.notes?.userId;
+
+      if ((!paymentEmail || paymentEmail !== userEmail) && (!paymentUserId || paymentUserId !== user.uid)) {
+        return sendSafeError(res, 403, 'Forbidden: You are not authorized to view payment telemetry for this transaction.');
+      }
+    }
+
     const method: string = p.method || 'unknown';
 
     const result: Record<string, any> = {

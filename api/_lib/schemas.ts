@@ -1,22 +1,31 @@
 import { z } from 'zod';
 
 export const createOrderSchema = z.object({
-  amountMinor: z.number().int().positive().max(50000000), // Max ₹5,00,000 in paise
+  planId: z.string().trim().min(1).max(100).optional(),
+  duration: z.string().trim().max(50).optional(),
+  couponCode: z.string().trim().max(50).optional(),
+  amountMinor: z.number().int().positive().max(50000000).optional(), // Max ₹5,00,000 in paise (fallback/custom)
   receipt: z.string().trim().max(100).optional(),
-  notes: z.object({
-    planId: z.string().trim().max(100).optional(),
-    planName: z.string().trim().max(200).optional(),
-    userId: z.string().trim().max(128).optional(),
-    userEmail: z.string().email().max(255).optional(),
-    duration: z.string().trim().max(50).optional(),
-    couponCode: z.string().trim().max(50).optional(),
-  }).passthrough().optional()
-}).strict();
+  notes: z.record(z.string(), z.any()).optional()
+}).strict().refine((data) => data.planId || data.amountMinor, {
+  message: 'Either planId or amountMinor must be provided'
+});
 
 export const verifyPaymentSchema = z.object({
   razorpayOrderId: z.string().trim().min(1).max(100),
   razorpayPaymentId: z.string().trim().min(1).max(100),
   razorpaySignature: z.string().trim().min(1).max(256),
+  planId: z.string().trim().max(100).optional(),
+  planVersionId: z.string().trim().max(100).optional(),
+  planName: z.string().trim().max(200).optional(),
+  validityDays: z.number().int().positive().optional(),
+  priceMinor: z.number().int().nonnegative().optional(),
+  discountMinor: z.number().int().nonnegative().optional(),
+  couponCode: z.string().trim().max(50).optional(),
+  taxMinor: z.number().int().nonnegative().optional(),
+  gatewayFeeMinor: z.number().int().nonnegative().optional(),
+  totalMinor: z.number().int().nonnegative().optional(),
+  userPhone: z.string().trim().max(20).optional()
 }).strict();
 
 export const sendEmailSchema = z.object({

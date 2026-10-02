@@ -1,5 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import crypto from 'node:crypto';
 import { sendSafeError } from './security.js';
+import { adminDb } from './firebaseAdmin.js';
 
 export interface AuthenticatedUser {
   uid: string;
@@ -19,18 +21,22 @@ export async function verifyFirebaseToken(req: VercelRequest): Promise<{ valid: 
   const authHeader = (req.headers['authorization'] as string) || (req.headers['x-firebase-auth-token'] as string) || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7).trim() : authHeader.trim();
 
-  // Allow machine-to-machine admin secret bypass for internal scripts/cron
+  // Allow machine-to-machine admin secret bypass for internal scripts/cron using constant-time check
   const masterSecret = process.env.CRON_SECRET || process.env.ADMIN_API_KEY || '';
   const adminSecretHeader = (req.headers['x-admin-key'] as string) || '';
-  if (masterSecret && adminSecretHeader && adminSecretHeader === masterSecret) {
-    return {
-      valid: true,
-      user: {
-        uid: 'system_admin_key',
-        email: process.env.GMAIL_USER || 'admin@arthresearch.com',
-        role: 'super_admin'
-      }
-    };
+  if (masterSecret && adminSecretHeader) {
+    const masterBuf = Buffer.from(masterSecret);
+    const headerBuf = Buffer.from(adminSecretHeader);
+    if (masterBuf.length === headerBuf.length && crypto.timingSafeEqual(masterBuf, headerBuf)) {
+      return {
+        valid: true,
+        user: {
+          uid: 'system_admin_key',
+          email: process.env.GMAIL_USER || 'admin@arthresearch.com',
+          role: 'super_admin'
+        }
+      };
+    }
   }
 
   if (!token) {
@@ -63,33 +69,23 @@ export async function verifyFirebaseToken(req: VercelRequest): Promise<{ valid: 
     const uid = googleUser.localId;
     const email = googleUser.email || '';
 
-    // Fetch user role from Firestore if possible, or fallback to email check
+    // Fetch user role from Firestore using privileged adminDb or fallback to email check
     let role = 'user';
-    const projectId = process.env.VITE_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || '';
-    
-    // Check known master admin emails
     const adminEmail = (process.env.VITE_ADMIN_EMAIL || process.env.ADMIN_EMAIL || process.env.GMAIL_USER || '').toLowerCase();
+    
     if (email && adminEmail && email.toLowerCase() === adminEmail) {
       role = 'super_admin';
-    } else if (projectId) {
+    } else {
       try {
-        const firestoreRes = await fetch(
-          `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users/${uid}`,
-          {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          }
-        );
-        if (firestoreRes.ok) {
-          const docData: any = await firestoreRes.json();
-          const docRole = docData.fields?.role?.stringValue;
+        const userDoc = await adminDb.collection('users').doc(uid).get();
+        if (userDoc.exists) {
+          const docRole = userDoc.data()?.role;
           if (docRole) {
-            role = docRole.toLowerCase();
+            role = String(docRole).toLowerCase();
           }
         }
       } catch (fErr) {
-        // Non-blocking fallback
+        // Fallback non-blocking
       }
     }
 

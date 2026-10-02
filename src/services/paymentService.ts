@@ -122,12 +122,15 @@ export const paymentService = {
   },
 
   /**
-   * Requests backend to generate an official Razorpay Order ID
+   * Requests backend to generate an official Razorpay Order ID with server-side price resolution
    */
   async createRazorpayOrder(params: {
-    amountMinor: number;
+    planId?: string;
+    duration?: string;
+    couponCode?: string;
+    amountMinor?: number;
     receipt?: string;
-    notes?: Record<string, string>;
+    notes?: Record<string, any>;
   }): Promise<RazorpayOrderResponse> {
     try {
       const endpoint = getApiEndpoint('/razorpay/create-order');
@@ -157,13 +160,24 @@ export const paymentService = {
   },
 
   /**
-   * Sends cryptographic signature to backend for HMAC SHA256 validation
+   * Sends cryptographic signature to backend for HMAC SHA256 validation & privileged server provisioning
    */
   async verifyPaymentSignature(payload: {
     razorpayOrderId: string;
     razorpayPaymentId: string;
     razorpaySignature: string;
-  }): Promise<{ success: boolean; verified: boolean; error?: string }> {
+    planId?: string;
+    planVersionId?: string;
+    planName?: string;
+    validityDays?: number;
+    priceMinor?: number;
+    discountMinor?: number;
+    couponCode?: string;
+    taxMinor?: number;
+    gatewayFeeMinor?: number;
+    totalMinor?: number;
+    userPhone?: string;
+  }): Promise<{ success: boolean; verified: boolean; orderId?: string; subscriptionId?: string; paymentId?: string; error?: string }> {
     try {
       const endpoint = getApiEndpoint('/razorpay/verify-payment');
       const authHeaders = await getAuthHeaders();
@@ -191,19 +205,31 @@ export const paymentService = {
    * Unified trigger to launch the luxury Razorpay checkout window
    */
   async launchRazorpayCheckout(options: {
+    planId?: string;
+    duration?: string;
+    couponCode?: string;
     planName: string;
     amountMinor: number;
     userName: string;
     userEmail: string;
     userPhone?: string;
     receipt?: string;
-    onSuccess: (payment: RazorpayPaymentSuccessPayload) => void;
+    orderMetadata?: {
+      planVersionId?: string;
+      validityDays?: number;
+      priceMinor?: number;
+      discountMinor?: number;
+      taxMinor?: number;
+      gatewayFeeMinor?: number;
+      totalMinor?: number;
+    };
+    onSuccess: (payment: RazorpayPaymentSuccessPayload & { orderId?: string; subscriptionId?: string; paymentId?: string }) => void;
     onFailure: (error: { code?: string; description?: string; reason?: string }) => void;
   }): Promise<void> {
     // Single-shot settle guard to prevent multiple callbacks from firing on duplicate events
     let isSettled = false;
 
-    const safeSuccess = (payment: RazorpayPaymentSuccessPayload) => {
+    const safeSuccess = (payment: RazorpayPaymentSuccessPayload & { orderId?: string; subscriptionId?: string; paymentId?: string }) => {
       if (isSettled) return;
       isSettled = true;
       options.onSuccess(payment);
@@ -222,6 +248,9 @@ export const paymentService = {
     }
 
     const orderRes = await this.createRazorpayOrder({
+      planId: options.planId,
+      duration: options.duration,
+      couponCode: options.couponCode,
       amountMinor: options.amountMinor,
       receipt: options.receipt,
       notes: {
@@ -261,11 +290,27 @@ export const paymentService = {
           const verifyRes = await paymentService.verifyPaymentSignature({
             razorpayOrderId: response.razorpay_order_id,
             razorpayPaymentId: response.razorpay_payment_id,
-            razorpaySignature: response.razorpay_signature
+            razorpaySignature: response.razorpay_signature,
+            planId: options.planId,
+            planName: options.planName,
+            planVersionId: options.orderMetadata?.planVersionId,
+            validityDays: options.orderMetadata?.validityDays,
+            priceMinor: options.orderMetadata?.priceMinor,
+            discountMinor: options.orderMetadata?.discountMinor,
+            couponCode: options.couponCode,
+            taxMinor: options.orderMetadata?.taxMinor,
+            gatewayFeeMinor: options.orderMetadata?.gatewayFeeMinor,
+            totalMinor: options.orderMetadata?.totalMinor,
+            userPhone: options.userPhone
           });
 
           if (verifyRes.success && verifyRes.verified) {
-            safeSuccess(response);
+            safeSuccess({
+              ...response,
+              orderId: verifyRes.orderId,
+              subscriptionId: verifyRes.subscriptionId,
+              paymentId: verifyRes.paymentId
+            });
           } else {
             safeFailure({ description: verifyRes.error || 'Signature verification failed.' });
           }

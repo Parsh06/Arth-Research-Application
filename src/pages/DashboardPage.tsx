@@ -131,7 +131,7 @@ export default function DashboardPage() {
           </p>
           <div className="pt-3">
             <Link
-              to={userPortfolio ? `/setup-portfolio?planId=${userPortfolio.planId}&portfolioId=${userPortfolio.id}` : "/setup-portfolio"}
+              to={userPortfolio ? `/setup-portfolio?planId=${userPortfolio.planId}&portfolioId=${userPortfolio.id}` : ((dbUser as any)?.activePlanId ? `/setup-portfolio?planId=${(dbUser as any).activePlanId}` : "/setup-portfolio")}
               className="inline-flex items-center gap-2 bg-primary hover:opacity-90 text-primary-foreground text-xs font-semibold px-6 py-3 rounded-md shadow-md transition-all font-mono cursor-pointer"
             >
               <span>Initialize Portfolio Setup</span>

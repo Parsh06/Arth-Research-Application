@@ -82,8 +82,9 @@ export default function AdminReviewPortfolio() {
         const userDoc = await getDoc(doc(db, 'users', portfolio.userId));
         if (userDoc.exists()) {
           const userData = userDoc.data();
-          import('../../services/emailService').then(({ emailService }) => {
-            emailService.sendPortfolioClearanceEmail(userData.email, {
+          try {
+            const { emailService } = await import('../../services/emailService');
+            await emailService.sendPortfolioClearanceEmail(userData.email, {
               userName: userData.displayName || 'Valued Investor',
               mandateName: plan?.name || 'Institutional Advisory Mandate',
               analystName: user.displayName || 'Parsh Jain',
@@ -92,8 +93,10 @@ export default function AdminReviewPortfolio() {
               portfolioNav: 'Active Allocation Live',
               analystRemarks: 'Holdings have been audited against statutory risk ceilings, beta parameters, and concentration limits.',
               portalUrl: window.location.origin + '/portfolio'
-            }).catch(e => console.warn('[AdminReview] Clearance email error:', e));
-          });
+            });
+          } catch (e) {
+            console.warn('[AdminReview] Clearance email error:', e);
+          }
         }
       }
       
@@ -130,8 +133,9 @@ export default function AdminReviewPortfolio() {
         const userDoc = await getDoc(doc(db, 'users', portfolio.userId));
         if (userDoc.exists()) {
           const userData = userDoc.data();
-          import('../../services/emailService').then(({ emailService }) => {
-            emailService.sendHoldingsRevisionEmail(userData.email, {
+          try {
+            const { emailService } = await import('../../services/emailService');
+            await emailService.sendHoldingsRevisionEmail(userData.email, {
               userName: userData.displayName || 'Valued Investor',
               mandateName: plan?.name || 'Institutional Advisory Mandate',
               analystName: user.displayName || 'Parsh Jain',
@@ -143,8 +147,10 @@ export default function AdminReviewPortfolio() {
                 'Re-submit synchronized portfolio holdings for analyst re-audit'
               ],
               portalUrl: window.location.origin + `/portfolio/entry?portfolioId=${id}&planId=${portfolio.planId}`
-            }).catch(e => console.warn('[AdminReview] Revision email error:', e));
-          });
+            });
+          } catch (e) {
+            console.warn('[AdminReview] Revision email error:', e);
+          }
         }
       }
 

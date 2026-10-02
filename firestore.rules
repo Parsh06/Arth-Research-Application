@@ -39,6 +39,12 @@ service cloud.firestore {
              getUserData().get('status', 'active') != 'disabled';
     }
 
+    // Ensures the authenticated user holds an active quantitative subscription or is admin
+    function isSubscriber() {
+      return isAuthenticated() &&
+             (getUserData().get('subscriptionStatus', 'inactive') == 'active' || isAdmin());
+    }
+
     // ============================================================================
     // USER IDENTITY & DOMAIN SEGREGATION
     // ============================================================================
@@ -52,11 +58,11 @@ service cloud.firestore {
                     && request.resource.data.role == 'user'
                     && request.resource.data.status == 'active';
 
-      // Users can update safe profile fields and subscription state on checkout completion
-      allow update: if isAuthenticated() && request.auth.uid == userId
+      // ZERO-TRUST LOCKDOWN: Users can ONLY update safe aesthetic fields.
+      // Subscription status, activePlanId, and expiresAt can ONLY be updated by privileged backend or admin!
+      allow update: if (isUserActive() && request.auth.uid == userId
                     && request.resource.data.diff(resource.data).affectedKeys()
-                       .hasOnly(['displayName', 'phone', 'photoURL', 'updatedAt',
-                                 'subscriptionStatus', 'activePlanId', 'activePlanName', 'subscriptionExpiresAt'])
+                       .hasOnly(['displayName', 'phone', 'photoURL', 'theme', 'updatedAt']))
                     || isAdmin();
 
       // Only admins can delete user documents
@@ -88,16 +94,10 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Promotional Discount Vouchers & Coupons
+    // Promotional Discount Vouchers & Coupons — Users READ-ONLY; creation & updates handled by admin/backend
     match /coupons/{couponId} {
-      // Authenticated users can read/query coupons to validate checkout discounts
       allow read: if isAuthenticated();
-      // Admins have full write control; authenticated users can increment timesUsed during checkout
-      allow create, delete: if isAdmin();
-      allow update: if isAdmin() || (
-        isAuthenticated() &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['timesUsed', 'updatedAt'])
-      );
+      allow write: if isAdmin();
     }
 
     // Instruments require authentication (protects stock universe from scraping)
@@ -106,26 +106,30 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Research Content — readable by authenticated users (content visibility gated at UI layer)
+    // Proprietary Research Content — Restricted to active subscribers and quantitative desk admins
     match /research_content/{contentId} {
-      allow read: if isAuthenticated();
+      allow read: if isSubscriber();
       allow write: if isAdmin();
     }
 
-    // Legacy alias — kept for backwards compatibility
+    // Legacy alias
     match /researchCalls/{callId} {
-      allow read: if isAuthenticated();
+      allow read: if isSubscriber();
       allow write: if isAdmin();
     }
 
     // ============================================================================
-    // PORTFOLIO LIFECYCLE & IMMUTABLE VERSIONS
+    // PORTFOLIO LIFECYCLE & MULTI-TENANT ISOLATION
     // ============================================================================
 
     match /portfolios/{portfolioId} {
+      // Helper function to verify portfolio ownership
+      function isPortfolioOwner() {
+        return resource.data.userId == request.auth.uid;
+      }
+
       // Owner or admin can read root portfolio document
-      allow read: if isAuthenticated()
-                  && (resource.data.userId == request.auth.uid || isAdmin());
+      allow read: if isAuthenticated() && (isPortfolioOwner() || isAdmin());
 
       // Owner can create their own portfolio
       allow create: if isUserActive()
@@ -136,7 +140,7 @@ service cloud.firestore {
       // Users cannot flip status to 'active' or 'approved' themselves
       allow update: if isAdmin()
                     || (isUserActive()
-                        && resource.data.userId == request.auth.uid
+                        && isPortfolioOwner()
                         && request.resource.data.diff(resource.data).affectedKeys()
                            .hasOnly(['status', 'holdings', 'totalInvestmentMinor',
                                      'stockCount', 'currentVersionId', 'submittedAt',
@@ -145,113 +149,60 @@ service cloud.firestore {
 
       allow delete: if isAdmin();
 
-      // Version Snapshots — immutable audit trail; owner & admin read; authenticated create
+      // Version Snapshots — Strictly scoped to portfolio owner or admin
       match /versions/{versionId} {
-        allow read: if isAuthenticated();
-        allow create: if isAuthenticated();
+        allow read: if isAuthenticated() && (
+          get(/databases/$(database)/documents/portfolios/$(portfolioId)).data.userId == request.auth.uid
+          || isAdmin()
+        );
+        allow create: if isUserActive() && (
+          get(/databases/$(database)/documents/portfolios/$(portfolioId)).data.userId == request.auth.uid
+          || isAdmin()
+        );
         // Versions are immutable once created — no updates or deletes
         allow update, delete: if false;
       }
 
-      // Holdings Subcollection — scoped to portfolio owner or admin
+      // Holdings Subcollection — STRICT MULTI-TENANT ISOLATION
+      // Only the portfolio owner or an admin can read/write holdings in this portfolio
       match /holdings/{holdingId} {
-        allow read: if isAuthenticated();
-        allow write: if isAuthenticated();
+        allow read, write: if isAuthenticated() && (
+          get(/databases/$(database)/documents/portfolios/$(portfolioId)).data.userId == request.auth.uid
+          || isAdmin()
+        );
       }
     }
 
     // ============================================================================
-    // COMMERCE — ORDERS, PAYMENTS & SUBSCRIPTIONS
+    // COMMERCE — ORDERS, PAYMENTS & SUBSCRIPTIONS (SERVER-MANAGED)
     // ============================================================================
 
+    // Orders — Users can read their own; creation & mutation strictly restricted to Admin SDK & Admins
     match /orders/{orderId} {
-      // Owner or admin can read
       allow read: if isAuthenticated()
                   && (resource.data.userId == request.auth.uid || isAdmin());
-
-      // Client can create their own order
-      allow create: if isAuthenticated()
-                    && request.resource.data.userId == request.auth.uid;
-
-      // Admin can update any order; owner can update during payment completion/failure
-      // NOTE: affectedKeys must include every field written by completePaymentAndProvision()
-      allow update: if isAdmin()
-                    || (isUserActive()
-                        && resource.data.userId == request.auth.uid
-                        && request.resource.data.diff(resource.data).affectedKeys()
-                           .hasOnly([
-                             // Core status fields
-                             'status', 'updatedAt', 'paidAt', 'failureReason',
-                             // Gateway identifiers
-                             'gatewayPaymentId', 'gatewayOrderId', 'gatewaySignature',
-                             'invoiceNumber',
-                             // Customer
-                             'userPhone',
-                             // Payment instrument — basic
-                             'paymentMode', 'paymentMethod', 'bank', 'wallet', 'vpa',
-                             // Payment instrument — card details
-                             'cardNetwork', 'cardLast4', 'cardName', 'cardIssuer',
-                             'cardType', 'cardSubType', 'cardInternational',
-                             // EMI & international
-                             'emiDuration', 'international',
-                             // Razorpay platform fees
-                             'razorpayFeeMinor', 'razorpayTaxMinor',
-                             // Acquirer / bank data
-                             'acquirerAuthCode', 'acquirerBankTxnId',
-                             'acquirerRrn', 'acquirerUpiTxnId',
-                             // Error diagnostics (failed payments)
-                             'errorCode', 'errorDescription', 'errorSource',
-                             'errorStep', 'errorReason',
-                             // Refund tracking
-                             'refundId', 'refundedAt', 'refundStatus', 'refundAmountMinor',
-                             // Coupons & discounts
-                             'couponCode', 'discountMinor'
-                           ]));
-
-      allow delete: if false; // Financial records are never deleted
+      allow write: if isAdmin();
     }
 
+    // Payment Records — Users can read their own; write restricted to Admin SDK & Admins
     match /payments/{paymentId} {
-      // Owner or admin can read
       allow read: if isAuthenticated()
                   && (resource.data.userId == request.auth.uid || isAdmin());
-
-      // Payment records can be created by authenticated user for their order
-      allow create: if isAuthenticated();
-
-      // Only admin can update or delete payment records
-      allow update, delete: if isAdmin();
+      allow write: if isAdmin();
     }
 
+    // Subscriptions — Users can read their own; write restricted to Admin SDK & Admins
     match /subscriptions/{subscriptionId} {
       allow read: if isAuthenticated()
                   && (resource.data.userId == request.auth.uid || isAdmin());
-
-      // Subscriptions are created by the payment service on order completion or by admin during reconciliation
-      allow create: if isAuthenticated()
-                    && (request.resource.data.userId == request.auth.uid || isAdmin())
-                    && request.resource.data.status == 'active';
-
-      // Users CANNOT modify subscription fields — no status spoofing
-      // Only admin can update (extend, cancel mandate)
-      allow update: if isAdmin();
-
-      allow delete: if false; // Subscription records are never deleted
+      allow write: if isAdmin();
     }
 
-    // Entitlements — Document ID is always "{userId}_{featureKey}"
-    // Users can read their own; only system/admin can write
+    // Entitlements — Users can read their own; write restricted to Admin SDK & Admins
     match /entitlements/{entitlementId} {
       allow read: if isAuthenticated()
                   && (resource.data.userId == request.auth.uid || isAdmin());
-
-      allow create: if isAuthenticated()
-                    && (request.resource.data.userId == request.auth.uid || isAdmin());
-
-      allow update: if isAuthenticated()
-                    && (resource.data.userId == request.auth.uid || isAdmin());
-
-      allow delete: if isAdmin();
+      allow write: if isAdmin();
     }
 
     // ============================================================================
@@ -282,14 +233,18 @@ service cloud.firestore {
                   && (resource.data.userId == request.auth.uid || isSupportOrAdmin());
 
       // User creates their own ticket with bounded payload sizes to prevent storage exhaustion
-      allow create: if isAuthenticated()
+      allow create: if isUserActive()
                     && request.resource.data.userId == request.auth.uid
                     && request.resource.data.subject.size() <= 200
                     && request.resource.data.message.size() <= 4000;
 
-      // User can add replies; support/admin can update status
-      allow update: if isAuthenticated()
-                    && (resource.data.userId == request.auth.uid || isSupportOrAdmin());
+      // Users cannot change ticket status or assigned staff; they can only update timestamp
+      allow update: if isSupportOrAdmin() || (
+        isUserActive()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['updatedAt', 'lastMessageAt'])
+      );
 
       allow delete: if isAdmin();
 
@@ -298,7 +253,7 @@ service cloud.firestore {
         allow read: if isAuthenticated()
                     && (get(/databases/$(database)/documents/support_tickets/$(ticketId)).data.userId
                         == request.auth.uid || isSupportOrAdmin());
-        allow create: if isAuthenticated()
+        allow create: if isUserActive()
                       && (get(/databases/$(database)/documents/support_tickets/$(ticketId)).data.userId
                           == request.auth.uid || isSupportOrAdmin())
                       && request.resource.data.message.size() <= 4000;
@@ -316,17 +271,16 @@ service cloud.firestore {
     match /tickets/{ticketId} {
       allow read: if isAuthenticated()
                   && (resource.data.userId == request.auth.uid || isSupportOrAdmin());
-      allow create: if isAuthenticated()
+      allow create: if isUserActive()
                     && request.resource.data.userId == request.auth.uid;
-      allow update: if isAuthenticated()
-                    && (resource.data.userId == request.auth.uid || isSupportOrAdmin());
+      allow update: if isSupportOrAdmin();
       allow delete: if isAdmin();
 
       match /messages/{messageId} {
         allow read: if isAuthenticated()
                     && (get(/databases/$(database)/documents/tickets/$(ticketId)).data.userId
                         == request.auth.uid || isSupportOrAdmin());
-        allow create: if isAuthenticated()
+        allow create: if isUserActive()
                       && (get(/databases/$(database)/documents/tickets/$(ticketId)).data.userId
                           == request.auth.uid || isSupportOrAdmin());
         allow update, delete: if false;
@@ -356,8 +310,8 @@ service cloud.firestore {
     match /auditLogs/{logId} {
       // Admin can read audit logs
       allow read: if isAdmin();
-      // Admin or authenticated actions can create audit log entries
-      allow create: if isAuthenticated();
+      // Only privileged backend or admin can create audit log entries
+      allow create: if isAdmin();
       // Audit logs cannot be modified
       allow update: if false;
       // Admin can purge audit logs
@@ -366,7 +320,7 @@ service cloud.firestore {
 
     match /audit_logs/{logId} {
       allow read: if isAdmin();
-      allow create: if isAuthenticated();
+      allow create: if isAdmin();
       allow update: if false;
       allow delete: if isAdmin();
     }

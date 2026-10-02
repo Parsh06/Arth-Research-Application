@@ -11,15 +11,22 @@ service firebase.storage {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // Invoices and Tax Statements — only document owner or admin can read; write restricted
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.get('role', 'user') in ['super_admin', 'admin', 'research_admin', 'support_admin'] ||
+        request.auth.token.get('admin', false) == true
+      );
+    }
+
+    // Invoices and Tax Statements — document owner or admin can read; write restricted to backend
     match /invoices/{userId}/{invoiceId} {
-      allow read: if isOwner(userId);
+      allow read: if isOwner(userId) || isAdmin();
       allow write: if false; // Provisioned exclusively via privileged backend
     }
 
     // User KYC & Compliance Documents (PAN, address proof) — owner & admin read; owner can upload max 5MB
     match /compliance/{userId}/{fileName} {
-      allow read: if isOwner(userId);
+      allow read: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId)
                     && request.resource.size < 5 * 1024 * 1024
                     && request.resource.contentType.matches('image/.*|application/pdf');

@@ -365,7 +365,7 @@ export default function UserLayout() {
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           <div className="mx-auto max-w-7xl">
             {/* Setup Required Banner if subscribed but holdings not entered */}
-            {hasAccess && (!userPortfolio || !userPortfolio.stockCount || userPortfolio.stockCount === 0) && location.pathname !== '/setup-portfolio' && (
+            {hasAccess && (!userPortfolio || !userPortfolio.stockCount || userPortfolio.stockCount === 0) && location.pathname !== '/setup-portfolio' && location.pathname !== '/portfolio/entry' && (
               <div className="mb-6 p-4 rounded-lg bg-primary/10 border border-primary/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono shadow-xs">
                 <div className="flex items-center gap-2.5 text-foreground">
                   <span className="w-2 h-2 rounded-full bg-primary animate-ping shrink-0" />
@@ -374,7 +374,7 @@ export default function UserLayout() {
                   </span>
                 </div>
                 <Link
-                  to={userPortfolio ? `/setup-portfolio?planId=${userPortfolio.planId}&portfolioId=${userPortfolio.id}` : "/setup-portfolio"}
+                  to={userPortfolio ? `/setup-portfolio?planId=${userPortfolio.planId}&portfolioId=${userPortfolio.id}` : ((dbUser as any)?.activePlanId ? `/setup-portfolio?planId=${(dbUser as any).activePlanId}` : "/setup-portfolio")}
                   className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-primary hover:opacity-90 text-primary-foreground font-semibold text-xs shrink-0 self-start sm:self-auto transition-all shadow-xs"
                 >
                   <span>Complete Setup</span>
