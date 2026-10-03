@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { applyCors, sendSafeError } from '../_lib/security.js';
 import { getStockPricesCollection, type StockPriceDocument } from '../_lib/mongodb.js';
+import { BSE_TOP_EQUITIES } from '../_lib/bseEquitiesMaster.js';
 
 const BSE_HEADERS = {
   'Accept': 'application/json, text/plain, */*',
@@ -14,7 +15,7 @@ async function fetchLiveBseHeader(scripCode: string): Promise<StockPriceDocument
     const url = `https://api.bseindia.com/BseIndiaAPI/api/getScripHeaderData/w?Debtflag=&scripcode=${scripCode}&seriesid=`;
     const res = await fetch(url, {
       headers: BSE_HEADERS,
-      signal: AbortSignal.timeout(3000)
+      signal: AbortSignal.timeout(3500)
     });
     if (!res.ok) return null;
     const data: any = await res.json();
@@ -61,77 +62,90 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return sendSafeError(res, 405, 'Method not allowed. Use GET.');
   }
 
+  const scripCodesParam = (req.query.scripCodes as string || '').trim();
+  const symbolsParam = (req.query.symbols as string || '').trim();
+
+  let codes = scripCodesParam ? scripCodesParam.split(',').map(s => s.trim()).filter(Boolean) : [];
+  const syms = symbolsParam ? symbolsParam.split(',').map(s => s.trim().toUpperCase()).filter(Boolean) : [];
+
+  // Map known symbols to scrip codes if codes weren't explicitly provided
+  if (codes.length === 0 && syms.length > 0) {
+    for (const sym of syms) {
+      const match = BSE_TOP_EQUITIES.find(e => e.symbol.toUpperCase() === sym);
+      if (match && !codes.includes(match.scripCode)) {
+        codes.push(match.scripCode);
+      }
+    }
+  }
+
+  let docs: any[] = [];
+  const foundCodes = new Set<string>();
+  let collection: any = null;
+
+  // Layer 1: Query MongoDB Cache safely (gracefully bypasses if DB is unreachable)
   try {
-    const collection = await getStockPricesCollection();
-    const scripCodesParam = (req.query.scripCodes as string || '').trim();
-    const symbolsParam = (req.query.symbols as string || '').trim();
-
+    collection = await getStockPricesCollection();
     let filter: any = {};
-    const codes = scripCodesParam ? scripCodesParam.split(',').map(s => s.trim()).filter(Boolean) : [];
-    const syms = symbolsParam ? symbolsParam.split(',').map(s => s.trim().toUpperCase()).filter(Boolean) : [];
-
     if (codes.length > 0) {
       filter.scripCode = { $in: codes };
     } else if (syms.length > 0) {
       filter.shortName = { $in: syms };
     }
 
-    const docs = await collection.find(filter).toArray();
-    const foundCodes = new Set(docs.map(d => d.scripCode));
+    docs = await collection.find(filter).toArray();
+    docs.forEach(d => foundCodes.add(d.scripCode));
+  } catch (dbErr) {
+    console.warn('[MongoDB Cache Access Warning - Proceeding with Direct BSE Fetch]', dbErr);
+  }
 
-    // Parallel fetch for any requested scrip codes not yet in cache
-    const missingCodes = codes.filter(c => !foundCodes.has(c));
-    if (missingCodes.length > 0) {
-      const fetchPromises = missingCodes.slice(0, 10).map(async (code) => {
-        const liveDoc = await fetchLiveBseHeader(code);
-        if (liveDoc) {
-          docs.push(liveDoc as any);
-          foundCodes.add(code);
+  // Layer 2: Live BSE Header Fetch for any missing requested scrip codes
+  const missingCodes = codes.filter(c => !foundCodes.has(c));
+  if (missingCodes.length > 0) {
+    const fetchPromises = missingCodes.slice(0, 15).map(async (code) => {
+      const liveDoc = await fetchLiveBseHeader(code);
+      if (liveDoc) {
+        docs.push(liveDoc as any);
+        foundCodes.add(code);
+        if (collection) {
           collection.updateOne(
             { scripCode: code },
             { $set: liveDoc },
             { upsert: true }
-          ).catch(e => console.warn('[MongoDB Upsert Cache Warn]', e));
+          ).catch(() => {});
         }
-      });
-      await Promise.allSettled(fetchPromises);
-    }
-
-    // Build fast lookup dictionary indexed by both scripCode and shortName
-    const dict: Record<string, any> = {};
-    docs.forEach(doc => {
-      const cleanDoc = {
-        scripCode: doc.scripCode,
-        shortName: doc.shortName,
-        scripName: doc.scripName,
-        isin: doc.isin,
-        ltp: doc.ltp,
-        ltpPaise: doc.ltpPaise,
-        change: doc.change,
-        percentChange: doc.percentChange,
-        prevClose: doc.prevClose,
-        open: doc.open,
-        high: doc.high,
-        low: doc.low,
-        asOn: doc.asOn,
-        updatedAt: doc.updatedAt
-      };
-      if (doc.scripCode) dict[doc.scripCode] = cleanDoc;
-      if (doc.shortName) dict[doc.shortName.toUpperCase()] = cleanDoc;
+      }
     });
-
-    res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=180');
-    return res.status(200).json({
-      success: true,
-      count: docs.length,
-      data: dict,
-      list: docs
-    });
-  } catch (err: any) {
-    console.error('[Stock Prices Fetch Error]', err);
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to retrieve stock prices from database'
-    });
+    await Promise.allSettled(fetchPromises);
   }
+
+  // Build fast lookup dictionary indexed by both scripCode and shortName
+  const dict: Record<string, any> = {};
+  docs.forEach(doc => {
+    const cleanDoc = {
+      scripCode: doc.scripCode,
+      shortName: doc.shortName,
+      scripName: doc.scripName,
+      isin: doc.isin,
+      ltp: doc.ltp,
+      ltpPaise: doc.ltpPaise,
+      change: doc.change,
+      percentChange: doc.percentChange,
+      prevClose: doc.prevClose,
+      open: doc.open,
+      high: doc.high,
+      low: doc.low,
+      asOn: doc.asOn,
+      updatedAt: doc.updatedAt
+    };
+    if (doc.scripCode) dict[doc.scripCode] = cleanDoc;
+    if (doc.shortName) dict[doc.shortName.toUpperCase()] = cleanDoc;
+  });
+
+  res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=180');
+  return res.status(200).json({
+    success: true,
+    count: docs.length,
+    data: dict,
+    list: docs
+  });
 }
