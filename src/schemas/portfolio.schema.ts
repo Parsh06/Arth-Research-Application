@@ -29,6 +29,7 @@ export const PortfolioHoldingSchema = z.object({
   currentValueMinor: z.number().int().optional(),
   pnlMinor: z.number().int().optional(),
   allocationBps: z.number().int().optional(), // Basis points (e.g. 1500 = 15.00%)
+  targetWeightPercent: z.number().optional(), // Target model weight % from advisory plan (e.g. 10 = 10%)
   createdAt: z.string().optional(),
   updatedAt: z.string().optional()
 });

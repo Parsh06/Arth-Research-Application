@@ -19,6 +19,8 @@ interface StockEntry {
   companyName: string;
   scripCode?: string;
   isin?: string;
+  targetWeightPercent?: number;
+  recommendedPriceMinor?: number;
   quantity: string;
   buyPrice: string;
 }
@@ -35,6 +37,7 @@ export default function InvestmentEntryPage() {
   const urlPlanId = searchParams.get('planId') || statePlan?.id;
 
   const [stocks, setStocks] = useState<StockEntry[]>([]);
+  const [deploymentCapital, setDeploymentCapital] = useState<number>(50000);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activePlanId, setActivePlanId] = useState<string | null>(urlPlanId);
@@ -69,6 +72,8 @@ export default function InvestmentEntryPage() {
                 companyName: h.companyName || h.symbol,
                 scripCode: h.scripCode || undefined,
                 isin: h.isin || undefined,
+                targetWeightPercent: (h as any).targetWeightPercent || 10,
+                recommendedPriceMinor: h.buyPriceMinor,
                 quantity: h.quantity.toString(),
                 buyPrice: toRupees(h.buyPriceMinor).toString()
               })));
@@ -79,7 +84,6 @@ export default function InvestmentEntryPage() {
         }
 
         // 2. Resolve target plan ID with multi-source fallback:
-        // Query param -> User profile activePlanId -> Active subscription doc -> User portfolio -> Default plan
         let targetPlanId = urlPlanId || (dbUser as any)?.activePlanId;
 
         if (!targetPlanId) {
@@ -104,6 +108,15 @@ export default function InvestmentEntryPage() {
         }
 
         setActivePlanId(targetPlanId);
+
+        // Synchronize default deployment capital from plan
+        if (targetPlanId) {
+          const foundPlan: any = plans.find(p => p.id === targetPlanId);
+          if (foundPlan) {
+            const minCap = foundPlan.minInvestmentMinor ? toRupees(foundPlan.minInvestmentMinor) : (foundPlan.minInvestment || 50000);
+            setDeploymentCapital(minCap);
+          }
+        }
 
         // 3. Check for saved local draft (prevents data loss if user refreshed or connection dropped)
         const draftKey = `arth_draft_holdings_${user.uid}_${targetPlanId || 'generic'}`;
@@ -132,25 +145,28 @@ export default function InvestmentEntryPage() {
               companyName: h.companyName || h.symbol,
               scripCode: h.scripCode || undefined,
               isin: h.isin || undefined,
+              targetWeightPercent: h.targetWeightPercent !== undefined ? Number(h.targetWeightPercent) : 10,
+              recommendedPriceMinor: h.recommendedPriceMinor || undefined,
               quantity: '',
-              buyPrice: ''
+              buyPrice: h.recommendedPriceMinor ? toRupees(h.recommendedPriceMinor).toString() : ''
             })));
           } else if (plan && plan.recommendedStocks && plan.recommendedStocks.length > 0) {
             setStocks(plan.recommendedStocks.map((symbol: string, i: number) => ({
               id: Date.now().toString() + i,
               symbol,
               companyName: symbol,
+              targetWeightPercent: 10,
               quantity: '',
               buyPrice: ''
             })));
           } else {
             setStocks([
-              { id: '1', symbol: '', companyName: '', quantity: '', buyPrice: '' }
+              { id: '1', symbol: '', companyName: '', targetWeightPercent: 10, quantity: '', buyPrice: '' }
             ]);
           }
         } else {
           setStocks([
-            { id: '1', symbol: '', companyName: '', quantity: '', buyPrice: '' }
+            { id: '1', symbol: '', companyName: '', targetWeightPercent: 10, quantity: '', buyPrice: '' }
           ]);
         }
       } catch (err) {
@@ -190,7 +206,7 @@ export default function InvestmentEntryPage() {
     }
   }, [stocks, fetchLivePrices]);
 
-  const updateStock = (id: string, field: keyof StockEntry, value: string) => {
+  const updateStock = (id: string, field: keyof StockEntry, value: any) => {
     setStocks(stocks.map(s => s.id === id ? { ...s, [field]: value } : s));
     setError(null);
   };
@@ -202,6 +218,7 @@ export default function InvestmentEntryPage() {
         id: `custom_${Date.now()}`,
         symbol: '',
         companyName: '',
+        targetWeightPercent: 10,
         quantity: '',
         buyPrice: ''
       }
@@ -218,6 +235,27 @@ export default function InvestmentEntryPage() {
       const priceMinor = toMinorUnits(stock.buyPrice);
       return total + (qty * priceMinor);
     }, 0);
+  };
+
+  // Smart Auto-Calculation of Quantities based on Target Allocation Weights and Live Prices
+  const autoCalculateQuantitiesByWeight = () => {
+    const capital = Number(deploymentCapital) || 50000;
+    setStocks(prev => prev.map(stock => {
+      const weight = Number(stock.targetWeightPercent) || 0;
+      const targetAllocationRupees = (capital * weight) / 100;
+      const liveQuote = stock.scripCode ? livePrices[stock.scripCode] : (stock.symbol ? livePrices[stock.symbol] : undefined);
+      const priceRupees = parseFloat(stock.buyPrice) || (liveQuote && liveQuote.ltp > 0 ? liveQuote.ltp : (stock.recommendedPriceMinor ? toRupees(stock.recommendedPriceMinor) : 0));
+
+      if (priceRupees > 0) {
+        const calculatedQty = Math.max(1, Math.floor(targetAllocationRupees / priceRupees));
+        return {
+          ...stock,
+          buyPrice: priceRupees.toFixed(2),
+          quantity: calculatedQty.toString()
+        };
+      }
+      return stock;
+    }));
   };
 
   const validate = () => {
@@ -296,15 +334,25 @@ export default function InvestmentEntryPage() {
     setError(null);
 
     try {
-      const formattedHoldings = stocks.map(s => ({
-        symbol: s.symbol.trim().toUpperCase(),
-        companyName: s.companyName || s.symbol.trim().toUpperCase(),
-        scripCode: s.scripCode || undefined,
-        isin: s.isin || undefined,
-        exchange: 'BSE',
-        quantity: parseInt(s.quantity, 10),
-        buyPriceMinor: toMinorUnits(s.buyPrice)
-      }));
+      const totalInvestedMinor = calculateTotalInvestmentMinor() || 1;
+      const formattedHoldings = stocks.map(s => {
+        const qty = parseInt(s.quantity, 10);
+        const buyPriceMinor = toMinorUnits(s.buyPrice);
+        const investedAmountMinor = qty * buyPriceMinor;
+        const allocationBps = Math.round((investedAmountMinor / totalInvestedMinor) * 10000);
+        return {
+          symbol: s.symbol.trim().toUpperCase(),
+          companyName: s.companyName || s.symbol.trim().toUpperCase(),
+          scripCode: s.scripCode || undefined,
+          isin: s.isin || undefined,
+          exchange: 'BSE',
+          quantity: qty,
+          buyPriceMinor,
+          investedAmountMinor,
+          allocationBps,
+          targetWeightPercent: s.targetWeightPercent !== undefined ? Number(s.targetWeightPercent) : undefined
+        };
+      });
 
       const userPorts = await portfolioRepository.getUserPortfolios(user.uid).catch(() => []);
       const existingForPlan = userPorts.find(p => p.planId === (activePlan?.id || activePlanId));
@@ -372,12 +420,14 @@ export default function InvestmentEntryPage() {
   }
 
   const totalInvMinor = calculateTotalInvestmentMinor();
+  const totalTargetWeight = stocks.reduce((sum, s) => sum + (Number(s.targetWeightPercent) || 0), 0);
+  const totalPlannedMinor = toMinorUnits(deploymentCapital);
 
   return (
     <div className="min-h-screen bg-mesh bg-background text-foreground selection:bg-primary selection:text-primary-foreground transition-colors duration-200 pb-20">
       <TopNavBar backTo="/plans" label="Exit Setup" />
       
-      <div className="max-w-6xl mx-auto pt-24 px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto pt-24 px-4 sm:px-6 lg:px-8">
         
         {/* Progress Stepper */}
         <div className="mb-8 max-w-2xl mx-auto flex items-center justify-between text-xs font-mono">
@@ -400,13 +450,13 @@ export default function InvestmentEntryPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           
           {/* Main Entry Table Card */}
-          <div className="lg:col-span-8">
+          <div className="lg:col-span-8 space-y-4">
             <motion.div 
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
-              className="glass-panel p-6 shadow-sm"
+              className="glass-panel p-5 sm:p-6 shadow-sm space-y-5"
             >
-              <div className="mb-5 pb-4 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="pb-4 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <span className="text-[10px] font-mono uppercase tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
                     {siteContent?.investmentEntryPage?.badgeText && !siteContent.investmentEntryPage.badgeText.startsWith('Default ') ? siteContent.investmentEntryPage.badgeText : "Strategy Model Basket"}
@@ -425,19 +475,55 @@ export default function InvestmentEntryPage() {
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-mono border border-primary/30 text-primary hover:bg-primary/10 transition-colors cursor-pointer self-start sm:self-auto shrink-0"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>Add Ticker</span>
+                  <span>Add Custom Ticker</span>
+                </button>
+              </div>
+
+              {/* Capital Allocation & Weight Auto-Calculation Toolbar */}
+              <div className="p-3.5 rounded-lg bg-card/80 border border-border flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-mono text-muted-foreground whitespace-nowrap">
+                      Planned Deployment Capital:
+                    </label>
+                    <div className="relative w-32">
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs font-mono text-muted-foreground">₹</span>
+                      <input
+                        type="number"
+                        min={1000}
+                        step={1000}
+                        value={deploymentCapital}
+                        onChange={(e) => setDeploymentCapital(Number(e.target.value))}
+                        className="w-full glass-panel-data pl-6 pr-2 py-1 text-xs font-mono font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-primary rounded"
+                      />
+                    </div>
+                  </div>
+
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+                    Model Weights Sum: <strong>{totalTargetWeight}%</strong>
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={autoCalculateQuantitiesByWeight}
+                  className="bg-primary hover:opacity-90 text-primary-foreground font-semibold px-3 py-1.5 rounded text-xs font-mono transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
+                  title="Auto-calculate share quantities and target prices based on allocation weights"
+                >
+                  <Calculator className="w-3.5 h-3.5" />
+                  <span>Calculate Quantities by Weight</span>
                 </button>
               </div>
 
               {error && (
-                <div className="p-3.5 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-xs font-mono mb-4 flex items-center gap-2">
+                <div className="p-3.5 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-xs font-mono flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>{error}</span>
                 </div>
               )}
 
               {draftRestored && (
-                <div className="p-3 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-500 text-xs font-mono mb-4 flex items-center justify-between gap-2 shadow-xs">
+                <div className="p-3 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-500 text-xs font-mono flex items-center justify-between gap-2 shadow-xs">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 shrink-0 text-amber-500" />
                     <span>Session Restored: We recovered your unsaved stock entries from your previous session.</span>
@@ -457,7 +543,7 @@ export default function InvestmentEntryPage() {
               )}
 
               {/* Quick Search & Add from BSE */}
-              <div className="mb-5 p-3.5 rounded-lg bg-card/60 border border-border">
+              <div className="p-3.5 rounded-lg bg-card/60 border border-border">
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-[11px] font-mono text-muted-foreground font-semibold flex items-center gap-1.5">
                     <Search className="w-3.5 h-3.5 text-primary" />
@@ -473,14 +559,18 @@ export default function InvestmentEntryPage() {
                 />
               </div>
 
+              {/* Responsive Holdings Matrix */}
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="border-b border-border text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
                       <th className="pb-2.5 px-2">Ticker / Security</th>
-                      <th className="pb-2.5 px-2">Quantity</th>
-                      <th className="pb-2.5 px-2">Avg Price (₹)</th>
-                      <th className="pb-2.5 px-2 text-right">Investment Value</th>
+                      <th className="pb-2.5 px-2 text-center">Target Weight</th>
+                      <th className="pb-2.5 px-2">Target Budget</th>
+                      <th className="pb-2.5 px-2">Executed Qty</th>
+                      <th className="pb-2.5 px-2">Buy Price (₹)</th>
+                      <th className="pb-2.5 px-2 text-right">Actual Invested</th>
+                      <th className="pb-2.5 px-2 text-center">Actual Weight</th>
                       <th className="pb-2.5 px-2 text-center w-10"></th>
                     </tr>
                   </thead>
@@ -489,11 +579,15 @@ export default function InvestmentEntryPage() {
                       const qty = parseInt(stock.quantity, 10) || 0;
                       const priceMinor = toMinorUnits(stock.buyPrice);
                       const invMinor = qty * priceMinor;
+                      const targetWeight = Number(stock.targetWeightPercent) || 0;
+                      const targetBudgetRupees = (deploymentCapital * targetWeight) / 100;
+                      const actualWeightPercent = totalInvMinor > 0 ? ((invMinor / totalInvMinor) * 100) : 0;
+                      const weightDrift = Math.abs(actualWeightPercent - targetWeight);
                       const liveQuote = stock.scripCode ? livePrices[stock.scripCode] : (stock.symbol ? livePrices[stock.symbol] : undefined);
 
                       return (
                         <tr key={stock.id} className="hover:bg-muted/30 transition-colors">
-                          <td className="py-3 px-2 font-semibold text-foreground text-xs min-w-[240px]">
+                          <td className="py-3 px-2 font-semibold text-foreground text-xs min-w-[200px]">
                             {!stock.symbol ? (
                               <StockSearchInput
                                 usePortal={true}
@@ -529,12 +623,35 @@ export default function InvestmentEntryPage() {
                                     <Edit2 className="w-3 h-3" />
                                   </button>
                                 </div>
-                                <span className="text-[10px] text-muted-foreground truncate max-w-[210px] mt-0.5">
+                                <span className="text-[10px] text-muted-foreground truncate max-w-[180px] mt-0.5">
                                   {stock.companyName}
                                 </span>
                               </div>
                             )}
                           </td>
+
+                          {/* Target Weight % Modifier */}
+                          <td className="py-3 px-2 text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                value={stock.targetWeightPercent ?? 10}
+                                onChange={(e) => updateStock(stock.id, 'targetWeightPercent', Number(e.target.value))}
+                                className="w-14 glass-panel-data p-1 text-xs text-center font-mono font-bold text-primary focus:outline-none focus:ring-1 focus:ring-primary rounded"
+                                title="Target allocation %"
+                              />
+                              <span className="text-xs text-primary font-bold">%</span>
+                            </div>
+                          </td>
+
+                          {/* Target Budget Value */}
+                          <td className="py-3 px-2 text-xs font-mono text-muted-foreground whitespace-nowrap">
+                            ₹{Math.round(targetBudgetRupees).toLocaleString('en-IN')}
+                          </td>
+
+                          {/* Quantity Input */}
                           <td className="py-3 px-2">
                             <input
                               type="number"
@@ -542,9 +659,11 @@ export default function InvestmentEntryPage() {
                               value={stock.quantity}
                               onChange={(e) => updateStock(stock.id, 'quantity', e.target.value)}
                               placeholder="0"
-                              className="w-20 glass-panel-data p-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                              className="w-18 glass-panel-data p-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary rounded"
                             />
                           </td>
+
+                          {/* Buy Price Input + Live LTP */}
                           <td className="py-3 px-2">
                             <input
                               type="number"
@@ -553,7 +672,7 @@ export default function InvestmentEntryPage() {
                               value={stock.buyPrice}
                               onChange={(e) => updateStock(stock.id, 'buyPrice', e.target.value)}
                               placeholder="0.00"
-                              className="w-24 glass-panel-data p-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                              className="w-22 glass-panel-data p-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary rounded"
                             />
                             {liveQuote && liveQuote.ltp > 0 && (
                               <div className="mt-1 flex items-center gap-1 text-[10px] font-mono text-muted-foreground whitespace-nowrap">
@@ -572,9 +691,28 @@ export default function InvestmentEntryPage() {
                               </div>
                             )}
                           </td>
-                          <td className="py-3 px-2 text-right font-semibold tabular-nums text-foreground">
+
+                          {/* Actual Executed Amount */}
+                          <td className="py-3 px-2 text-right font-semibold tabular-nums text-foreground whitespace-nowrap">
                             {formatINR(invMinor)}
                           </td>
+
+                          {/* Actual Executed Weight % vs Target */}
+                          <td className="py-3 px-2 text-center whitespace-nowrap">
+                            {totalInvMinor > 0 ? (
+                              <span className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded border ${
+                                weightDrift <= 2 ? 'bg-[hsl(var(--success))/0.1] text-[hsl(var(--success))] border-[hsl(var(--success))/0.3]' :
+                                weightDrift <= 5 ? 'bg-amber-500/10 text-amber-500 border-amber-500/30' :
+                                'bg-destructive/10 text-destructive border-destructive/30'
+                              }`}>
+                                {actualWeightPercent.toFixed(1)}%
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-muted-foreground">-</span>
+                            )}
+                          </td>
+
+                          {/* Remove Action */}
                           <td className="py-3 px-2 text-center">
                             {stocks.length > 1 && (
                               <button
@@ -594,7 +732,7 @@ export default function InvestmentEntryPage() {
                 </table>
               </div>
 
-              <div className="mt-6 pt-4 border-t border-border flex justify-end">
+              <div className="pt-4 border-t border-border flex justify-end">
                 <button 
                   onClick={handleSubmit}
                   disabled={isSubmitting}
@@ -613,30 +751,54 @@ export default function InvestmentEntryPage() {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="glass-panel p-6 shadow-sm"
+              className="glass-panel p-6 shadow-sm space-y-4"
             >
-              <div className="flex items-center gap-2 mb-4 pb-3 border-b border-border">
+              <div className="flex items-center gap-2 pb-3 border-b border-border">
                 <Calculator className="w-4 h-4 text-primary" />
                 <h3 className="text-xs font-mono uppercase tracking-wider text-foreground font-semibold">
-                  Portfolio Aggregate
+                  Portfolio Allocation Telemetry
                 </h3>
               </div>
               
               <div className="space-y-3 text-xs font-mono">
                 <div>
-                  <span className="block text-muted-foreground text-[10px] uppercase mb-0.5">Strategy Model</span>
+                  <span className="block text-muted-foreground text-[10px] uppercase mb-0.5">Strategy Model Mandate</span>
                   <span className="font-semibold text-foreground">{activePlan?.name || '-'}</span>
                 </div>
                 
-                <div>
-                  <span className="block text-muted-foreground text-[10px] uppercase mb-0.5">Total Positions</span>
-                  <span className="font-semibold text-foreground">{stocks.length} Holdings</span>
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/60">
+                  <div>
+                    <span className="block text-muted-foreground text-[10px] uppercase mb-0.5">Total Positions</span>
+                    <span className="font-semibold text-foreground">{stocks.length} Holdings</span>
+                  </div>
+                  <div>
+                    <span className="block text-muted-foreground text-[10px] uppercase mb-0.5">Target Total Weight</span>
+                    <span className="font-semibold text-primary">{totalTargetWeight}%</span>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-border/60">
+                  <span className="block text-muted-foreground text-[10px] uppercase mb-0.5">Planned Capital Target</span>
+                  <span className="text-sm font-semibold text-muted-foreground tabular-nums">
+                    ₹{deploymentCapital.toLocaleString('en-IN')}
+                  </span>
                 </div>
                 
                 <div className="pt-2 border-t border-border">
-                  <span className="block text-muted-foreground text-[10px] uppercase mb-1">Total Deployed Capital</span>
+                  <span className="block text-muted-foreground text-[10px] uppercase mb-1">Total Executed Capital</span>
                   <span className="text-xl font-semibold text-primary tabular-nums">{formatINR(totalInvMinor)}</span>
                 </div>
+
+                {totalInvMinor > 0 && (
+                  <div className="p-2.5 rounded glass-panel-data text-[11px] space-y-1">
+                    <div className="flex items-center justify-between text-muted-foreground">
+                      <span>Execution Delta:</span>
+                      <span className="font-semibold text-foreground">
+                        {totalInvMinor >= totalPlannedMinor ? '+' : '-'}{formatINR(Math.abs(totalInvMinor - totalPlannedMinor))}
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 <div className="pt-3 border-t border-border">
                   <span className="block text-muted-foreground text-[10px] uppercase mb-1">Verification SLA</span>
