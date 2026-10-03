@@ -6,13 +6,16 @@ const BSE_HEADERS = {
   'Accept': 'application/json, text/plain, */*',
   'Origin': 'https://www.bseindia.com',
   'Referer': 'https://www.bseindia.com/',
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
 };
 
 async function fetchLiveBseHeader(scripCode: string): Promise<StockPriceDocument | null> {
   try {
     const url = `https://api.bseindia.com/BseIndiaAPI/api/getScripHeaderData/w?Debtflag=&scripcode=${scripCode}&seriesid=`;
-    const res = await fetch(url, { headers: BSE_HEADERS });
+    const res = await fetch(url, {
+      headers: BSE_HEADERS,
+      signal: AbortSignal.timeout(3000)
+    });
     if (!res.ok) return null;
     const data: any = await res.json();
 
@@ -44,7 +47,7 @@ async function fetchLiveBseHeader(scripCode: string): Promise<StockPriceDocument
       updatedAt: new Date()
     };
   } catch (err) {
-    console.error(`[BSE Header Fetch Error for ${scripCode}]`, err);
+    console.warn(`[BSE Header Fetch Error/Timeout for ${scripCode}]`, err);
     return null;
   }
 }
@@ -76,21 +79,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const docs = await collection.find(filter).toArray();
     const foundCodes = new Set(docs.map(d => d.scripCode));
 
-    // For any explicitly requested scrip code not yet in cache, fetch on-the-fly from BSE
-    for (const code of codes) {
-      if (!foundCodes.has(code)) {
+    // Parallel fetch for any requested scrip codes not yet in cache
+    const missingCodes = codes.filter(c => !foundCodes.has(c));
+    if (missingCodes.length > 0) {
+      const fetchPromises = missingCodes.slice(0, 10).map(async (code) => {
         const liveDoc = await fetchLiveBseHeader(code);
         if (liveDoc) {
           docs.push(liveDoc as any);
           foundCodes.add(code);
-          // Upsert to MongoDB asynchronously
           collection.updateOne(
             { scripCode: code },
             { $set: liveDoc },
             { upsert: true }
           ).catch(e => console.warn('[MongoDB Upsert Cache Warn]', e));
         }
-      }
+      });
+      await Promise.allSettled(fetchPromises);
     }
 
     // Build fast lookup dictionary indexed by both scripCode and shortName

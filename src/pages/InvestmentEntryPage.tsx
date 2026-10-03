@@ -238,27 +238,42 @@ export default function InvestmentEntryPage() {
   };
 
   // Smart Auto-Calculation of Quantities based on Target Allocation Weights and Live Prices
-  const autoCalculateQuantitiesByWeight = () => {
-    const capital = Number(deploymentCapital) || 50000;
-    setStocks(prev => prev.map(stock => {
-      const weight = Number(stock.targetWeightPercent) || 0;
-      const targetAllocationRupees = (capital * weight) / 100;
-      const liveQuote = stock.scripCode ? livePrices[stock.scripCode] : (stock.symbol ? livePrices[stock.symbol] : undefined);
-      const priceRupees = parseFloat(stock.buyPrice) || (liveQuote && liveQuote.ltp > 0 ? liveQuote.ltp : (stock.recommendedPriceMinor ? toRupees(stock.recommendedPriceMinor) : 0));
+  const autoCalculateQuantitiesByWeight = (customCap?: number) => {
+    const rawCapital = customCap !== undefined ? customCap : deploymentCapital;
+    const capital = Math.max(50000, Number(rawCapital) || 50000);
+    setDeploymentCapital(capital);
+    setStocks(prev => {
+      const defaultWeight = prev.length > 0 ? parseFloat((100 / prev.length).toFixed(1)) : 10;
+      return prev.map(stock => {
+        const weight = (Number(stock.targetWeightPercent) && Number(stock.targetWeightPercent) > 0)
+          ? Number(stock.targetWeightPercent)
+          : defaultWeight;
+        const targetAllocationRupees = (capital * weight) / 100;
+        const liveQuote = stock.scripCode ? livePrices[stock.scripCode] : (stock.symbol ? livePrices[stock.symbol] : undefined);
+        const priceRupees = parseFloat(stock.buyPrice) || (liveQuote && liveQuote.ltp > 0 ? liveQuote.ltp : (stock.recommendedPriceMinor ? toRupees(stock.recommendedPriceMinor) : 0));
 
-      if (priceRupees > 0) {
-        const calculatedQty = Math.max(1, Math.floor(targetAllocationRupees / priceRupees));
+        if (priceRupees > 0) {
+          const calculatedQty = Math.max(1, Math.floor(targetAllocationRupees / priceRupees));
+          return {
+            ...stock,
+            targetWeightPercent: weight,
+            buyPrice: priceRupees.toFixed(2),
+            quantity: calculatedQty.toString()
+          };
+        }
         return {
           ...stock,
-          buyPrice: priceRupees.toFixed(2),
-          quantity: calculatedQty.toString()
+          targetWeightPercent: weight
         };
-      }
-      return stock;
-    }));
+      });
+    });
   };
 
   const validate = () => {
+    if (deploymentCapital < 50000) {
+      return "Advisory plans require a minimum capital allocation of ₹50,000.";
+    }
+
     if (stocks.length === 0) return "No stocks found for this strategy allocation.";
     
     for (const s of stocks) {
@@ -480,39 +495,68 @@ export default function InvestmentEntryPage() {
               </div>
 
               {/* Capital Allocation & Weight Auto-Calculation Toolbar */}
-              <div className="p-3.5 rounded-lg bg-card/80 border border-border flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs font-mono text-muted-foreground whitespace-nowrap">
-                      Planned Deployment Capital:
-                    </label>
-                    <div className="relative w-32">
-                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs font-mono text-muted-foreground">₹</span>
-                      <input
-                        type="number"
-                        min={1000}
-                        step={1000}
-                        value={deploymentCapital}
-                        onChange={(e) => setDeploymentCapital(Number(e.target.value))}
-                        className="w-full glass-panel-data pl-6 pr-2 py-1 text-xs font-mono font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-primary rounded"
-                      />
+              <div className="p-4 rounded-lg bg-card/80 border border-border space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-mono text-muted-foreground whitespace-nowrap">
+                        Advisory Allocation Capital:
+                      </label>
+                      <div className="relative w-36">
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-mono text-muted-foreground">₹</span>
+                        <input
+                          type="number"
+                          min={50000}
+                          step={5000}
+                          value={deploymentCapital}
+                          onChange={(e) => setDeploymentCapital(Number(e.target.value))}
+                          className="w-full glass-panel-data pl-6 pr-2.5 py-1 text-xs font-mono font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-primary rounded"
+                        />
+                      </div>
                     </div>
+
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+                      Min Capital: <strong>₹50,000</strong>
+                    </span>
+
+                    <span className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
+                      totalTargetWeight === 100 
+                        ? 'bg-[hsl(var(--success))/0.1] text-[hsl(var(--success))] border-[hsl(var(--success))/0.3]' 
+                        : 'bg-amber-500/10 text-amber-500 border-amber-500/30'
+                    }`}>
+                      Model Weights: <strong>{totalTargetWeight}%</strong> {totalTargetWeight === 100 ? '✓ Balanced' : `(${100 - totalTargetWeight}% remaining)`}
+                    </span>
                   </div>
 
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
-                    Model Weights Sum: <strong>{totalTargetWeight}%</strong>
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => autoCalculateQuantitiesByWeight()}
+                    className="bg-primary hover:opacity-90 text-primary-foreground font-semibold px-3 py-1.5 rounded text-xs font-mono transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
+                    title="Auto-calculate share quantities and target prices based on allocation weights"
+                  >
+                    <Calculator className="w-3.5 h-3.5" />
+                    <span>Auto-Allocate by Weight</span>
+                  </button>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={autoCalculateQuantitiesByWeight}
-                  className="bg-primary hover:opacity-90 text-primary-foreground font-semibold px-3 py-1.5 rounded text-xs font-mono transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
-                  title="Auto-calculate share quantities and target prices based on allocation weights"
-                >
-                  <Calculator className="w-3.5 h-3.5" />
-                  <span>Calculate Quantities by Weight</span>
-                </button>
+                {/* Quick Capital Tier Presets */}
+                <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/40 text-[11px] font-mono">
+                  <span className="text-muted-foreground text-[10px] uppercase">Quick Capital Presets:</span>
+                  {[50000, 100000, 250000, 500000].map((cap) => (
+                    <button
+                      key={cap}
+                      type="button"
+                      onClick={() => autoCalculateQuantitiesByWeight(cap)}
+                      className={`px-2.5 py-1 rounded text-xs font-mono transition-all cursor-pointer border ${
+                        deploymentCapital === cap
+                          ? 'bg-primary text-primary-foreground border-primary font-bold shadow-xs'
+                          : 'glass-panel hover:bg-muted/40 text-foreground border-border'
+                      }`}
+                    >
+                      ₹{cap.toLocaleString('en-IN')} {cap === 50000 ? '(Min Mandate)' : ''}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {error && (
@@ -785,20 +829,29 @@ export default function InvestmentEntryPage() {
                 </div>
                 
                 <div className="pt-2 border-t border-border">
-                  <span className="block text-muted-foreground text-[10px] uppercase mb-1">Total Executed Capital</span>
+                  <span className="block text-muted-foreground text-[10px] uppercase mb-1">Total Equities Capital Deployed</span>
                   <span className="text-xl font-semibold text-primary tabular-nums">{formatINR(totalInvMinor)}</span>
+                  <span className="text-[10px] text-muted-foreground block mt-0.5">
+                    {totalPlannedMinor > 0 ? ((totalInvMinor / totalPlannedMinor) * 100).toFixed(1) : 0}% of ₹{deploymentCapital.toLocaleString('en-IN')} mandate
+                  </span>
                 </div>
 
-                {totalInvMinor > 0 && (
-                  <div className="p-2.5 rounded glass-panel-data text-[11px] space-y-1">
-                    <div className="flex items-center justify-between text-muted-foreground">
-                      <span>Execution Delta:</span>
-                      <span className="font-semibold text-foreground">
-                        {totalInvMinor >= totalPlannedMinor ? '+' : '-'}{formatINR(Math.abs(totalInvMinor - totalPlannedMinor))}
-                      </span>
-                    </div>
+                <div className="p-2.5 rounded glass-panel-data text-[11px] space-y-1.5 border border-border/60">
+                  <div className="flex items-center justify-between text-muted-foreground">
+                    <span>Unallocated Cash Reserve:</span>
+                    <span className="font-semibold text-foreground">
+                      {formatINR(Math.max(0, totalPlannedMinor - totalInvMinor))}
+                    </span>
                   </div>
-                )}
+                  <div className="flex items-center justify-between text-muted-foreground">
+                    <span>Allocation Parity Drift:</span>
+                    <span className={`font-semibold ${
+                      totalInvMinor <= totalPlannedMinor ? 'text-[hsl(var(--success))]' : 'text-amber-500'
+                    }`}>
+                      {totalInvMinor >= totalPlannedMinor ? '+' : '-'}{formatINR(Math.abs(totalInvMinor - totalPlannedMinor))}
+                    </span>
+                  </div>
+                </div>
 
                 <div className="pt-3 border-t border-border">
                   <span className="block text-muted-foreground text-[10px] uppercase mb-1">Verification SLA</span>

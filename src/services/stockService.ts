@@ -1,3 +1,5 @@
+import { getApiEndpoint } from '../config/api';
+
 export interface LiveStockPrice {
   scripCode: string;
   shortName: string;
@@ -38,10 +40,11 @@ export const stockService = {
       }
 
       const queryString = params.toString();
-      const url = `/api/stocks/prices${queryString ? `?${queryString}` : ''}`;
+      const url = getApiEndpoint(`/stocks/prices${queryString ? `?${queryString}` : ''}`);
       
       const res = await fetch(url);
-      if (!res.ok) {
+      const contentType = res.headers.get('content-type') || '';
+      if (!res.ok || !contentType.includes('application/json')) {
         throw new Error(`Failed to fetch stock prices, status: ${res.status}`);
       }
 

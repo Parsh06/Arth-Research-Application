@@ -1068,9 +1068,18 @@ export default function AdminSubscriptions() {
                       <PieChart className="w-3.5 h-3.5 text-primary" />
                       Model Equities & Allocation Basket ({holdings.length})
                     </span>
-                    <span className="text-[10px] font-mono font-semibold text-muted-foreground">
-                      Total Weight: {holdings.reduce((s, h) => s + h.targetWeightPercent, 0)}%
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-mono text-muted-foreground hidden sm:inline">
+                        Min Plan Baseline: <strong>₹{Math.max(50000, Number(minInvestmentRupees) || 50000).toLocaleString('en-IN')}</strong>
+                      </span>
+                      <span className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded border ${
+                        holdings.reduce((s, h) => s + h.targetWeightPercent, 0) === 100
+                          ? 'bg-[hsl(var(--success))/0.1] text-[hsl(var(--success))] border-[hsl(var(--success))/0.3]'
+                          : 'bg-amber-500/10 text-amber-500 border-amber-500/30'
+                      }`}>
+                        Total Weight: {holdings.reduce((s, h) => s + h.targetWeightPercent, 0)}% {holdings.reduce((s, h) => s + h.targetWeightPercent, 0) === 100 ? '✓' : ''}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="space-y-3">
@@ -1216,68 +1225,87 @@ export default function AdminSubscriptions() {
                         No model equities configured. Search and add stock recommendations above.
                       </div>
                     ) : (
-                      holdings.map((h, i) => (
-                        <div 
-                          key={i} 
-                          className={`py-2 px-3 flex items-center justify-between text-xs font-mono transition-colors ${
-                            editingHoldingIndex === i ? 'bg-primary/10 border-l-2 border-primary' : 'hover:bg-muted/20'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2 min-w-0 flex-1">
-                            <span className="font-bold text-foreground">{h.symbol}</span>
-                            {h.scripCode && (
-                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-primary/10 text-primary border border-primary/20 shrink-0">
-                                BSE: {h.scripCode}
-                              </span>
-                            )}
-                            <span className="text-muted-foreground text-[11px] truncate max-w-[140px] sm:max-w-[240px]">
-                              {h.companyName}
-                            </span>
-                          </div>
-                          
-                          <div className="flex items-center gap-2.5 shrink-0">
-                            {h.recommendedPriceMinor ? (
-                              <span className="text-[11px] text-muted-foreground hidden sm:inline">
-                                Ref LTP: <strong className="text-foreground">{formatINR(h.recommendedPriceMinor)}</strong>
-                              </span>
-                            ) : null}
+                      holdings.map((h, i) => {
+                        const baseCapital = Math.max(50000, Number(minInvestmentRupees) || 50000);
+                        const targetBudget = (baseCapital * h.targetWeightPercent) / 100;
+                        const refPrice = h.recommendedPriceMinor ? toRupees(h.recommendedPriceMinor) : 0;
+                        const estShares = refPrice > 0 ? Math.max(1, Math.floor(targetBudget / refPrice)) : 0;
+                        const estInvested = estShares * refPrice;
 
-                            {/* Inline Weight Modifier */}
-                            <div className="flex items-center gap-1">
-                              <input
-                                type="number"
-                                min={0}
-                                max={100}
-                                value={h.targetWeightPercent}
-                                onChange={(e) => handleUpdateHoldingWeightInline(i, Number(e.target.value))}
-                                className="w-14 glass-panel px-1.5 py-0.5 text-xs text-center font-mono font-bold text-primary focus:outline-none focus:ring-1 focus:ring-primary rounded"
-                                title="Adjust target weight %"
-                              />
-                              <span className="text-xs font-mono font-bold text-primary">%</span>
+                        return (
+                          <div 
+                            key={i} 
+                            className={`py-2.5 px-3 flex items-center justify-between text-xs font-mono transition-colors ${
+                              editingHoldingIndex === i ? 'bg-primary/10 border-l-2 border-primary' : 'hover:bg-muted/20'
+                            }`}
+                          >
+                            <div className="flex flex-col min-w-0 flex-1 pr-2">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-foreground">{h.symbol}</span>
+                                {h.scripCode && (
+                                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-primary/10 text-primary border border-primary/20 shrink-0">
+                                    BSE: {h.scripCode}
+                                  </span>
+                                )}
+                                <span className="text-muted-foreground text-[11px] truncate max-w-[140px] sm:max-w-[200px]">
+                                  {h.companyName}
+                                </span>
+                              </div>
+                              
+                              {/* Projected Allocation on ₹50,000 Baseline */}
+                              <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
+                                {h.recommendedPriceMinor ? (
+                                  <span>Ref LTP: <strong className="text-foreground">{formatINR(h.recommendedPriceMinor)}</strong></span>
+                                ) : null}
+                                <span>•</span>
+                                <span>Budget: <strong className="text-primary">₹{Math.round(targetBudget).toLocaleString('en-IN')}</strong></span>
+                                {estShares > 0 && (
+                                  <>
+                                    <span>•</span>
+                                    <span>Projected: <strong>{estShares} sh</strong> (₹{Math.round(estInvested).toLocaleString('en-IN')})</span>
+                                  </>
+                                )}
+                              </div>
                             </div>
+                            
+                            <div className="flex items-center gap-2.5 shrink-0">
+                              {/* Inline Weight Modifier */}
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="number"
+                                  min={0}
+                                  max={100}
+                                  value={h.targetWeightPercent}
+                                  onChange={(e) => handleUpdateHoldingWeightInline(i, Number(e.target.value))}
+                                  className="w-14 glass-panel px-1.5 py-0.5 text-xs text-center font-mono font-bold text-primary focus:outline-none focus:ring-1 focus:ring-primary rounded"
+                                  title="Adjust target weight %"
+                                />
+                                <span className="text-xs font-mono font-bold text-primary">%</span>
+                              </div>
 
-                            {/* Edit Holding Button */}
-                            <button
-                              type="button"
-                              onClick={() => handleEditHolding(i)}
-                              className="text-muted-foreground hover:text-primary p-1 rounded hover:bg-primary/10 transition-colors cursor-pointer"
-                              title="Edit holding parameters"
-                            >
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </button>
+                              {/* Edit Holding Button */}
+                              <button
+                                type="button"
+                                onClick={() => handleEditHolding(i)}
+                                className="text-muted-foreground hover:text-primary p-1 rounded hover:bg-primary/10 transition-colors cursor-pointer"
+                                title="Edit holding parameters"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
 
-                            {/* Remove Holding Button */}
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveHolding(i)}
-                              className="text-muted-foreground hover:text-destructive p-1 rounded hover:bg-destructive/10 transition-colors cursor-pointer"
-                              title="Remove position"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                              {/* Remove Holding Button */}
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveHolding(i)}
+                                className="text-muted-foreground hover:text-destructive p-1 rounded hover:bg-destructive/10 transition-colors cursor-pointer"
+                                title="Remove position"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
                 </div>

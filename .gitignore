@@ -97,4 +97,6 @@ Thumbs.db
 .gemini/
 .claude/
 .cursor/
+.playwright-mcp/
+
 

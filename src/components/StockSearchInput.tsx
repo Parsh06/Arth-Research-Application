@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, Loader2, Check, X, Building2 } from 'lucide-react';
+import { getApiEndpoint } from '../config/api';
+import { searchLocalBseMaster } from '../data/bseEquitiesMaster';
 
 export interface BseStockSelection {
   symbol: string;
@@ -83,34 +85,71 @@ export default function StockSearchInput({
   }, []);
 
   useEffect(() => {
-    if (!query || query.trim().length < 2) {
+    const cleanQ = query ? query.trim() : '';
+    if (!cleanQ || cleanQ.length < 1) {
       setResults([]);
       setIsLoading(false);
       setActiveIndex(-1);
       return;
     }
 
+    // Step 1: Pre-populate immediately from local curated BSE master (0ms latency!)
+    const localMatches = searchLocalBseMaster(cleanQ, 15);
+    if (localMatches.length > 0) {
+      setResults(localMatches);
+      setActiveIndex(0);
+    }
+
+    // Step 2: Fetch comprehensive live index from backend API
     const timer = setTimeout(async () => {
       setIsLoading(true);
       try {
-        const res = await fetch(`/api/stocks/search?q=${encodeURIComponent(query.trim())}`);
-        if (!res.ok) throw new Error('Search failed');
+        const endpoint = getApiEndpoint(`/stocks/search?q=${encodeURIComponent(cleanQ)}`);
+        const res = await fetch(endpoint);
+        
+        const contentType = res.headers.get('content-type') || '';
+        if (!res.ok || !contentType.includes('application/json')) {
+          throw new Error(`Search request returned status ${res.status}`);
+        }
+
         const json = await res.json();
-        if (json && Array.isArray(json.data)) {
-          setResults(json.data);
+        if (json && Array.isArray(json.data) && json.data.length > 0) {
+          const seen = new Set<string>();
+          const merged: BseStockSelection[] = [];
+          for (const item of json.data) {
+            if (item.scripCode && !seen.has(item.scripCode)) {
+              seen.add(item.scripCode);
+              merged.push(item);
+            }
+          }
+          for (const item of localMatches) {
+            if (item.scripCode && !seen.has(item.scripCode)) {
+              seen.add(item.scripCode);
+              merged.push(item);
+            }
+          }
+          setResults(merged);
+          setActiveIndex(0);
+        } else if (localMatches.length > 0) {
+          setResults(localMatches);
           setActiveIndex(0);
         } else {
           setResults([]);
           setActiveIndex(-1);
         }
       } catch (err) {
-        console.error('BSE stock search error:', err);
-        setResults([]);
-        setActiveIndex(-1);
+        console.warn('[BSE Stock Search Fetch Notice]', err);
+        if (localMatches.length > 0) {
+          setResults(localMatches);
+          setActiveIndex(0);
+        } else {
+          setResults([]);
+          setActiveIndex(-1);
+        }
       } finally {
         setIsLoading(false);
       }
-    }, 220);
+    }, 180);
 
     return () => clearTimeout(timer);
   }, [query]);

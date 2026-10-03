@@ -32,6 +32,7 @@ import { emailService, type EmailAuditLogEntry } from '../../services/emailServi
 import { subscriptionRepository } from '../../repositories/subscriptionRepository';
 import { useUserStore } from '../../stores/userStore';
 import type { Subscription } from '../../types/models';
+import { getApiEndpoint } from '../../config/api';
 
 export const AdminEmailHub: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
@@ -117,14 +118,14 @@ export const AdminEmailHub: React.FC = () => {
   };
 
   const handleCopyWebhook = () => {
-    const webhookUrl = `${window.location.origin}/api/cron/check-subscriptions`;
+    const webhookUrl = getApiEndpoint('/cron/check-subscriptions');
     navigator.clipboard.writeText(webhookUrl);
     setCopiedWebhook(true);
     setTimeout(() => setCopiedWebhook(false), 2000);
   };
 
   const handleCopyCurl = () => {
-    const webhookUrl = `${window.location.origin}/api/cron/check-subscriptions`;
+    const webhookUrl = getApiEndpoint('/cron/check-subscriptions');
     const curlCmd = `curl -X POST "${webhookUrl}"`;
     navigator.clipboard.writeText(curlCmd);
     setCopiedCurl(true);
@@ -135,7 +136,8 @@ export const AdminEmailHub: React.FC = () => {
     setIsPingingWebhook(true);
     setWebhookPingResult(null);
     try {
-      const res = await fetch('/api/cron/check-subscriptions', { method: 'POST' });
+      const endpoint = getApiEndpoint('/cron/check-subscriptions');
+      const res = await fetch(endpoint, { method: 'POST' });
       const data = await res.json();
       setWebhookPingResult({ status: res.status, ok: res.ok, data });
       refreshLogs();
