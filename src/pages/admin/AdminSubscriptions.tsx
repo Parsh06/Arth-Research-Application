@@ -76,6 +76,7 @@ export default function AdminSubscriptions() {
   const [newWeight, setNewWeight] = useState<number>(10);
   const [selectedStockPrice, setSelectedStockPrice] = useState<LiveStockPrice | null>(null);
   const [isPriceLoading, setIsPriceLoading] = useState(false);
+  const [editingHoldingIndex, setEditingHoldingIndex] = useState<number | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -174,6 +175,7 @@ export default function AdminSubscriptions() {
     setNewWeight(10);
     setSelectedStockPrice(null);
     setIsPriceLoading(false);
+    setEditingHoldingIndex(null);
   };
 
   const openCreatePlanModal = () => {
@@ -204,6 +206,7 @@ export default function AdminSubscriptions() {
     setNewWeight(10);
     setSelectedStockPrice(null);
     setIsPriceLoading(false);
+    setEditingHoldingIndex(null);
     setIsModalOpen(true);
   };
 
@@ -225,18 +228,62 @@ export default function AdminSubscriptions() {
     }
   };
 
-  const handleAddHolding = () => {
+  const handleEditHolding = async (index: number) => {
+    const target = holdings[index];
+    if (!target) return;
+    setEditingHoldingIndex(index);
+    setNewSymbol(target.symbol);
+    setNewCompany(target.companyName);
+    setNewScripCode(target.scripCode || '');
+    setNewIsin(target.isin || '');
+    setNewWeight(target.targetWeightPercent);
+    setIsPriceLoading(true);
+    try {
+      const prices = await stockService.getLatestPrices(
+        target.scripCode ? [target.scripCode] : undefined,
+        [target.symbol]
+      );
+      const quote = (target.scripCode ? prices[target.scripCode] : undefined) || prices[target.symbol] || prices[target.symbol.toUpperCase()];
+      setSelectedStockPrice(quote || null);
+    } catch {
+      setSelectedStockPrice(null);
+    } finally {
+      setIsPriceLoading(false);
+    }
+  };
+
+  const handleCancelHoldingEdit = () => {
+    setEditingHoldingIndex(null);
+    setNewSymbol('');
+    setNewCompany('');
+    setNewScripCode('');
+    setNewIsin('');
+    setNewWeight(10);
+    setSelectedStockPrice(null);
+  };
+
+  const handleUpdateHoldingWeightInline = (index: number, weight: number) => {
+    const safeWeight = Math.max(0, Math.min(100, isNaN(weight) ? 0 : weight));
+    setHoldings(prev => prev.map((h, i) => i === index ? { ...h, targetWeightPercent: safeWeight } : h));
+  };
+
+  const handleAddOrUpdateHolding = () => {
     if (!newSymbol.trim()) {
       addToast('Please select or specify a valid stock symbol', 'error');
       return;
     }
     const cleanSym = newSymbol.trim().toUpperCase();
-    const alreadyExists = holdings.some(h => 
-      (newScripCode && h.scripCode === newScripCode) || 
-      (h.symbol.toUpperCase() === cleanSym)
+
+    // Check duplicate if adding fresh or renaming to an existing ticker
+    const isDuplicate = holdings.some((h, i) => 
+      i !== editingHoldingIndex && (
+        (newScripCode && h.scripCode === newScripCode) || 
+        (h.symbol.toUpperCase() === cleanSym)
+      )
     );
-    if (alreadyExists) {
-      addToast(`${cleanSym} is already in this strategy allocation basket.`, 'error');
+
+    if (isDuplicate) {
+      addToast(`${cleanSym} is already configured in this strategy allocation basket.`, 'error');
       return;
     }
 
@@ -245,20 +292,29 @@ export default function AdminSubscriptions() {
       companyName: newCompany.trim() || cleanSym,
       scripCode: newScripCode.trim() || undefined,
       isin: newIsin.trim() || undefined,
-      targetWeightPercent: Number(newWeight) || 0,
-      recommendedPriceMinor: selectedStockPrice ? selectedStockPrice.ltpPaise : undefined,
+      targetWeightPercent: Math.max(0, Math.min(100, Number(newWeight) || 0)),
+      recommendedPriceMinor: selectedStockPrice ? selectedStockPrice.ltpPaise : (
+        editingHoldingIndex !== null ? holdings[editingHoldingIndex]?.recommendedPriceMinor : undefined
+      ),
     };
-    setHoldings(prev => [...prev, item]);
-    setNewSymbol('');
-    setNewCompany('');
-    setNewScripCode('');
-    setNewIsin('');
-    setNewWeight(10);
-    setSelectedStockPrice(null);
-    addToast(`Added ${cleanSym} to allocation basket`, 'success');
+
+    if (editingHoldingIndex !== null) {
+      setHoldings(prev => prev.map((h, i) => i === editingHoldingIndex ? item : h));
+      addToast(`Updated ${cleanSym} allocation parameters`, 'success');
+    } else {
+      setHoldings(prev => [...prev, item]);
+      addToast(`Added ${cleanSym} (${item.targetWeightPercent}%) to allocation basket`, 'success');
+    }
+
+    handleCancelHoldingEdit();
   };
 
   const handleRemoveHolding = (index: number) => {
+    if (editingHoldingIndex === index) {
+      handleCancelHoldingEdit();
+    } else if (editingHoldingIndex !== null && editingHoldingIndex > index) {
+      setEditingHoldingIndex(prev => (prev !== null ? prev - 1 : null));
+    }
     setHoldings(prev => prev.filter((_, i) => i !== index));
   };
 
@@ -1035,7 +1091,21 @@ export default function AdminSubscriptions() {
 
                     {/* Selected Security Live Preview & Allocation Card */}
                     {newSymbol ? (
-                      <div className="p-3.5 rounded-lg bg-card border border-primary/30 shadow-xs space-y-3 animate-in fade-in duration-150">
+                      <div className={`p-3.5 rounded-lg bg-card border ${editingHoldingIndex !== null ? 'border-primary shadow-sm ring-1 ring-primary/20' : 'border-primary/30 shadow-xs'} space-y-3 animate-in fade-in duration-150`}>
+                        {editingHoldingIndex !== null && (
+                          <div className="flex items-center justify-between pb-2 border-b border-primary/20 text-[11px] font-mono text-primary font-semibold">
+                            <span className="flex items-center gap-1.5">
+                              <Edit2 className="w-3 h-3" /> Modifying Basket Position #{editingHoldingIndex + 1} ({newSymbol})
+                            </span>
+                            <button
+                              type="button"
+                              onClick={handleCancelHoldingEdit}
+                              className="text-[10px] text-muted-foreground hover:text-foreground underline cursor-pointer"
+                            >
+                              Cancel Edit
+                            </button>
+                          </div>
+                        )}
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-border/60 pb-2.5">
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
@@ -1104,24 +1174,27 @@ export default function AdminSubscriptions() {
                           <div className="flex items-center gap-2">
                             <button
                               type="button"
-                              onClick={handleAddHolding}
+                              onClick={handleAddOrUpdateHolding}
                               className="bg-primary hover:opacity-90 text-primary-foreground font-semibold px-3 py-1.5 rounded text-xs transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
                             >
-                              <Plus className="w-3.5 h-3.5" />
-                              <span>Add to Strategy Basket</span>
+                              {editingHoldingIndex !== null ? (
+                                <>
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                  <span>Save Position Changes</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Plus className="w-3.5 h-3.5" />
+                                  <span>Add to Strategy Basket</span>
+                                </>
+                              )}
                             </button>
 
                             <button
                               type="button"
-                              onClick={() => {
-                                setNewSymbol('');
-                                setNewCompany('');
-                                setNewScripCode('');
-                                setNewIsin('');
-                                setSelectedStockPrice(null);
-                              }}
+                              onClick={handleCancelHoldingEdit}
                               className="text-muted-foreground hover:text-foreground text-xs font-mono p-1.5 rounded transition-colors cursor-pointer border border-border"
-                              title="Clear selection"
+                              title="Clear / Cancel"
                             >
                               <X className="w-3.5 h-3.5" />
                             </button>
@@ -1137,34 +1210,63 @@ export default function AdminSubscriptions() {
                   </div>
 
                   {/* Configured Basket List */}
-                  <div className="max-h-48 overflow-y-auto divide-y divide-border/40 rounded border border-border/50 bg-card/30">
+                  <div className="max-h-56 overflow-y-auto divide-y divide-border/40 rounded border border-border/50 bg-card/30">
                     {holdings.length === 0 ? (
                       <div className="py-5 text-center text-[11px] text-muted-foreground font-mono">
                         No model equities configured. Search and add stock recommendations above.
                       </div>
                     ) : (
                       holdings.map((h, i) => (
-                        <div key={i} className="py-2.5 px-3 flex items-center justify-between text-xs font-mono hover:bg-muted/20 transition-colors">
-                          <div className="flex items-center gap-2.5 min-w-0">
+                        <div 
+                          key={i} 
+                          className={`py-2 px-3 flex items-center justify-between text-xs font-mono transition-colors ${
+                            editingHoldingIndex === i ? 'bg-primary/10 border-l-2 border-primary' : 'hover:bg-muted/20'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
                             <span className="font-bold text-foreground">{h.symbol}</span>
                             {h.scripCode && (
-                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-primary/10 text-primary border border-primary/20">
+                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-primary/10 text-primary border border-primary/20 shrink-0">
                                 BSE: {h.scripCode}
                               </span>
                             )}
-                            <span className="text-muted-foreground text-[11px] truncate max-w-[180px] sm:max-w-[280px]">
+                            <span className="text-muted-foreground text-[11px] truncate max-w-[140px] sm:max-w-[240px]">
                               {h.companyName}
                             </span>
                           </div>
-                          <div className="flex items-center gap-3 shrink-0">
+                          
+                          <div className="flex items-center gap-2.5 shrink-0">
                             {h.recommendedPriceMinor ? (
                               <span className="text-[11px] text-muted-foreground hidden sm:inline">
                                 Ref LTP: <strong className="text-foreground">{formatINR(h.recommendedPriceMinor)}</strong>
                               </span>
                             ) : null}
-                            <span className="font-semibold text-primary px-2 py-0.5 rounded bg-primary/5 border border-primary/20">
-                              {h.targetWeightPercent}%
-                            </span>
+
+                            {/* Inline Weight Modifier */}
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="number"
+                                min={0}
+                                max={100}
+                                value={h.targetWeightPercent}
+                                onChange={(e) => handleUpdateHoldingWeightInline(i, Number(e.target.value))}
+                                className="w-14 glass-panel px-1.5 py-0.5 text-xs text-center font-mono font-bold text-primary focus:outline-none focus:ring-1 focus:ring-primary rounded"
+                                title="Adjust target weight %"
+                              />
+                              <span className="text-xs font-mono font-bold text-primary">%</span>
+                            </div>
+
+                            {/* Edit Holding Button */}
+                            <button
+                              type="button"
+                              onClick={() => handleEditHolding(i)}
+                              className="text-muted-foreground hover:text-primary p-1 rounded hover:bg-primary/10 transition-colors cursor-pointer"
+                              title="Edit holding parameters"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+
+                            {/* Remove Holding Button */}
                             <button
                               type="button"
                               onClick={() => handleRemoveHolding(i)}
