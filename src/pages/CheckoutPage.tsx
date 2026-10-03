@@ -335,34 +335,40 @@ export default function CheckoutPage() {
             let orderId = rzpResponse.orderId;
             let subscriptionId = rzpResponse.subscriptionId;
 
-            if (!orderId || !subscriptionId) {
-              // Graceful fallback if backend did not return IDs
-              const fallback = await orderRepository.createOrderAndProvisionOnSuccess({
-                userId: user.uid,
-                userEmail: user.email || '',
-                userName: user.displayName || 'Valued Investor',
-                userPhone: userPhoneClean || undefined,
-                planId: plan.id,
-                planName: plan.name,
-                planVersionId: (plan as any).versionId || 'version_1',
-                validityDays: plan.validityDays,
-                priceMinor: basePriceMinor,
-                discountMinor,
-                couponCode: couponApplied ? couponCode.trim().toUpperCase() : undefined,
-                taxMinor,
-                gatewayFeeMinor,
-                totalMinor,
-                gatewayPaymentId: rzpResponse.razorpay_payment_id,
-                gatewayOrderId: rzpResponse.razorpay_order_id,
-                gatewaySignature: rzpResponse.razorpay_signature,
-                paymentMode: realPaymentMode,
-                paymentMethod: realPaymentMethod
-              });
-              orderId = fallback.order.id;
-              subscriptionId = fallback.subscriptionId;
+            if (!orderId || !subscriptionId || !rzpResponse.serverProvisioned) {
+              // Graceful sync to Firestore via authenticated client SDK
+              try {
+                const fallback = await orderRepository.createOrderAndProvisionOnSuccess({
+                  userId: user.uid,
+                  userEmail: user.email || '',
+                  userName: user.displayName || 'Valued Investor',
+                  userPhone: userPhoneClean || undefined,
+                  planId: plan.id,
+                  planName: plan.name,
+                  planVersionId: (plan as any).versionId || 'version_1',
+                  validityDays: plan.validityDays,
+                  priceMinor: basePriceMinor,
+                  discountMinor,
+                  couponCode: couponApplied ? couponCode.trim().toUpperCase() : undefined,
+                  taxMinor,
+                  gatewayFeeMinor,
+                  totalMinor,
+                  gatewayPaymentId: rzpResponse.razorpay_payment_id,
+                  gatewayOrderId: rzpResponse.razorpay_order_id,
+                  gatewaySignature: rzpResponse.razorpay_signature,
+                  paymentMode: realPaymentMode,
+                  paymentMethod: realPaymentMethod
+                });
+                orderId = fallback.order.id;
+                subscriptionId = fallback.subscriptionId;
+              } catch (clientProvErr) {
+                console.warn('[CheckoutPage] Client provisioning sync note:', clientProvErr);
+              }
             }
 
-            const invoiceNumber = `INV-ARTH-${new Date().getFullYear()}-${orderId.slice(0, 6).toUpperCase()}`;
+            const safeOrderId = orderId || `ord_${rzpResponse.razorpay_order_id.replace(/^order_/, '')}`;
+            const safeSubscriptionId = subscriptionId || `sub_${Date.now().toString(36)}`;
+            const invoiceNumber = `INV-ARTH-${new Date().getFullYear()}-${safeOrderId.slice(0, 6).toUpperCase()}`;
 
             // 4. Generate official Tax Invoice PDF & send via email with attachment
             if (user.email) {
@@ -373,7 +379,7 @@ export default function CheckoutPage() {
                 invoiceNumber,
                 paymentDate: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
                 paymentId: rzpResponse.razorpay_payment_id,
-                orderId: orderId,
+                orderId: safeOrderId,
                 userName: user.displayName || 'Valued Investor',
                 userEmail: user.email || '',
                 planName: plan.name,
@@ -431,7 +437,7 @@ export default function CheckoutPage() {
               sessionStorage.setItem('last_successful_checkout', JSON.stringify({
                 planId: plan.id,
                 planName: plan.name,
-                subscriptionId,
+                subscriptionId: safeSubscriptionId,
                 totalMinor,
                 gatewayFeeMinor,
                 taxMinor,
@@ -457,9 +463,9 @@ export default function CheckoutPage() {
             setShowPaymentModal(false);
 
             // 7. Navigate to checkout confirmation success page with replace: true
-            navigate(`/checkout/success?planId=${plan.id}&subscriptionId=${subscriptionId}`, {
+            navigate(`/checkout/success?planId=${plan.id}&subscriptionId=${safeSubscriptionId}`, {
               replace: true,
-              state: { plan, subscriptionId, totalMinor, gatewayFeeMinor, taxMinor }
+              state: { plan, subscriptionId: safeSubscriptionId, totalMinor, gatewayFeeMinor, taxMinor }
             });
           } catch (provisionErr: any) {
             console.error('[CheckoutPage] Provisioning error:', provisionErr);

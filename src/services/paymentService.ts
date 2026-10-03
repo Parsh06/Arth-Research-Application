@@ -180,7 +180,7 @@ export const paymentService = {
     gatewayFeeMinor?: number;
     totalMinor?: number;
     userPhone?: string;
-  }): Promise<{ success: boolean; verified: boolean; orderId?: string; subscriptionId?: string; paymentId?: string; error?: string }> {
+  }): Promise<{ success: boolean; verified: boolean; orderId?: string; subscriptionId?: string; paymentId?: string; serverProvisioned?: boolean; error?: string }> {
     try {
       const endpoint = getApiEndpoint('/razorpay/verify-payment');
       const authHeaders = await getAuthHeaders();
@@ -226,13 +226,13 @@ export const paymentService = {
       gatewayFeeMinor?: number;
       totalMinor?: number;
     };
-    onSuccess: (payment: RazorpayPaymentSuccessPayload & { orderId?: string; subscriptionId?: string; paymentId?: string }) => void;
+    onSuccess: (payment: RazorpayPaymentSuccessPayload & { orderId?: string; subscriptionId?: string; paymentId?: string; serverProvisioned?: boolean }) => void;
     onFailure: (error: { code?: string; description?: string; reason?: string }) => void;
   }): Promise<void> {
     // Single-shot settle guard to prevent multiple callbacks from firing on duplicate events
     let isSettled = false;
 
-    const safeSuccess = (payment: RazorpayPaymentSuccessPayload & { orderId?: string; subscriptionId?: string; paymentId?: string }) => {
+    const safeSuccess = (payment: RazorpayPaymentSuccessPayload & { orderId?: string; subscriptionId?: string; paymentId?: string; serverProvisioned?: boolean }) => {
       if (isSettled) return;
       isSettled = true;
       options.onSuccess(payment);
@@ -312,7 +312,8 @@ export const paymentService = {
               ...response,
               orderId: verifyRes.orderId,
               subscriptionId: verifyRes.subscriptionId,
-              paymentId: verifyRes.paymentId
+              paymentId: verifyRes.paymentId,
+              serverProvisioned: verifyRes.serverProvisioned
             });
           } else {
             safeFailure({ description: verifyRes.error || 'Signature verification failed.' });
