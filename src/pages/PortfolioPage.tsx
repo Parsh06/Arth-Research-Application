@@ -3,7 +3,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } 
 import { usePortfolioStore } from '../stores/portfolioStore';
 import { useAuthStore } from '../stores/authStore';
 import { Link, useNavigate } from 'react-router-dom';
-import { Clock, Calendar, ArrowRight, AlertCircle, RefreshCw, Wallet, Layers, ShieldCheck, Activity, CheckCircle2 } from 'lucide-react';
+import { Clock, Calendar, ArrowRight, AlertCircle, RefreshCw, Wallet, Layers, ShieldCheck, Activity, CheckCircle2, TrendingUp, TrendingDown } from 'lucide-react';
 import StrategySelector from '../components/StrategySelector';
 import { formatINR } from '../utils/money';
 import { formatDate, getDaysRemaining } from '../utils/datetime';
@@ -283,8 +283,23 @@ export default function PortfolioPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <motion.div initial={{ y: 15, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="glass-panel p-5">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">Total Capital Deployed</span>
+            <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">Current Market Value</span>
             <Wallet className="w-4 h-4 text-primary" />
+          </div>
+          <p className="text-2xl font-mono tabular-nums font-semibold tracking-tight text-foreground mt-1">
+            {formatINR(valuation?.totalCurrentValueMinor || totalInvestedMinor)}
+          </p>
+          <span className="text-[10px] font-mono text-muted-foreground mt-1 block">
+            {valuation && valuation.pnlPercent !== 0 
+              ? `${valuation.pnlPercent >= 0 ? '+' : ''}${valuation.pnlPercent.toFixed(2)}% net return` 
+              : 'Live BSE Valuation'}
+          </span>
+        </motion.div>
+        
+        <motion.div initial={{ y: 15, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.05 }} className="glass-panel p-5">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">Capital Deployed</span>
+            <Layers className="w-4 h-4 text-primary" />
           </div>
           <p className="text-2xl font-mono tabular-nums font-semibold tracking-tight text-foreground mt-1">
             {formatINR(totalInvestedMinor)}
@@ -292,37 +307,42 @@ export default function PortfolioPage() {
           <span className="text-[10px] font-mono text-muted-foreground mt-1 block">Executed Principal</span>
         </motion.div>
         
-        <motion.div initial={{ y: 15, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.05 }} className="glass-panel p-5">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">Allocated Holdings</span>
-            <Layers className="w-4 h-4 text-primary" />
-          </div>
-          <p className="text-2xl font-mono tabular-nums font-semibold tracking-tight text-foreground mt-1">
-            {holdings.length} Assets
-          </p>
-          <span className="text-[10px] font-mono text-muted-foreground mt-1 block">Active Strategy Positions</span>
-        </motion.div>
-        
         <motion.div initial={{ y: 15, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }} className="glass-panel p-5">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">Strategy Mandate</span>
-            <ShieldCheck className="w-4 h-4 text-emerald-500" />
+            <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">Net Profit / Loss</span>
+            {valuation && !valuation.isPositive ? (
+              <TrendingDown className="w-4 h-4 text-rose-500" />
+            ) : (
+              <TrendingUp className="w-4 h-4 text-emerald-500" />
+            )}
           </div>
-          <p className="text-lg font-semibold tracking-tight text-foreground mt-1 truncate">
-            {userPortfolio?.planName || 'Quant Alpha'}
+          <p className={`text-2xl font-mono tabular-nums font-semibold tracking-tight mt-1 ${
+            !valuation || valuation.pnlMinor === 0 
+              ? 'text-foreground' 
+              : valuation.isPositive 
+                ? 'text-emerald-500' 
+                : 'text-rose-500'
+          }`}>
+            {valuation ? `${valuation.pnlMinor >= 0 ? '+' : ''}${formatINR(valuation.pnlMinor)}` : '₹0.00'}
           </p>
-          <span className="text-[10px] font-mono text-muted-foreground mt-1 block">Institutional Model Basket</span>
+          <span className="text-[10px] font-mono text-muted-foreground mt-1 block">
+            {valuation ? `${valuation.pnlPercent >= 0 ? '+' : ''}${valuation.pnlPercent.toFixed(2)}% ROI` : '0.00% ROI'}
+          </span>
         </motion.div>
 
         <motion.div initial={{ y: 15, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.15 }} className="glass-panel p-5">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">Rebalance Cadence</span>
+            <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">Day&apos;s Change</span>
             <Activity className="w-4 h-4 text-primary" />
           </div>
-          <p className="text-lg font-semibold tracking-tight text-primary mt-1">
-            Signal Driven
+          <p className={`text-2xl font-mono tabular-nums font-semibold tracking-tight mt-1 ${
+            (valuation?.totalDayPnLMinor || 0) >= 0 ? 'text-emerald-500' : 'text-rose-500'
+          }`}>
+            {(valuation?.totalDayPnLMinor || 0) >= 0 ? '+' : ''}{formatINR(valuation?.totalDayPnLMinor || 0)}
           </p>
-          <span className="text-[10px] font-mono text-muted-foreground mt-1 block">Real-time alerts via Email & Terminal</span>
+          <span className="text-[10px] font-mono text-muted-foreground mt-1 block">
+            {holdings.length} Positions Monitored • 15m Sync
+          </span>
         </motion.div>
       </div>
 
@@ -462,32 +482,64 @@ export default function PortfolioPage() {
           <table className="w-full text-xs text-left whitespace-nowrap">
             <thead>
               <tr className="border-b border-border text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
-                <th className="pb-2.5 px-3">Asset Symbol</th>
-                <th className="pb-2.5 px-3 text-right">Quantity</th>
-                <th className="pb-2.5 px-3 text-right">Avg Execution Price</th>
-                <th className="pb-2.5 px-3 text-right">Allocated Capital</th>
+                <th className="pb-2.5 px-3">Security / BSE</th>
+                <th className="pb-2.5 px-3 text-right">Qty</th>
+                <th className="pb-2.5 px-3 text-right">Avg Buy Price</th>
+                <th className="pb-2.5 px-3 text-right">Live BSE LTP</th>
+                <th className="pb-2.5 px-3 text-right">Current Market Value</th>
+                <th className="pb-2.5 px-3 text-right">Net Profit / Loss</th>
                 <th className="pb-2.5 px-3 text-right">Portfolio Weight</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60 font-mono">
-              {holdings.map((stock, idx) => (
-                <tr key={(stock.symbol || '') + idx} className="hover:bg-muted/30 transition-colors">
-                  <td className="py-3 px-3">
-                    <div className="font-semibold text-foreground text-sm">{stock.symbol}</div>
-                    <span className="text-[10px] text-muted-foreground block">{stock.companyName}</span>
-                  </td>
-                  <td className="py-3 px-3 text-right tabular-nums text-foreground">{stock.quantity}</td>
-                  <td className="py-3 px-3 text-right tabular-nums text-muted-foreground">{formatINR(stock.buyPriceMinor)}</td>
-                  <td className="py-3 px-3 text-right tabular-nums font-semibold text-foreground">
-                    {formatINR(stock.quantity * stock.buyPriceMinor)}
-                  </td>
-                  <td className="py-3 px-3 text-right tabular-nums">
-                    <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
-                      {stock.allocationPercent}%
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              {(valuation?.holdings || holdings).map((stock: any, idx: number) => {
+                const ltpMinor = stock.currentPriceMinor || stock.buyPriceMinor;
+                const currentValMinor = stock.currentValueMinor || (stock.quantity * ltpMinor);
+                const investedAmountMinor = stock.investedAmountMinor || (stock.quantity * stock.buyPriceMinor);
+                const pnlMinor = stock.pnlMinor !== undefined ? stock.pnlMinor : (currentValMinor - investedAmountMinor);
+                const pnlPercent = stock.pnlPercent !== undefined ? stock.pnlPercent : (investedAmountMinor > 0 ? ((currentValMinor - investedAmountMinor) / investedAmountMinor) * 100 : 0);
+                const isGain = pnlMinor >= 0;
+
+                return (
+                  <tr key={(stock.symbol || '') + idx} className="hover:bg-muted/30 transition-colors">
+                    <td className="py-3 px-3">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold text-foreground text-sm">{stock.symbol}</span>
+                        {stock.scripCode && (
+                          <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-primary/10 text-primary border border-primary/20">
+                            BSE: {stock.scripCode}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-muted-foreground block truncate max-w-[160px]">{stock.companyName}</span>
+                    </td>
+                    <td className="py-3 px-3 text-right tabular-nums text-foreground">{stock.quantity}</td>
+                    <td className="py-3 px-3 text-right tabular-nums text-muted-foreground">{formatINR(stock.buyPriceMinor)}</td>
+                    <td className="py-3 px-3 text-right tabular-nums font-medium text-foreground">
+                      {formatINR(ltpMinor)}
+                      {stock.dayChangePercent !== undefined && stock.dayChangePercent !== 0 && (
+                        <span className={`text-[9px] ml-1 ${stock.dayChangePercent > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                          {stock.dayChangePercent > 0 ? '+' : ''}{stock.dayChangePercent.toFixed(1)}%
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-3 px-3 text-right tabular-nums font-semibold text-foreground">
+                      {formatINR(currentValMinor)}
+                    </td>
+                    <td className={`py-3 px-3 text-right tabular-nums font-semibold ${isGain ? 'text-emerald-500' : 'text-rose-500'}`}>
+                      {isGain ? '+' : ''}{formatINR(pnlMinor)}
+                      <span className="text-[10px] block opacity-80">
+                        ({isGain ? '+' : ''}{pnlPercent.toFixed(1)}%)
+                      </span>
+                    </td>
+                    <td className="py-3 px-3 text-right tabular-nums">
+                      <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
+                        {stock.allocationPercent}%
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

@@ -2,6 +2,12 @@
 import type { PortfolioHolding, PortfolioSnapshot } from '../schemas/portfolio.schema';
 import { calculatePnL, toRupees } from '../utils/money';
 
+export interface PriceMetric {
+  ltpMinor: number;
+  changeMinor?: number;
+  percentChange?: number;
+}
+
 export interface ValuedHolding extends PortfolioHolding {
   currentPriceMinor: number;
   currentValueMinor: number;
@@ -9,6 +15,9 @@ export interface ValuedHolding extends PortfolioHolding {
   pnlPercent: number;
   allocationPercent: number;
   isPositive: boolean;
+  dayChangeMinor?: number;
+  dayChangePercent?: number;
+  dayPnLMinor?: number;
 }
 
 export interface PortfolioValuation {
@@ -18,6 +27,7 @@ export interface PortfolioValuation {
   pnlRupees: number;
   pnlPercent: number;
   isPositive: boolean;
+  totalDayPnLMinor: number;
   holdings: ValuedHolding[];
   stockCount: number;
 }
@@ -29,25 +39,43 @@ export const valuationService = {
    */
   evaluatePortfolio(
     holdings: PortfolioHolding[],
-    priceMap?: Record<string, number> // instrumentId or symbol -> ltpMinor
+    priceMap?: Record<string, number | PriceMetric> // scripCode or symbol -> ltpMinor or PriceMetric
   ): PortfolioValuation {
     let totalInvestedMinor = 0;
     let totalCurrentValueMinor = 0;
+    let totalDayPnLMinor = 0;
 
     // 1. Initial pass: calculate holding values and total current market value
     const preliminaryHoldings = holdings.map((h) => {
       const investedAmountMinor = h.quantity * h.buyPriceMinor;
       totalInvestedMinor += investedAmountMinor;
 
-      // Determine latest price (default to buyPrice if market feed not provided)
-      const currentPriceMinor =
-        priceMap?.[h.instrumentId] ||
-        priceMap?.[h.symbol] ||
-        h.currentPriceMinor ||
-        h.buyPriceMinor;
+      // Extract price & day metrics
+      const rawPrice =
+        (h.scripCode && priceMap?.[h.scripCode]) ||
+        (h.symbol && priceMap?.[h.symbol]) ||
+        (h.symbol && priceMap?.[h.symbol.toUpperCase()]) ||
+        priceMap?.[h.instrumentId];
+
+      let currentPriceMinor = h.buyPriceMinor;
+      let dayChangeMinor = 0;
+      let dayChangePercent = 0;
+
+      if (typeof rawPrice === 'number') {
+        currentPriceMinor = rawPrice > 0 ? rawPrice : h.buyPriceMinor;
+      } else if (rawPrice && typeof rawPrice === 'object') {
+        currentPriceMinor = rawPrice.ltpMinor > 0 ? rawPrice.ltpMinor : h.buyPriceMinor;
+        dayChangeMinor = rawPrice.changeMinor || 0;
+        dayChangePercent = rawPrice.percentChange || 0;
+      } else if (h.currentPriceMinor && h.currentPriceMinor > 0) {
+        currentPriceMinor = h.currentPriceMinor;
+      }
 
       const currentValueMinor = h.quantity * currentPriceMinor;
       totalCurrentValueMinor += currentValueMinor;
+
+      const holdingDayPnLMinor = h.quantity * dayChangeMinor;
+      totalDayPnLMinor += holdingDayPnLMinor;
 
       const pnl = calculatePnL(investedAmountMinor, currentValueMinor);
 
@@ -59,6 +87,9 @@ export const valuationService = {
         pnlMinor: pnl.pnlMinor,
         pnlPercent: pnl.pnlPercent,
         isPositive: pnl.isPositive,
+        dayChangeMinor,
+        dayChangePercent,
+        dayPnLMinor: holdingDayPnLMinor,
         allocationPercent: 0 // Will compute in second pass
       };
     });
@@ -86,6 +117,7 @@ export const valuationService = {
       pnlRupees: toRupees(netPnL.pnlMinor),
       pnlPercent: netPnL.pnlPercent,
       isPositive: netPnL.isPositive,
+      totalDayPnLMinor,
       holdings: valuedHoldings,
       stockCount: valuedHoldings.length
     };

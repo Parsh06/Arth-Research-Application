@@ -1,8 +1,9 @@
 // src/stores/portfolioStore.ts
 import { create } from 'zustand';
 import { portfolioRepository, type CreatePortfolioSubmissionParams } from '../repositories/portfolioRepository';
-import { valuationService, type PortfolioValuation } from '../services/valuationService';
+import { valuationService, type PortfolioValuation, type PriceMetric } from '../services/valuationService';
 import type { Portfolio, PortfolioHolding } from '../schemas/portfolio.schema';
+import { useStockStore } from './stockStore';
 import type { Unsubscribe } from 'firebase/firestore';
 
 interface PortfolioState {
@@ -16,6 +17,7 @@ interface PortfolioState {
   
   initPortfolioListener: (userId: string) => void;
   setActivePortfolioId: (portfolioId: string) => void;
+  refreshValuationWithLivePrices: () => Promise<void>;
   unsubscribePortfolio: () => void;
   fetchAllPortfolios: () => Promise<void>;
   submitPortfolio: (params: CreatePortfolioSubmissionParams) => Promise<string>;
@@ -26,6 +28,31 @@ interface PortfolioState {
 let unsubscribePorts: Unsubscribe | null = null;
 let unsubscribeHold: Unsubscribe | null = null;
 
+async function evaluateHoldings(holdings: PortfolioHolding[]): Promise<PortfolioValuation> {
+  const scripCodes = holdings.map(h => h.scripCode).filter(Boolean) as string[];
+  const symbols = holdings.map(h => h.symbol).filter(Boolean);
+
+  try {
+    // Attempt live price fetch
+    await useStockStore.getState().fetchPrices(scripCodes, symbols);
+  } catch (e) {
+    console.warn('[PortfolioStore] Live price update warning:', e);
+  }
+
+  const currentPrices = useStockStore.getState().prices;
+  const priceMap: Record<string, PriceMetric> = {};
+
+  for (const [key, p] of Object.entries(currentPrices)) {
+    priceMap[key] = {
+      ltpMinor: p.ltpPaise || Math.round((p.ltp || 0) * 100),
+      changeMinor: Math.round((p.change || 0) * 100),
+      percentChange: p.percentChange || 0
+    };
+  }
+
+  return valuationService.evaluatePortfolio(holdings, priceMap);
+}
+
 export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   userPortfolio: null,
   userPortfolios: [],
@@ -35,19 +62,27 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   allPortfolios: [],
   isLoading: false,
 
-  setActivePortfolioId: (portfolioId: string) => {
+  setActivePortfolioId: async (portfolioId: string) => {
     const { userPortfolios } = get();
     const selected = userPortfolios.find(p => p.id === portfolioId) || null;
     set({ activePortfolioId: portfolioId, userPortfolio: selected });
 
     if (unsubscribeHold) unsubscribeHold();
     if (selected) {
-      unsubscribeHold = portfolioRepository.subscribeToHoldings(selected.id, (holdings) => {
-        const valuation = valuationService.evaluatePortfolio(holdings);
+      unsubscribeHold = portfolioRepository.subscribeToHoldings(selected.id, async (holdings) => {
+        const valuation = await evaluateHoldings(holdings);
         set({ holdings, valuation });
       });
     } else {
       set({ holdings: [], valuation: null });
+    }
+  },
+
+  refreshValuationWithLivePrices: async () => {
+    const { holdings } = get();
+    if (holdings.length > 0) {
+      const valuation = await evaluateHoldings(holdings);
+      set({ valuation });
     }
   },
 
@@ -77,8 +112,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         
         // Listen to holdings subcollection for the active portfolio
         if (unsubscribeHold) unsubscribeHold();
-        unsubscribeHold = portfolioRepository.subscribeToHoldings(active.id, (holdings) => {
-          const valuation = valuationService.evaluatePortfolio(holdings);
+        unsubscribeHold = portfolioRepository.subscribeToHoldings(active.id, async (holdings) => {
+          const valuation = await evaluateHoldings(holdings);
           set({ holdings, valuation });
         });
       } else {
@@ -117,40 +152,18 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   },
 
   submitPortfolio: async (params: CreatePortfolioSubmissionParams) => {
-    set({ isLoading: true });
-    try {
-      const id = await portfolioRepository.createPortfolioWithVersionAndHoldings(params);
-      set({ isLoading: false });
-      return id;
-    } catch (e) {
-      console.error("Failed to submit portfolio", e);
-      set({ isLoading: false });
-      throw e;
-    }
+    return await portfolioRepository.createPortfolioWithVersionAndHoldings(params);
   },
 
   createPortfolio: async (data: Omit<Portfolio, 'id'>) => {
-    set({ isLoading: true });
-    try {
-      const id = await portfolioRepository.createPortfolio(data);
-      return id;
-    } catch (e) {
-      console.error("Failed to create portfolio", e);
-      set({ isLoading: false });
-      throw e;
-    }
+    return await portfolioRepository.createPortfolio(data);
   },
 
   updatePortfolio: async (id: string, updates: Partial<Portfolio>) => {
-    set({ isLoading: true });
-    try {
-      await portfolioRepository.updatePortfolio(id, updates);
-      
-      const { allPortfolios } = get();
-      set({ allPortfolios: allPortfolios.map(p => p.id === id ? { ...p, ...updates } : p), isLoading: false });
-    } catch (e) {
-      console.error("Failed to update portfolio", e);
-      set({ isLoading: false });
-    }
+    await portfolioRepository.updatePortfolio(id, updates);
+    set(state => ({
+      userPortfolio: state.userPortfolio?.id === id ? { ...state.userPortfolio, ...updates } : state.userPortfolio,
+      userPortfolios: state.userPortfolios.map(p => p.id === id ? { ...p, ...updates } : p)
+    }));
   }
 }));

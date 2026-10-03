@@ -18,7 +18,9 @@ export const PortfolioHoldingSchema = z.object({
   instrumentId: z.string().default(''),
   symbol: z.string().min(1),
   companyName: z.string().min(1),
-  exchange: z.string().default('NSE'),
+  scripCode: z.string().optional(),
+  isin: z.string().optional(),
+  exchange: z.string().default('BSE'),
   quantity: z.number().int().positive(),
   quantityScale: z.number().int().default(0),
   buyPriceMinor: z.number().int().positive(), // in paise

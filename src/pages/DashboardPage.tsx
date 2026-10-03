@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Wallet, Layers, ShieldCheck, ChevronRight, Clock, CheckCircle2, RefreshCw, Lock, Activity, ArrowRight } from 'lucide-react';
+import { Wallet, Layers, ShieldCheck, ChevronRight, Clock, CheckCircle2, RefreshCw, Lock, Activity, ArrowRight, TrendingUp, TrendingDown } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { usePortfolioStore } from '../stores/portfolioStore';
 import { useCmsStore } from '../stores/cmsStore';
@@ -310,33 +310,58 @@ export default function DashboardPage() {
           {/* Metric Telemetry Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <MetricCard
-              title="Capital Deployed"
-              value={formatINR(totalInvestedMinor)}
+              title="Current Market Value"
+              value={formatINR(valuation?.totalCurrentValueMinor || totalInvestedMinor)}
               icon={Wallet}
               delay={0.05}
+              subtitle={
+                valuation && valuation.pnlPercent !== 0
+                  ? `${valuation.pnlPercent >= 0 ? '+' : ''}${valuation.pnlPercent.toFixed(2)}% net return`
+                  : 'Real-time BSE Valuation'
+              }
+              statusBadge="LIVE BSE"
+            />
+            <MetricCard
+              title="Capital Deployed"
+              value={formatINR(totalInvestedMinor)}
+              icon={Layers}
+              delay={0.1}
               subtitle="Executed Principal"
               statusBadge="AUDITED"
             />
             <MetricCard
-              title="Active Positions"
-              value={`${activeHoldings.length} Assets`}
-              icon={Layers}
-              delay={0.1}
-              subtitle="Holdings Monitored"
-            />
-            <MetricCard
-              title="Strategy Mandate"
-              value={userPortfolio?.planName || 'Quant Strategy'}
-              icon={ShieldCheck}
+              title="Net Profit / Loss"
+              value={
+                valuation
+                  ? `${valuation.pnlMinor >= 0 ? '+' : ''}${formatINR(valuation.pnlMinor)}`
+                  : '₹0.00'
+              }
+              icon={valuation && !valuation.isPositive ? TrendingDown : TrendingUp}
               delay={0.15}
-              subtitle="Institutional Model Basket"
+              subtitle={
+                valuation
+                  ? `${valuation.pnlPercent >= 0 ? '+' : ''}${valuation.pnlPercent.toFixed(2)}% ROI`
+                  : '0.00% ROI'
+              }
+              statusBadge={
+                !valuation || valuation.pnlMinor === 0
+                  ? 'PAR'
+                  : valuation.isPositive
+                  ? 'PROFIT'
+                  : 'LOSS'
+              }
             />
             <MetricCard
-              title="Rebalance Cadence"
-              value="Signal Driven"
+              title="Day's Change"
+              value={
+                valuation && valuation.totalDayPnLMinor !== undefined
+                  ? `${valuation.totalDayPnLMinor >= 0 ? '+' : ''}${formatINR(valuation.totalDayPnLMinor)}`
+                  : '₹0.00'
+              }
               icon={Activity}
               delay={0.2}
-              subtitle="Email & Terminal Feed"
+              subtitle={`${activeHoldings.length} Assets Monitored`}
+              statusBadge="15-MIN SYNC"
             />
           </div>
 
@@ -353,7 +378,7 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between mb-4 pb-3 border-b border-border">
                 <div>
                   <h3 className="text-sm font-semibold text-foreground">Active Execution Registry</h3>
-                  <p className="text-[11px] font-mono text-muted-foreground mt-0.5">Audited positions and capital allocation</p>
+                  <p className="text-[11px] font-mono text-muted-foreground mt-0.5">Live BSE prices, current market values, and position returns</p>
                 </div>
 
                 <Link
@@ -370,30 +395,60 @@ export default function DashboardPage() {
                   <table className="w-full text-xs font-mono text-left whitespace-nowrap">
                     <thead>
                       <tr className="border-b border-border text-[10px] uppercase text-muted-foreground">
-                        <th className="pb-2.5">Asset Symbol</th>
-                        <th className="pb-2.5 text-right">Quantity</th>
-                        <th className="pb-2.5 text-right">Execution Price</th>
-                        <th className="pb-2.5 text-right">Allocated Capital</th>
+                        <th className="pb-2.5">Security / BSE</th>
+                        <th className="pb-2.5 text-right">Qty</th>
+                        <th className="pb-2.5 text-right">Buy Price</th>
+                        <th className="pb-2.5 text-right">BSE LTP</th>
+                        <th className="pb-2.5 text-right">Current Value</th>
+                        <th className="pb-2.5 text-right">Net P&L</th>
                         <th className="pb-2.5 text-right">Weight</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/50">
-                      {activeHoldings.map((stock, idx) => {
-                        const stockAlloc = (stock as any).allocationPercent !== undefined 
-                          ? (stock as any).allocationPercent 
+                      {activeHoldings.map((stock: any, idx: number) => {
+                        const stockAlloc = stock.allocationPercent !== undefined 
+                          ? stock.allocationPercent 
                           : totalInvestedMinor > 0 
                             ? (((stock.quantity * stock.buyPriceMinor) / totalInvestedMinor) * 100).toFixed(1) 
                             : '0.0';
+
+                        const ltpMinor = stock.currentPriceMinor || stock.buyPriceMinor;
+                        const currentValMinor = stock.currentValueMinor || (stock.quantity * ltpMinor);
+                        const pnlMinor = stock.pnlMinor !== undefined ? stock.pnlMinor : (currentValMinor - (stock.quantity * stock.buyPriceMinor));
+                        const pnlPercent = stock.pnlPercent !== undefined ? stock.pnlPercent : (stock.buyPriceMinor > 0 ? ((ltpMinor - stock.buyPriceMinor) / stock.buyPriceMinor) * 100 : 0);
+                        const isGain = pnlMinor >= 0;
+
                         return (
                           <tr key={idx} className="hover:bg-muted/30 transition-colors">
                             <td className="py-2.5">
-                              <div className="font-semibold text-foreground">{stock.symbol}</div>
-                              <span className="text-[10px] text-muted-foreground">{stock.companyName}</span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-semibold text-foreground">{stock.symbol}</span>
+                                {stock.scripCode && (
+                                  <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-primary/10 text-primary border border-primary/20">
+                                    {stock.scripCode}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-[10px] text-muted-foreground truncate max-w-[140px] block">{stock.companyName}</span>
                             </td>
                             <td className="py-2.5 text-right text-muted-foreground">{stock.quantity}</td>
                             <td className="py-2.5 text-right text-muted-foreground">{formatINR(stock.buyPriceMinor)}</td>
+                            <td className="py-2.5 text-right font-medium text-foreground">
+                              {formatINR(ltpMinor)}
+                              {stock.dayChangePercent !== undefined && stock.dayChangePercent !== 0 && (
+                                <span className={`text-[9px] ml-1 ${stock.dayChangePercent > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                  {stock.dayChangePercent > 0 ? '+' : ''}{stock.dayChangePercent.toFixed(1)}%
+                                </span>
+                              )}
+                            </td>
                             <td className="py-2.5 text-right font-semibold text-foreground">
-                              {formatINR(stock.quantity * stock.buyPriceMinor)}
+                              {formatINR(currentValMinor)}
+                            </td>
+                            <td className={`py-2.5 text-right font-semibold ${isGain ? 'text-emerald-500' : 'text-rose-500'}`}>
+                              {isGain ? '+' : ''}{formatINR(pnlMinor)}
+                              <span className="text-[10px] block opacity-80">
+                                ({isGain ? '+' : ''}{pnlPercent.toFixed(1)}%)
+                              </span>
                             </td>
                             <td className="py-2.5 text-right">
                               <span className="inline-block px-2 py-0.5 rounded text-[11px] font-semibold bg-primary/10 text-primary">

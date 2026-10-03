@@ -4,7 +4,8 @@ import { z } from 'zod';
 export const PlanHoldingSchema = z.object({
   symbol: z.string().min(1),
   companyName: z.string().min(1),
-  sector: z.string().optional(),
+  scripCode: z.string().optional(),
+  isin: z.string().optional(),
   targetWeightPercent: z.number().nonnegative(),
   recommendedPriceMinor: z.number().int().nonnegative().optional(),
   notes: z.string().optional()

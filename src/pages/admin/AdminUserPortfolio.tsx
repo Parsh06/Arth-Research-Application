@@ -169,9 +169,11 @@ export default function AdminUserPortfolio() {
                   <AdminStockSearch 
                     value={stock.symbol || ''} 
                     onChange={(val) => handleStockChange(idx, 'symbol', val)} 
-                    onSelect={({ symbol, companyName }) => {
+                    onSelect={({ symbol, companyName, scripCode, isin }) => {
                       handleStockChange(idx, 'symbol', symbol);
                       handleStockChange(idx, 'companyName', companyName);
+                      if (scripCode) handleStockChange(idx, 'scripCode' as any, scripCode);
+                      if (isin) handleStockChange(idx, 'isin' as any, isin);
                     }}
                   />
                 </div>

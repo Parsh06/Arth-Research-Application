@@ -12,7 +12,11 @@ import {
   Percent, 
   DollarSign, 
   Copy, 
-  Layers 
+  Layers,
+  TrendingUp,
+  TrendingDown,
+  Loader2,
+  Sparkles
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { planRepository } from '../../repositories/planRepository';
@@ -21,6 +25,8 @@ import type { Plan, PlanHolding } from '../../schemas/plan.schema';
 import type { Coupon } from '../../schemas/coupon.schema';
 import { formatINR, toMinorUnits, toRupees } from '../../utils/money';
 import { useToastStore } from '../../stores/toastStore';
+import StockSearchInput, { type BseStockSelection } from '../../components/StockSearchInput';
+import { stockService, type LiveStockPrice } from '../../services/stockService';
 
 const RISK_COLORS: Record<string, string> = {
   Low: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40',
@@ -62,12 +68,14 @@ export default function AdminSubscriptions() {
   const [featuresText, setFeaturesText] = useState('');
   const [isPopular, setIsPopular] = useState(false);
   const [isActive, setIsActive] = useState(true);
-
   const [holdings, setHoldings] = useState<PlanHolding[]>([]);
   const [newSymbol, setNewSymbol] = useState('');
   const [newCompany, setNewCompany] = useState('');
-  const [newSector, setNewSector] = useState('');
+  const [newScripCode, setNewScripCode] = useState('');
+  const [newIsin, setNewIsin] = useState('');
   const [newWeight, setNewWeight] = useState<number>(10);
+  const [selectedStockPrice, setSelectedStockPrice] = useState<LiveStockPrice | null>(null);
+  const [isPriceLoading, setIsPriceLoading] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -161,8 +169,11 @@ export default function AdminSubscriptions() {
     setHoldings([]);
     setNewSymbol('');
     setNewCompany('');
-    setNewSector('');
+    setNewScripCode('');
+    setNewIsin('');
     setNewWeight(10);
+    setSelectedStockPrice(null);
+    setIsPriceLoading(false);
   };
 
   const openCreatePlanModal = () => {
@@ -186,25 +197,65 @@ export default function AdminSubscriptions() {
     setIsPopular(plan.isPopular || false);
     setIsActive(plan.isActive !== false);
     setHoldings(plan.holdings || []);
+    setNewSymbol('');
+    setNewCompany('');
+    setNewScripCode('');
+    setNewIsin('');
+    setNewWeight(10);
+    setSelectedStockPrice(null);
+    setIsPriceLoading(false);
     setIsModalOpen(true);
   };
 
+  const handleStockSelect = async (stock: BseStockSelection) => {
+    setNewSymbol(stock.symbol);
+    setNewCompany(stock.companyName);
+    setNewScripCode(stock.scripCode);
+    setNewIsin(stock.isin || '');
+    setIsPriceLoading(true);
+    try {
+      const prices = await stockService.getLatestPrices([stock.scripCode], [stock.symbol]);
+      const quote = prices[stock.scripCode] || prices[stock.symbol] || prices[stock.symbol.toUpperCase()];
+      setSelectedStockPrice(quote || null);
+    } catch (err) {
+      console.warn('Error fetching live stock quote for selected stock:', err);
+      setSelectedStockPrice(null);
+    } finally {
+      setIsPriceLoading(false);
+    }
+  };
+
   const handleAddHolding = () => {
-    if (!newSymbol.trim() || !newCompany.trim()) {
-      addToast('Symbol and Company Name are required', 'error');
+    if (!newSymbol.trim()) {
+      addToast('Please select or specify a valid stock symbol', 'error');
       return;
     }
+    const cleanSym = newSymbol.trim().toUpperCase();
+    const alreadyExists = holdings.some(h => 
+      (newScripCode && h.scripCode === newScripCode) || 
+      (h.symbol.toUpperCase() === cleanSym)
+    );
+    if (alreadyExists) {
+      addToast(`${cleanSym} is already in this strategy allocation basket.`, 'error');
+      return;
+    }
+
     const item: PlanHolding = {
-      symbol: newSymbol.trim().toUpperCase(),
-      companyName: newCompany.trim(),
-      sector: newSector.trim() || 'Equities',
+      symbol: cleanSym,
+      companyName: newCompany.trim() || cleanSym,
+      scripCode: newScripCode.trim() || undefined,
+      isin: newIsin.trim() || undefined,
       targetWeightPercent: Number(newWeight) || 0,
+      recommendedPriceMinor: selectedStockPrice ? selectedStockPrice.ltpPaise : undefined,
     };
     setHoldings(prev => [...prev, item]);
     setNewSymbol('');
     setNewCompany('');
-    setNewSector('');
+    setNewScripCode('');
+    setNewIsin('');
     setNewWeight(10);
+    setSelectedStockPrice(null);
+    addToast(`Added ${cleanSym} to allocation basket`, 'success');
   };
 
   const handleRemoveHolding = (index: number) => {
@@ -966,65 +1017,159 @@ export default function AdminSubscriptions() {
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                    <input
-                      type="text"
-                      placeholder="Symbol (e.g. INFY)"
-                      value={newSymbol}
-                      onChange={(e) => setNewSymbol(e.target.value.toUpperCase())}
-                      className="glass-panel px-2.5 py-1.5 text-xs font-mono uppercase text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Company Name"
-                      value={newCompany}
-                      onChange={(e) => setNewCompany(e.target.value)}
-                      className="glass-panel px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Sector"
-                      value={newSector}
-                      onChange={(e) => setNewSector(e.target.value)}
-                      className="glass-panel px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                    <input
-                      type="number"
-                      placeholder="Weight %"
-                      value={newWeight}
-                      min={0}
-                      max={100}
-                      onChange={(e) => setNewWeight(Number(e.target.value))}
-                      className="glass-panel px-2.5 py-1.5 text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddHolding}
-                      className="bg-primary hover:opacity-90 text-primary-foreground font-semibold px-2 py-1.5 rounded text-xs transition-all cursor-pointer flex items-center justify-center gap-1"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Add Stock</span>
-                    </button>
+                  <div className="space-y-3">
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-[11px] font-mono text-muted-foreground">
+                          Search BSE Company / Ticker / Scrip Code <span className="text-primary">*</span>
+                        </label>
+                        <span className="text-[10px] font-mono text-primary flex items-center gap-1">
+                          <Sparkles className="w-2.5 h-2.5" /> Live Auto-Suggest
+                        </span>
+                      </div>
+                      <StockSearchInput
+                        placeholder="Type Indian company name or ticker (e.g. Tata Motors, NAVA, RELIANCE, 513023)..."
+                        onSelect={handleStockSelect}
+                      />
+                    </div>
+
+                    {/* Selected Security Live Preview & Allocation Card */}
+                    {newSymbol ? (
+                      <div className="p-3.5 rounded-lg bg-card border border-primary/30 shadow-xs space-y-3 animate-in fade-in duration-150">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-border/60 pb-2.5">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-sm text-foreground font-mono">{newSymbol}</span>
+                              {newScripCode && (
+                                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+                                  BSE: {newScripCode}
+                                </span>
+                              )}
+                              {newIsin && (
+                                <span className="text-[10px] font-mono text-muted-foreground hidden sm:inline">
+                                  {newIsin}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-muted-foreground truncate mt-0.5">{newCompany}</div>
+                          </div>
+
+                          {/* Live BSE Quote Price */}
+                          <div className="shrink-0">
+                            {isPriceLoading ? (
+                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-mono bg-muted/30 px-2.5 py-1.5 rounded">
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                                <span>Fetching live price...</span>
+                              </div>
+                            ) : selectedStockPrice ? (
+                              <div className="flex items-center gap-2.5 bg-muted/40 px-2.5 py-1.5 rounded border border-border/60 font-mono text-xs">
+                                <div>
+                                  <span className="text-[9px] text-muted-foreground uppercase block leading-none mb-0.5">Live BSE LTP</span>
+                                  <span className="font-bold text-foreground">₹{selectedStockPrice.ltp.toFixed(2)}</span>
+                                </div>
+                                <div className={`text-right text-[11px] font-semibold flex items-center gap-0.5 ${
+                                  selectedStockPrice.change >= 0 ? 'text-[hsl(var(--success))]' : 'text-destructive'
+                                }`}>
+                                  {selectedStockPrice.change >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                                  <span>{selectedStockPrice.change >= 0 ? '+' : ''}{selectedStockPrice.change.toFixed(2)} ({selectedStockPrice.percentChange.toFixed(2)}%)</span>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="text-[10px] font-mono text-muted-foreground bg-muted/20 px-2 py-1 rounded">
+                                Quote pending sync
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Allocation Weight & Actions */}
+                        <div className="flex flex-wrap items-center justify-between gap-3 pt-0.5">
+                          <div className="flex items-center gap-2">
+                            <label className="text-xs font-mono text-muted-foreground whitespace-nowrap">
+                              Allocation Weight:
+                            </label>
+                            <div className="relative w-28">
+                              <input
+                                type="number"
+                                min={1}
+                                max={100}
+                                value={newWeight}
+                                onChange={(e) => setNewWeight(Number(e.target.value))}
+                                className="w-full glass-panel px-2.5 py-1 text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary pr-6"
+                              />
+                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-mono text-muted-foreground">%</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={handleAddHolding}
+                              className="bg-primary hover:opacity-90 text-primary-foreground font-semibold px-3 py-1.5 rounded text-xs transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              <span>Add to Strategy Basket</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setNewSymbol('');
+                                setNewCompany('');
+                                setNewScripCode('');
+                                setNewIsin('');
+                                setSelectedStockPrice(null);
+                              }}
+                              className="text-muted-foreground hover:text-foreground text-xs font-mono p-1.5 rounded transition-colors cursor-pointer border border-border"
+                              title="Clear selection"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-2.5 rounded glass-panel-data text-[11px] font-mono text-muted-foreground flex items-center justify-between">
+                        <span>Search any BSE listed company or ticker above to configure model allocation.</span>
+                        <span className="text-[10px] text-primary/80">Sector automatically classified</span>
+                      </div>
+                    )}
                   </div>
 
-                  <div className="max-h-40 overflow-y-auto divide-y divide-border/40 rounded">
+                  {/* Configured Basket List */}
+                  <div className="max-h-48 overflow-y-auto divide-y divide-border/40 rounded border border-border/50 bg-card/30">
                     {holdings.length === 0 ? (
-                      <div className="py-4 text-center text-[11px] text-muted-foreground font-mono">
-                        No model equities configured. Add stock recommendations above.
+                      <div className="py-5 text-center text-[11px] text-muted-foreground font-mono">
+                        No model equities configured. Search and add stock recommendations above.
                       </div>
                     ) : (
                       holdings.map((h, i) => (
-                        <div key={i} className="py-2 px-2 flex items-center justify-between text-xs font-mono hover:bg-muted/20">
-                          <div className="flex items-center gap-2.5">
+                        <div key={i} className="py-2.5 px-3 flex items-center justify-between text-xs font-mono hover:bg-muted/20 transition-colors">
+                          <div className="flex items-center gap-2.5 min-w-0">
                             <span className="font-bold text-foreground">{h.symbol}</span>
-                            <span className="text-muted-foreground text-[11px] truncate">{h.companyName}</span>
+                            {h.scripCode && (
+                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-primary/10 text-primary border border-primary/20">
+                                BSE: {h.scripCode}
+                              </span>
+                            )}
+                            <span className="text-muted-foreground text-[11px] truncate max-w-[180px] sm:max-w-[280px]">
+                              {h.companyName}
+                            </span>
                           </div>
-                          <div className="flex items-center gap-2.5">
-                            <span className="font-semibold text-foreground">{h.targetWeightPercent}%</span>
+                          <div className="flex items-center gap-3 shrink-0">
+                            {h.recommendedPriceMinor ? (
+                              <span className="text-[11px] text-muted-foreground hidden sm:inline">
+                                Ref LTP: <strong className="text-foreground">{formatINR(h.recommendedPriceMinor)}</strong>
+                              </span>
+                            ) : null}
+                            <span className="font-semibold text-primary px-2 py-0.5 rounded bg-primary/5 border border-primary/20">
+                              {h.targetWeightPercent}%
+                            </span>
                             <button
                               type="button"
                               onClick={() => handleRemoveHolding(i)}
-                              className="text-muted-foreground hover:text-destructive p-0.5 cursor-pointer"
+                              className="text-muted-foreground hover:text-destructive p-1 rounded hover:bg-destructive/10 transition-colors cursor-pointer"
+                              title="Remove position"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>

@@ -513,6 +513,225 @@ function emailDispatcherPlugin(env: Record<string, string>): Plugin {
           }
         });
       });
+
+      // ─────────────────────────────────────────────────────────────
+      // BSE STOCK SEARCH SUGGESTIONS MIDDLEWARE (DEV SERVER)
+      // ─────────────────────────────────────────────────────────────
+      server.middlewares.use('/api/stocks/search', async (req, res) => {
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        if (req.method !== 'GET') {
+          res.statusCode = 405;
+          res.end(JSON.stringify({ error: 'Method not allowed' }));
+          return;
+        }
+
+        try {
+          const urlParams = new URL(req.url || '', 'http://localhost').searchParams;
+          const query = (urlParams.get('q') || urlParams.get('searchString') || '').trim();
+
+          if (!query || query.length < 1) {
+            res.statusCode = 200;
+            res.end(JSON.stringify({ success: true, count: 0, data: [] }));
+            return;
+          }
+
+          const targetUrl = `https://api.bseindia.com/MSource/1D/GetQuoteAllSearchDatabeta.aspx?searchString=${encodeURIComponent(query)}`;
+          const bseResponse = await fetch(targetUrl, {
+            headers: {
+              'Accept': 'application/json, text/plain, */*',
+              'Origin': 'https://www.bseindia.com',
+              'Referer': 'https://www.bseindia.com/',
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+          });
+
+          if (!bseResponse.ok) {
+            throw new Error(`BSE API responded with status ${bseResponse.status}`);
+          }
+
+          const rawData: any = await bseResponse.json();
+          if (!Array.isArray(rawData)) {
+            res.statusCode = 200;
+            res.end(JSON.stringify({ success: true, count: 0, data: [] }));
+            return;
+          }
+
+          const qUpper = query.toUpperCase();
+          const sanitized = rawData.map((item: any) => {
+            const scripCode = String(item.strSricpCode || '').trim();
+            const symbol = String(item.shortName || item.scripName || '').trim();
+            const companyName = String(item.scripName || item.shortName || '').trim();
+            const isin = String(item.Isin || '').trim();
+            const type = String(item.Type || '').trim();
+            const seoUrl = String(item.SEOUrl || '').trim();
+
+            let score = 0;
+            const symUpper = symbol.toUpperCase();
+            const nameUpper = companyName.toUpperCase();
+
+            if (scripCode === qUpper || symUpper === qUpper) {
+              score += 100;
+            } else if (symUpper.startsWith(qUpper)) {
+              score += 70;
+            } else if (nameUpper.startsWith(qUpper)) {
+              score += 50;
+            } else if (symUpper.includes(qUpper)) {
+              score += 30;
+            } else if (nameUpper.includes(qUpper)) {
+              score += 20;
+            }
+
+            if (type.toLowerCase().includes('equity')) {
+              score += 25;
+            } else if (type.toLowerCase().includes('derivative')) {
+              score -= 20;
+            }
+
+            return { scripCode, symbol, companyName, isin, type, seoUrl, score };
+          })
+          .filter((item: any) => item.scripCode && item.symbol)
+          .sort((a: any, b: any) => b.score - a.score)
+          .map(({ score, ...item }: any) => item);
+
+          res.statusCode = 200;
+          res.end(JSON.stringify({
+            success: true,
+            count: sanitized.length,
+            data: sanitized.slice(0, 25)
+          }));
+        } catch (err: any) {
+          console.error('[DEV BSE SEARCH ERROR]', err);
+          res.statusCode = 500;
+          res.end(JSON.stringify({ success: false, error: err.message || 'Search failed' }));
+        }
+      });
+
+      // ─────────────────────────────────────────────────────────────
+      // LIVE STOCK PRICES RETRIEVAL MIDDLEWARE (DEV SERVER)
+      // ─────────────────────────────────────────────────────────────
+      server.middlewares.use('/api/stocks/prices', async (req, res) => {
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        if (req.method !== 'GET') {
+          res.statusCode = 405;
+          res.end(JSON.stringify({ error: 'Method not allowed' }));
+          return;
+        }
+
+        try {
+          const urlParams = new URL(req.url || '', 'http://localhost').searchParams;
+          const scripCodesParam = (urlParams.get('scripCodes') || '').trim();
+          const symbolsParam = (urlParams.get('symbols') || '').trim();
+
+          const codes = scripCodesParam ? scripCodesParam.split(',').map(s => s.trim()).filter(Boolean) : [];
+          const symbols = symbolsParam ? symbolsParam.split(',').map(s => s.trim().toUpperCase()).filter(Boolean) : [];
+
+          const dict: Record<string, any> = {};
+          const list: any[] = [];
+
+          // 1. Check MongoDB cache first
+          try {
+            const mongoUri = env.MONGODB_URI || process.env.MONGODB_URI || 'mongodb+srv://tatvarthcapital_db_user:[REDACTED]@cluster0.hbowhhv.mongodb.net/?appName=Cluster0';
+            const { MongoClient } = await import('mongodb');
+            const client = new MongoClient(mongoUri);
+            await client.connect();
+            const col = client.db(env.MONGODB_DB_NAME || 'ArthResearch').collection('StockPrices');
+
+            let filter: any = {};
+            if (codes.length > 0) filter.scripCode = { $in: codes };
+            else if (symbols.length > 0) filter.shortName = { $in: symbols };
+
+            const docs = await col.find(filter).toArray();
+            docs.forEach(doc => {
+              if (doc.scripCode) dict[doc.scripCode] = doc;
+              if (doc.shortName) dict[doc.shortName.toUpperCase()] = doc;
+              list.push(doc);
+            });
+            await client.close();
+          } catch (mErr) {
+            console.warn('[DEV MONGODB CACHE NOTICE]', mErr);
+          }
+
+          // 2. For any scrip code not found in MongoDB cache, fetch live directly from BSE Header API!
+          for (const code of codes) {
+            if (!dict[code]) {
+              try {
+                const headerUrl = `https://api.bseindia.com/BseIndiaAPI/api/getScripHeaderData/w?Debtflag=&scripcode=${code}&seriesid=`;
+                const bseRes = await fetch(headerUrl, {
+                  headers: {
+                    'Accept': 'application/json, text/plain, */*',
+                    'Origin': 'https://www.bseindia.com',
+                    'Referer': 'https://www.bseindia.com/',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                  }
+                });
+                if (bseRes.ok) {
+                  const data: any = await bseRes.json();
+                  const currRate = data?.CurrRate || {};
+                  const header = data?.Header || {};
+                  const cmpName = data?.Cmpname || {};
+
+                  const ltpStr = currRate.LTP || header.LTP || '0';
+                  const ltp = parseFloat(String(ltpStr).replace(/,/g, '')) || 0;
+                  const change = parseFloat(String(currRate.Chg || '0').replace(/,/g, '')) || 0;
+                  const percentChange = parseFloat(String(currRate.PcChg || '0').replace(/,/g, '')) || 0;
+
+                  const quoteDoc = {
+                    scripCode: code,
+                    shortName: (cmpName.ShortN || '').toUpperCase(),
+                    scripName: cmpName.FullN || cmpName.ShortN || code,
+                    category: cmpName.Category || 'Listed',
+                    ltp,
+                    ltpPaise: Math.round(ltp * 100),
+                    change,
+                    percentChange,
+                    prevClose: parseFloat(String(header.PrevClose || '0').replace(/,/g, '')) || 0,
+                    open: parseFloat(String(header.Open || '0').replace(/,/g, '')) || 0,
+                    high: parseFloat(String(header.High || '0').replace(/,/g, '')) || 0,
+                    low: parseFloat(String(header.Low || '0').replace(/,/g, '')) || 0,
+                    asOn: header.Ason || new Date().toISOString(),
+                    source: 'BSE_INDIA_LIVE',
+                    updatedAt: new Date().toISOString()
+                  };
+
+                  dict[code] = quoteDoc;
+                  if (quoteDoc.shortName) dict[quoteDoc.shortName] = quoteDoc;
+                  list.push(quoteDoc);
+
+                  // Async write-back to MongoDB
+                  try {
+                    const mongoUri = env.MONGODB_URI || process.env.MONGODB_URI || 'mongodb+srv://tatvarthcapital_db_user:[REDACTED]@cluster0.hbowhhv.mongodb.net/?appName=Cluster0';
+                    const { MongoClient } = await import('mongodb');
+                    const c = new MongoClient(mongoUri);
+                    await c.connect();
+                    await c.db('ArthResearch').collection('StockPrices').updateOne(
+                      { scripCode: code },
+                      { $set: quoteDoc },
+                      { upsert: true }
+                    );
+                    await c.close();
+                  } catch {}
+                }
+              } catch (bseErr) {
+                console.error(`[DEV BSE HEADER ERROR for ${code}]`, bseErr);
+              }
+            }
+          }
+
+          res.statusCode = 200;
+          res.end(JSON.stringify({
+            success: true,
+            count: list.length,
+            data: dict,
+            list
+          }));
+        } catch (err: any) {
+          console.error('[DEV STOCK PRICES ERROR]', err);
+          res.statusCode = 500;
+          res.end(JSON.stringify({ success: false, error: err.message || 'Price lookup failed' }));
+        }
+      });
     }
   };
 }

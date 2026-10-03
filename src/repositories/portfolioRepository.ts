@@ -26,6 +26,8 @@ export interface CreatePortfolioSubmissionParams {
     instrumentId?: string;
     symbol: string;
     companyName: string;
+    scripCode?: string;
+    isin?: string;
     exchange?: string;
     quantity: number;
     buyPriceMinor: number;
@@ -142,10 +144,12 @@ export const portfolioRepository = {
         id: holdingDocRef.id,
         portfolioId,
         versionId,
-        instrumentId: h.instrumentId || `NSE_EQ_${h.symbol.toUpperCase()}`,
+        instrumentId: h.instrumentId || `BSE_EQ_${h.scripCode || h.symbol.toUpperCase()}`,
         symbol: h.symbol.toUpperCase(),
         companyName: h.companyName,
-        exchange: h.exchange || 'NSE',
+        scripCode: h.scripCode,
+        isin: h.isin,
+        exchange: h.exchange || 'BSE',
         quantity: h.quantity,
         quantityScale: 0,
         buyPriceMinor: h.buyPriceMinor,
@@ -223,10 +227,12 @@ export const portfolioRepository = {
         id: holdingDocRef.id,
         portfolioId,
         versionId,
-        instrumentId: h.instrumentId || `inst_${h.symbol.toLowerCase()}`,
+        instrumentId: h.instrumentId || `BSE_EQ_${h.scripCode || h.symbol.toLowerCase()}`,
         symbol: h.symbol,
         companyName: h.companyName,
-        exchange: h.exchange || 'NSE',
+        scripCode: h.scripCode,
+        isin: h.isin,
+        exchange: h.exchange || 'BSE',
         allocationBps: totalInvestmentMinor > 0 ? Math.round((investedAmountMinor / totalInvestmentMinor) * 10000) : 0,
         quantity: h.quantity,
         quantityScale: 0,

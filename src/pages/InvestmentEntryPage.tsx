@@ -1,20 +1,24 @@
 import { motion } from 'framer-motion';
-import { Save, AlertCircle, Calculator, CheckCircle2, Plus, Trash2 } from 'lucide-react';
+import { Save, AlertCircle, Calculator, CheckCircle2, Plus, Trash2, Search, Edit2, TrendingUp, Sparkles } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { usePlanStore } from '../stores/planStore';
 import { useCmsStore } from '../stores/cmsStore';
 import { usePortfolioStore } from '../stores/portfolioStore';
+import { useStockStore } from '../stores/stockStore';
 import TopNavBar from '../components/TopNavBar';
 import { portfolioRepository } from '../repositories/portfolioRepository';
 import type { PortfolioHolding } from '../schemas/portfolio.schema';
 import { toMinorUnits, formatINR, toRupees } from '../utils/money';
+import StockSearchInput, { type BseStockSelection } from '../components/StockSearchInput';
 
 interface StockEntry {
   id: string;
   symbol: string;
   companyName: string;
+  scripCode?: string;
+  isin?: string;
   quantity: string;
   buyPrice: string;
 }
@@ -63,6 +67,8 @@ export default function InvestmentEntryPage() {
                 id: h.id || Date.now().toString() + i,
                 symbol: h.symbol,
                 companyName: h.companyName || h.symbol,
+                scripCode: h.scripCode || undefined,
+                isin: h.isin || undefined,
                 quantity: h.quantity.toString(),
                 buyPrice: toRupees(h.buyPriceMinor).toString()
               })));
@@ -124,6 +130,8 @@ export default function InvestmentEntryPage() {
               id: Date.now().toString() + i,
               symbol: h.symbol,
               companyName: h.companyName || h.symbol,
+              scripCode: h.scripCode || undefined,
+              isin: h.isin || undefined,
               quantity: '',
               buyPrice: ''
             })));
@@ -170,6 +178,17 @@ export default function InvestmentEntryPage() {
       // Ignore localStorage quotas
     }
   }, [stocks, user, activePlanId, isLoading]);
+
+  const { prices: livePrices, fetchPrices: fetchLivePrices } = useStockStore();
+
+  // Fetch live prices whenever stocks scrip codes change
+  useEffect(() => {
+    const scripCodes = stocks.map(s => s.scripCode).filter(Boolean) as string[];
+    const symbols = stocks.map(s => s.symbol).filter(Boolean);
+    if (scripCodes.length > 0 || symbols.length > 0) {
+      fetchLivePrices(scripCodes, symbols);
+    }
+  }, [stocks, fetchLivePrices]);
 
   const updateStock = (id: string, field: keyof StockEntry, value: string) => {
     setStocks(stocks.map(s => s.id === id ? { ...s, [field]: value } : s));
@@ -220,6 +239,47 @@ export default function InvestmentEntryPage() {
     return null;
   };
 
+  const handleSelectBseStock = (bseStock: BseStockSelection) => {
+    // Check if security is already added
+    const alreadyExists = stocks.some(s => 
+      (s.scripCode && s.scripCode === bseStock.scripCode) || 
+      (s.symbol && s.symbol.toUpperCase() === bseStock.symbol.toUpperCase())
+    );
+
+    if (alreadyExists) {
+      setError(`${bseStock.symbol} (${bseStock.companyName}) is already in your portfolio. You can adjust its quantity directly.`);
+      return;
+    }
+
+    setStocks(prev => {
+      // If the only row is empty, replace it
+      if (prev.length === 1 && !prev[0].symbol && !prev[0].quantity) {
+        return [{
+          id: `bse_${Date.now()}`,
+          symbol: bseStock.symbol,
+          companyName: bseStock.companyName,
+          scripCode: bseStock.scripCode,
+          isin: bseStock.isin,
+          quantity: '',
+          buyPrice: ''
+        }];
+      }
+      return [
+        ...prev,
+        {
+          id: `bse_${Date.now()}`,
+          symbol: bseStock.symbol,
+          companyName: bseStock.companyName,
+          scripCode: bseStock.scripCode,
+          isin: bseStock.isin,
+          quantity: '',
+          buyPrice: ''
+        }
+      ];
+    });
+    setError(null);
+  };
+
   const handleSubmit = async () => {
     if (!user) {
       alert("Please login first");
@@ -239,7 +299,9 @@ export default function InvestmentEntryPage() {
       const formattedHoldings = stocks.map(s => ({
         symbol: s.symbol.trim().toUpperCase(),
         companyName: s.companyName || s.symbol.trim().toUpperCase(),
-        exchange: 'NSE',
+        scripCode: s.scripCode || undefined,
+        isin: s.isin || undefined,
+        exchange: 'BSE',
         quantity: parseInt(s.quantity, 10),
         buyPriceMinor: toMinorUnits(s.buyPrice)
       }));
@@ -394,11 +456,28 @@ export default function InvestmentEntryPage() {
                 </div>
               )}
 
+              {/* Quick Search & Add from BSE */}
+              <div className="mb-5 p-3.5 rounded-lg bg-card/60 border border-border">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] font-mono text-muted-foreground font-semibold flex items-center gap-1.5">
+                    <Search className="w-3.5 h-3.5 text-primary" />
+                    Search & Add BSE Securities
+                  </span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 flex items-center gap-1">
+                    <Sparkles className="w-2.5 h-2.5" /> Live BSE India API
+                  </span>
+                </div>
+                <StockSearchInput
+                  placeholder="Type Indian company name or ticker (e.g. Tata Motors, NAVA, RELIANCE, 513023)..."
+                  onSelect={handleSelectBseStock}
+                />
+              </div>
+
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="border-b border-border text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
-                      <th className="pb-2.5 px-2">Ticker</th>
+                      <th className="pb-2.5 px-2">Ticker / Security</th>
                       <th className="pb-2.5 px-2">Quantity</th>
                       <th className="pb-2.5 px-2">Avg Price (₹)</th>
                       <th className="pb-2.5 px-2 text-right">Investment Value</th>
@@ -410,24 +489,51 @@ export default function InvestmentEntryPage() {
                       const qty = parseInt(stock.quantity, 10) || 0;
                       const priceMinor = toMinorUnits(stock.buyPrice);
                       const invMinor = qty * priceMinor;
+                      const liveQuote = stock.scripCode ? livePrices[stock.scripCode] : (stock.symbol ? livePrices[stock.symbol] : undefined);
 
                       return (
                         <tr key={stock.id} className="hover:bg-muted/30 transition-colors">
-                          <td className="py-3 px-2 font-semibold text-foreground text-xs">
-                            <input
-                              type="text"
-                              value={stock.symbol}
-                              onChange={(e) => updateStock(stock.id, 'symbol', e.target.value.toUpperCase())}
-                              placeholder="SYMBOL"
-                              className="w-28 glass-panel-data px-2 py-1 text-xs uppercase font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                            />
-                            <input
-                              type="text"
-                              value={stock.companyName}
-                              onChange={(e) => updateStock(stock.id, 'companyName', e.target.value)}
-                              placeholder="Company name"
-                              className="w-full text-[10px] text-muted-foreground mt-1 bg-transparent border-none focus:outline-none placeholder:text-muted-foreground/60"
-                            />
+                          <td className="py-3 px-2 font-semibold text-foreground text-xs min-w-[240px]">
+                            {!stock.symbol ? (
+                              <StockSearchInput
+                                usePortal={true}
+                                autoFocus={true}
+                                placeholder="Search company name or ticker..."
+                                onSelect={(bseStock) => {
+                                  setStocks(stocks.map(s => s.id === stock.id ? {
+                                    ...s,
+                                    symbol: bseStock.symbol,
+                                    companyName: bseStock.companyName,
+                                    scripCode: bseStock.scripCode,
+                                    isin: bseStock.isin
+                                  } : s));
+                                }}
+                              />
+                            ) : (
+                              <div className="flex flex-col">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-bold text-foreground text-xs font-mono uppercase">
+                                    {stock.symbol}
+                                  </span>
+                                  {stock.scripCode && (
+                                    <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-primary/10 text-primary border border-primary/20">
+                                      BSE: {stock.scripCode}
+                                    </span>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => updateStock(stock.id, 'symbol', '')}
+                                    className="p-1 text-muted-foreground/60 hover:text-primary transition-colors cursor-pointer"
+                                    title="Search different BSE security"
+                                  >
+                                    <Edit2 className="w-3 h-3" />
+                                  </button>
+                                </div>
+                                <span className="text-[10px] text-muted-foreground truncate max-w-[210px] mt-0.5">
+                                  {stock.companyName}
+                                </span>
+                              </div>
+                            )}
                           </td>
                           <td className="py-3 px-2">
                             <input
@@ -449,6 +555,22 @@ export default function InvestmentEntryPage() {
                               placeholder="0.00"
                               className="w-24 glass-panel-data p-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                             />
+                            {liveQuote && liveQuote.ltp > 0 && (
+                              <div className="mt-1 flex items-center gap-1 text-[10px] font-mono text-muted-foreground whitespace-nowrap">
+                                <TrendingUp className="w-2.5 h-2.5 text-primary shrink-0" />
+                                <span>LTP: <strong className="text-foreground">{formatINR(liveQuote.ltpPaise)}</strong></span>
+                                {!stock.buyPrice && (
+                                  <button
+                                    type="button"
+                                    onClick={() => updateStock(stock.id, 'buyPrice', liveQuote.ltp.toString())}
+                                    className="text-[9px] text-primary hover:underline ml-0.5 cursor-pointer"
+                                    title="Auto-fill buy price with current BSE LTP"
+                                  >
+                                    (Fill)
+                                  </button>
+                                )}
+                              </div>
+                            )}
                           </td>
                           <td className="py-3 px-2 text-right font-semibold tabular-nums text-foreground">
                             {formatINR(invMinor)}
