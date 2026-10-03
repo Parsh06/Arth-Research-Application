@@ -1,15 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { applyCors, parseRequestBody, sendSafeError } from '../_lib/security.js';
+import { validateClientRequest, parseRequestBody, sendSafeError } from '../_lib/security.js';
 import { createOrderSchema } from '../_lib/schemas.js';
 import { requireAuth } from '../_lib/auth.js';
 import { adminDb } from '../_lib/firebaseAdmin.js';
 
-// In-memory rate limiting map for order creation (per IP, 1-minute window)
-const orderRateLimitMap = new Map<string, { count: number; resetAt: number }>();
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Strict CORS & Preflight handling
-  if (applyCors(req, res)) {
+  // Defense-in-depth gatekeeper (blocks Postman, scrapers, invalid origins, abusive rates)
+  if (validateClientRequest(req, res, { rateLimit: { key: 'create_order', max: 30, windowMs: 60000 } })) {
     return;
   }
 
@@ -21,20 +18,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const user = await requireAuth(req, res);
   if (!user) {
     return; // Response already handled with 401
-  }
-
-  // Rate limiting check
-  const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
-  const now = Date.now();
-  const clientRate = orderRateLimitMap.get(clientIp);
-
-  if (clientRate && now < clientRate.resetAt) {
-    if (clientRate.count >= 30) {
-      return sendSafeError(res, 429, 'Too many order requests. Please wait a minute before retrying.');
-    }
-    clientRate.count++;
-  } else {
-    orderRateLimitMap.set(clientIp, { count: 1, resetAt: now + 60 * 1000 });
   }
 
   try {
@@ -143,11 +126,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!rzpResponse.ok) {
       console.error('[RAZORPAY CREATE ORDER ERROR]', rzpData);
-      res.status(rzpResponse.status).json({
-        error: rzpData.error?.description || 'Failed to create Razorpay order',
-        details: rzpData
-      });
-      return;
+      return sendSafeError(res, rzpResponse.status, rzpData.error?.description || 'Failed to create payment order');
     }
 
     console.log(`[RAZORPAY ORDER CREATED] Order ID: ${rzpData.id}, Amount: ₹${rzpData.amount / 100} for User: ${user.uid}`);
@@ -160,7 +139,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       keyId: keyId
     });
   } catch (err: any) {
-    console.error('[RAZORPAY CREATE ORDER SERVER ERROR]', err);
-    res.status(500).json({ error: err.message || 'Internal server error during order creation' });
+    return sendSafeError(res, 500, 'Internal server error during order creation', err);
   }
 }

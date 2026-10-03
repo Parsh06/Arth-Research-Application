@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, Loader2, Check, X, Building2 } from 'lucide-react';
-import { getApiEndpoint } from '../config/api';
+import { getApiEndpoint, CLIENT_API_HEADERS } from '../config/api';
 import { searchLocalBseMaster } from '../data/bseEquitiesMaster';
 
 export interface BseStockSelection {
@@ -105,7 +105,12 @@ export default function StockSearchInput({
       setIsLoading(true);
       try {
         const endpoint = getApiEndpoint(`/stocks/search?q=${encodeURIComponent(cleanQ)}`);
-        const res = await fetch(endpoint);
+        const res = await fetch(endpoint, {
+          headers: {
+            'Accept': 'application/json',
+            ...CLIENT_API_HEADERS
+          }
+        });
         
         const contentType = res.headers.get('content-type') || '';
         if (!res.ok || !contentType.includes('application/json')) {

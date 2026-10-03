@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { applyCors, sendSafeError } from '../_lib/security.js';
+import { validateClientRequest, sendSafeError } from '../_lib/security.js';
 import { getStockPricesCollection, type StockPriceDocument } from '../_lib/mongodb.js';
 import { BSE_TOP_EQUITIES } from '../_lib/bseEquitiesMaster.js';
 
@@ -149,7 +149,7 @@ async function fetchResilientLivePrice(scripCode: string, providedSymbol?: strin
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (applyCors(req, res)) {
+  if (validateClientRequest(req, res, { rateLimit: { key: 'stocks_prices', max: 120, windowMs: 60000 } })) {
     return;
   }
 
@@ -230,12 +230,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Build fast lookup dictionary indexed by both scripCode and shortName
   const dict: Record<string, any> = {};
+  const cleanList: any[] = [];
+  const seenScrips = new Set<string>();
+
   docs.forEach(doc => {
     const cleanDoc = {
       scripCode: doc.scripCode,
       shortName: doc.shortName,
       scripName: doc.scripName,
       isin: doc.isin,
+      category: doc.category || 'Equity',
       ltp: doc.ltp,
       ltpPaise: doc.ltpPaise,
       change: doc.change,
@@ -249,13 +253,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     };
     if (doc.scripCode) dict[doc.scripCode] = cleanDoc;
     if (doc.shortName) dict[doc.shortName.toUpperCase()] = cleanDoc;
+
+    if (doc.scripCode && !seenScrips.has(doc.scripCode)) {
+      seenScrips.add(doc.scripCode);
+      cleanList.push(cleanDoc);
+    }
   });
 
   res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=180');
   return res.status(200).json({
     success: true,
-    count: docs.length,
+    count: cleanList.length,
     data: dict,
-    list: docs
+    list: cleanList
   });
 }

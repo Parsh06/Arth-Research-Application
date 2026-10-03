@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { applyCors, sendSafeError } from '../_lib/security.js';
+import { validateClientRequest, sendSafeError } from '../_lib/security.js';
 import { getStockPricesCollection } from '../_lib/mongodb.js';
 import { searchCuratedBseEquities } from '../_lib/bseEquitiesMaster.js';
 
@@ -23,7 +23,7 @@ const BSE_DESKTOP_HEADERS = {
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (applyCors(req, res)) {
+  if (validateClientRequest(req, res, { rateLimit: { key: 'stocks_search', max: 60, windowMs: 60000 } })) {
     return;
   }
 

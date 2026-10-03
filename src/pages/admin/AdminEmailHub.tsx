@@ -32,7 +32,7 @@ import { emailService, type EmailAuditLogEntry } from '../../services/emailServi
 import { subscriptionRepository } from '../../repositories/subscriptionRepository';
 import { useUserStore } from '../../stores/userStore';
 import type { Subscription } from '../../types/models';
-import { getApiEndpoint } from '../../config/api';
+import { getApiEndpoint, CLIENT_API_HEADERS } from '../../config/api';
 
 export const AdminEmailHub: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
@@ -137,7 +137,10 @@ export const AdminEmailHub: React.FC = () => {
     setWebhookPingResult(null);
     try {
       const endpoint = getApiEndpoint('/cron/check-subscriptions');
-      const res = await fetch(endpoint, { method: 'POST' });
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { ...CLIENT_API_HEADERS }
+      });
       const data = await res.json();
       setWebhookPingResult({ status: res.status, ok: res.ok, data });
       refreshLogs();

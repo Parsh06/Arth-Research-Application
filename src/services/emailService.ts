@@ -41,7 +41,7 @@ import {
   type AccountReactivatedEmailData
 } from '../templates/emails';
 
-import { getApiEndpoint } from '../config/api';
+import { getApiEndpoint, CLIENT_API_HEADERS } from '../config/api';
 import { auth } from '../config/firebase';
 
 export interface EmailAttachment {
@@ -109,7 +109,8 @@ export const emailService = {
         const endpoint = getApiEndpoint('/send-email');
         const token = await auth.currentUser?.getIdToken().catch(() => null);
         const headers: Record<string, string> = {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...CLIENT_API_HEADERS
         };
         if (token) {
           headers['Authorization'] = `Bearer ${token}`;

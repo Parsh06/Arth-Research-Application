@@ -345,10 +345,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       message: `Evaluation completed successfully. Synchronized ${pricesUpdated} BSE stock prices into MongoDB. Next cycle in 15 minutes.`
     });
   } catch (cronErr: any) {
-    console.error('[CRON EVALUATION ERROR]', cronErr);
-    return res.status(500).json({
-      success: false,
-      error: cronErr.message || 'Subscription and stock price cron evaluation failed'
-    });
+    return sendSafeError(res, 500, 'Subscription and stock price cron evaluation failed', cronErr);
   }
 }

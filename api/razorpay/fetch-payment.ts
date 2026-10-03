@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { applyCors, sendSafeError } from '../_lib/security.js';
+import { validateClientRequest, sendSafeError } from '../_lib/security.js';
 import { requireAuth } from '../_lib/auth.js';
 
 /**
@@ -11,8 +11,8 @@ import { requireAuth } from '../_lib/auth.js';
  * Called AFTER signature verification to persist the real instrument used.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Strict CORS & Preflight handling
-  if (applyCors(req, res)) {
+  // Defense-in-depth gatekeeper (blocks Postman, scrapers, invalid origins, abusive rates)
+  if (validateClientRequest(req, res, { rateLimit: { key: 'fetch_payment', max: 60, windowMs: 60000 } })) {
     return;
   }
 
@@ -58,17 +58,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const orderPaymentsData: any = await orderPaymentsRes.json();
       if (!orderPaymentsRes.ok) {
-        res.status(orderPaymentsRes.status).json({
-          error: orderPaymentsData.error?.description || 'Failed to fetch payments for order',
-          details: orderPaymentsData
-        });
-        return;
+        return sendSafeError(res, orderPaymentsRes.status, orderPaymentsData.error?.description || 'Failed to fetch payments for order');
       }
 
       const items: any[] = orderPaymentsData.items || [];
       if (items.length === 0) {
-        res.status(404).json({ error: `No payment attempts found on Razorpay for order ${rawId}` });
-        return;
+        return sendSafeError(res, 404, `No payment attempts found for order ${rawId}`);
       }
 
       // Prioritize captured payment, then authorized, then first attempt
@@ -89,11 +84,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (!rzpResponse.ok) {
         console.error('[RAZORPAY FETCH PAYMENT ERROR]', p);
-        res.status(rzpResponse.status).json({
-          error: p.error?.description || 'Failed to fetch payment details',
-          details: p
-        });
-        return;
+        return sendSafeError(res, rzpResponse.status, p.error?.description || 'Failed to fetch payment details');
       }
     }
 
@@ -188,8 +179,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log(`[RAZORPAY FETCH PAYMENT] ID: ${rawId}, Method: ${method}, Status: ${p.status}`);
     res.status(200).json(result);
   } catch (err: any) {
-    console.error('[RAZORPAY FETCH PAYMENT SERVER ERROR]', err);
-    res.status(500).json({ error: err.message || 'Internal server error while fetching payment' });
+    return sendSafeError(res, 500, 'Internal server error while fetching payment telemetry', err);
   }
 }
 

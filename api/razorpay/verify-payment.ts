@@ -1,13 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'node:crypto';
-import { applyCors, parseRequestBody, sendSafeError } from '../_lib/security.js';
+import { validateClientRequest, parseRequestBody, sendSafeError } from '../_lib/security.js';
 import { verifyPaymentSchema } from '../_lib/schemas.js';
 import { requireAuth } from '../_lib/auth.js';
 import { provisionSubscriptionServer } from '../_lib/provisioning.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Strict CORS & Preflight handling
-  if (applyCors(req, res)) {
+  // Defense-in-depth gatekeeper (blocks Postman, scrapers, invalid origins, abusive rates)
+  if (validateClientRequest(req, res, { rateLimit: { key: 'verify_payment', max: 30, windowMs: 60000 } })) {
     return;
   }
 
@@ -136,7 +136,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       paymentId: provisionResult.paymentId
     });
   } catch (err: any) {
-    console.error('[RAZORPAY VERIFY SERVER ERROR]', err);
-    res.status(500).json({ error: err.message || 'Internal server error during payment verification' });
+    return sendSafeError(res, 500, 'Internal server error during payment verification', err);
   }
 }

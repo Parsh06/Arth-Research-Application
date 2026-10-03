@@ -17,6 +17,11 @@ const isLocalhost = typeof window !== 'undefined' &&
 
 export const API_BASE_URL = isLocalhost ? '' : (RAW_API_URL ? RAW_API_URL.replace(/\/+$/, '') : '');
 
+export const CLIENT_API_HEADERS: Record<string, string> = {
+  'x-arth-client': 'web-client-v1',
+  'x-requested-with': 'XMLHttpRequest'
+};
+
 /**
  * Resolves a given API route path to either the full Vercel backend URL or local relative route
  * @param path e.g. '/api/send-email' or '/send-email'
@@ -54,6 +59,7 @@ export async function apiFetch<T = any>(
       signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
+        ...CLIENT_API_HEADERS,
         ...(options.headers || {})
       }
     });

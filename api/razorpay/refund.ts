@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { applyCors, parseRequestBody, sendSafeError } from '../_lib/security.js';
+import { validateClientRequest, parseRequestBody, sendSafeError } from '../_lib/security.js';
 import { refundSchema } from '../_lib/schemas.js';
 import { requireAdmin } from '../_lib/auth.js';
 
@@ -11,8 +11,8 @@ import { requireAdmin } from '../_lib/auth.js';
  * If amountMinor is omitted, a full refund is issued.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Strict CORS & Preflight handling
-  if (applyCors(req, res)) {
+  // Defense-in-depth gatekeeper (blocks Postman, scrapers, invalid origins, abusive rates)
+  if (validateClientRequest(req, res, { rateLimit: { key: 'refund', max: 15, windowMs: 60000 } })) {
     return;
   }
 
@@ -79,12 +79,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!rzpResponse.ok) {
       console.error('[RAZORPAY REFUND ERROR]', rzpData);
-      res.status(rzpResponse.status).json({
-        success: false,
-        error: rzpData.error?.description || 'Failed to initiate refund',
-        details: rzpData
-      });
-      return;
+      return sendSafeError(res, rzpResponse.status, rzpData.error?.description || 'Failed to initiate refund');
     }
 
     console.log(
@@ -102,7 +97,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       createdAt: rzpData.created_at ? new Date(rzpData.created_at * 1000).toISOString() : new Date().toISOString()
     });
   } catch (err: any) {
-    console.error('[RAZORPAY REFUND SERVER ERROR]', err);
-    res.status(500).json({ success: false, error: err.message || 'Internal server error during refund' });
+    return sendSafeError(res, 500, 'Internal server error during refund execution', err);
   }
 }

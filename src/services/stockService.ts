@@ -1,4 +1,4 @@
-import { getApiEndpoint } from '../config/api';
+import { getApiEndpoint, CLIENT_API_HEADERS } from '../config/api';
 
 export interface LiveStockPrice {
   scripCode: string;
@@ -42,7 +42,12 @@ export const stockService = {
       const queryString = params.toString();
       const url = getApiEndpoint(`/stocks/prices${queryString ? `?${queryString}` : ''}`);
       
-      const res = await fetch(url);
+      const res = await fetch(url, {
+        headers: {
+          'Accept': 'application/json',
+          ...CLIENT_API_HEADERS
+        }
+      });
       const contentType = res.headers.get('content-type') || '';
       if (!res.ok || !contentType.includes('application/json')) {
         throw new Error(`Failed to fetch stock prices, status: ${res.status}`);

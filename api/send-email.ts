@@ -1,15 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import nodemailer from 'nodemailer';
-import { applyCors, parseRequestBody, sendSafeError } from './_lib/security.js';
+import { validateClientRequest, parseRequestBody, sendSafeError } from './_lib/security.js';
 import { sendEmailSchema } from './_lib/schemas.js';
 import { requireAuth } from './_lib/auth.js';
 
-// In-memory rate limiting map for email dispatch (per IP, 1-minute window)
-const emailRateLimitMap = new Map<string, { count: number; resetAt: number }>();
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Strict CORS & Preflight handling
-  if (applyCors(req, res)) {
+  // Defense-in-depth gatekeeper (blocks Postman, scrapers, invalid origins, abusive rates)
+  if (validateClientRequest(req, res, { rateLimit: { key: 'send_email', max: 20, windowMs: 60000 } })) {
     return;
   }
 
@@ -21,20 +18,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const user = await requireAuth(req, res);
   if (!user) {
     return; // Response already handled with 401
-  }
-
-  // Rate limiting check
-  const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
-  const now = Date.now();
-  const clientRate = emailRateLimitMap.get(clientIp);
-
-  if (clientRate && now < clientRate.resetAt) {
-    if (clientRate.count >= 25) {
-      return sendSafeError(res, 429, 'Too many email dispatch requests. Please wait a minute before retrying.');
-    }
-    clientRate.count++;
-  } else {
-    emailRateLimitMap.set(clientIp, { count: 1, resetAt: now + 60 * 1000 });
   }
 
   try {
@@ -123,7 +106,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       recipient: to
     });
   } catch (err: any) {
-    console.error('[EMAIL ERROR]', err);
-    res.status(500).json({ error: err.message || 'Internal server error during email dispatch' });
+    return sendSafeError(res, 500, 'Internal server error during email dispatch.', err);
   }
 }
