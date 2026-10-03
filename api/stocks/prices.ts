@@ -10,53 +10,142 @@ const BSE_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
 };
 
-let lastBseDebug = '';
+const YAHOO_HEADERS = {
+  'Accept': '*/*',
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+};
 
-async function fetchLiveBseHeader(scripCode: string): Promise<StockPriceDocument | null> {
-  try {
-    const url = `https://api.bseindia.com/BseIndiaAPI/api/getScripHeaderData/w?Debtflag=&scripcode=${scripCode}&seriesid=`;
-    const res = await fetch(url, {
-      headers: BSE_HEADERS,
-      signal: AbortSignal.timeout(3500)
-    });
-    lastBseDebug = `BSE status: ${res.status}`;
-    if (!res.ok) {
-      lastBseDebug += ` (text: ${(await res.text()).slice(0, 100)})`;
-      return null;
-    }
-    const data: any = await res.json();
-
-    const currRate = data?.CurrRate || {};
-    const header = data?.Header || {};
-    const cmpName = data?.Cmpname || {};
-
-    const ltpStr = currRate.LTP || header.LTP || '0';
-    const ltp = parseFloat(String(ltpStr).replace(/,/g, '')) || 0;
-    const ltpPaise = Math.round(ltp * 100);
-    const change = parseFloat(String(currRate.Chg || '0').replace(/,/g, '')) || 0;
-    const percentChange = parseFloat(String(currRate.PcChg || '0').replace(/,/g, '')) || 0;
-
-    return {
-      scripCode,
-      shortName: (cmpName.ShortN || '').toUpperCase(),
-      scripName: cmpName.FullN || cmpName.ShortN || scripCode,
-      category: cmpName.Category || 'Listed',
-      ltp,
-      ltpPaise,
-      change,
-      percentChange,
-      prevClose: parseFloat(String(header.PrevClose || '0').replace(/,/g, '')) || 0,
-      open: parseFloat(String(header.Open || '0').replace(/,/g, '')) || 0,
-      high: parseFloat(String(header.High || '0').replace(/,/g, '')) || 0,
-      low: parseFloat(String(header.Low || '0').replace(/,/g, '')) || 0,
-      asOn: header.Ason || new Date().toISOString(),
-      source: 'BSE_INDIA_LIVE',
-      updatedAt: new Date()
-    };
-  } catch (err) {
-    console.warn(`[BSE Header Fetch Error/Timeout for ${scripCode}]`, err);
-    return null;
+/**
+ * Resolves a BSE scrip code to its ticker symbol using curated registry or BSE search endpoint
+ */
+async function resolveSymbolFromScripCode(scripCode: string): Promise<{ symbol: string; companyName: string } | null> {
+  // Check curated registry first (0ms)
+  const curated = BSE_TOP_EQUITIES.find(e => e.scripCode === scripCode);
+  if (curated) {
+    return { symbol: curated.symbol.toUpperCase(), companyName: curated.companyName };
   }
+
+  // Fallback to BSE search API (which allows datacenter IPs)
+  try {
+    const sUrl = `https://api.bseindia.com/MSource/1D/GetQuoteAllSearchDatabeta.aspx?searchString=${encodeURIComponent(scripCode)}`;
+    const res = await fetch(sUrl, { headers: BSE_HEADERS, signal: AbortSignal.timeout(2500) });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        const item = data[0];
+        const symbol = String(item.shortName || item.scripName || '').trim().toUpperCase();
+        const companyName = String(item.scripName || item.shortName || scripCode).trim();
+        if (symbol) return { symbol, companyName };
+      }
+    }
+  } catch {}
+
+  return null;
+}
+
+/**
+ * Multi-source Live Price Resolver:
+ * 1. Tries BSE India getScripHeaderData (primary direct exchange feed)
+ * 2. If BSE returns 403 (common on AWS/Vercel serverless IPs) or times out, falls back to institutional Yahoo BSE feed ({SYMBOL}.BO)
+ */
+async function fetchResilientLivePrice(scripCode: string, providedSymbol?: string): Promise<StockPriceDocument | null> {
+  let symbol = (providedSymbol || '').trim().toUpperCase();
+  let companyName = symbol;
+
+  // 1. Resolve ticker symbol if missing
+  if (!symbol) {
+    const resolved = await resolveSymbolFromScripCode(scripCode);
+    if (resolved) {
+      symbol = resolved.symbol;
+      companyName = resolved.companyName;
+    }
+  }
+
+  // Attempt 1: Direct BSE Header Feed
+  try {
+    const bseUrl = `https://api.bseindia.com/BseIndiaAPI/api/getScripHeaderData/w?Debtflag=&scripcode=${scripCode}&seriesid=`;
+    const bseRes = await fetch(bseUrl, {
+      headers: BSE_HEADERS,
+      signal: AbortSignal.timeout(2000)
+    });
+
+    if (bseRes.ok) {
+      const data: any = await bseRes.json();
+      const currRate = data?.CurrRate || {};
+      const header = data?.Header || {};
+      const cmpName = data?.Cmpname || {};
+
+      const ltpStr = currRate.LTP || header.LTP || '0';
+      const ltp = parseFloat(String(ltpStr).replace(/,/g, '')) || 0;
+      if (ltp > 0) {
+        const ltpPaise = Math.round(ltp * 100);
+        const change = parseFloat(String(currRate.Chg || '0').replace(/,/g, '')) || 0;
+        const percentChange = parseFloat(String(currRate.PcChg || '0').replace(/,/g, '')) || 0;
+
+        return {
+          scripCode,
+          shortName: (cmpName.ShortN || symbol || '').toUpperCase(),
+          scripName: cmpName.FullN || companyName || scripCode,
+          category: cmpName.Category || 'Listed',
+          ltp,
+          ltpPaise,
+          change,
+          percentChange,
+          prevClose: parseFloat(String(header.PrevClose || '0').replace(/,/g, '')) || 0,
+          open: parseFloat(String(header.Open || '0').replace(/,/g, '')) || 0,
+          high: parseFloat(String(header.High || '0').replace(/,/g, '')) || 0,
+          low: parseFloat(String(header.Low || '0').replace(/,/g, '')) || 0,
+          asOn: header.Ason || new Date().toISOString(),
+          source: 'BSE_INDIA_LIVE',
+          updatedAt: new Date()
+        };
+      }
+    }
+  } catch {}
+
+  // Attempt 2: Resilient Cloud Fallback via Yahoo BSE ({SYMBOL}.BO or {SYMBOL}.NS)
+  if (symbol) {
+    try {
+      const yUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}.BO?interval=1d`;
+      const yRes = await fetch(yUrl, {
+        headers: YAHOO_HEADERS,
+        signal: AbortSignal.timeout(3000)
+      });
+
+      if (yRes.ok) {
+        const yData: any = await yRes.json();
+        const meta = yData?.chart?.result?.[0]?.meta;
+        if (meta && meta.regularMarketPrice > 0) {
+          const ltp = Number(meta.regularMarketPrice);
+          const prevClose = Number(meta.chartPreviousClose || meta.previousClose || ltp);
+          const change = parseFloat((ltp - prevClose).toFixed(2));
+          const percentChange = prevClose > 0 ? parseFloat(((change / prevClose) * 100).toFixed(2)) : 0;
+
+          return {
+            scripCode,
+            shortName: symbol,
+            scripName: companyName || symbol,
+            category: 'Equity',
+            ltp,
+            ltpPaise: Math.round(ltp * 100),
+            change,
+            percentChange,
+            prevClose,
+            open: Number(meta.regularMarketDayHigh || ltp),
+            high: Number(meta.regularMarketDayHigh || ltp),
+            low: Number(meta.regularMarketDayLow || ltp),
+            asOn: new Date().toISOString(),
+            source: 'BSE_CLOUD_FEED',
+            updatedAt: new Date()
+          };
+        }
+      }
+    } catch (yErr) {
+      console.warn(`[Yahoo BSE Feed Notice for ${symbol}.BO]`, yErr);
+    }
+  }
+
+  return null;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -88,8 +177,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const foundCodes = new Set<string>();
   let collection: any = null;
 
-  // Layer 1: Query MongoDB Cache safely (gracefully bypasses if DB is unreachable)
-  let mongoErrInfo = '';
+  // Layer 1: Query MongoDB Cache safely (gracefully bypasses if DB is unreachable or non-whitelisted)
   try {
     collection = await getStockPricesCollection();
     let filter: any = {};
@@ -101,16 +189,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     docs = await collection.find(filter).toArray();
     docs.forEach(d => foundCodes.add(d.scripCode));
-  } catch (dbErr: any) {
-    mongoErrInfo = dbErr?.message || String(dbErr);
-    console.warn('[MongoDB Cache Access Warning - Proceeding with Direct BSE Fetch]', dbErr);
+  } catch (dbErr) {
+    // Non-fatal, proceeding directly with live fetch
   }
 
-  // Layer 2: Live BSE Header Fetch for any missing requested scrip codes
+  // Layer 2: Live Fetch for any missing requested scrip codes
   const missingCodes = codes.filter(c => !foundCodes.has(c));
   if (missingCodes.length > 0) {
     const fetchPromises = missingCodes.slice(0, 15).map(async (code) => {
-      const liveDoc = await fetchLiveBseHeader(code);
+      // Find known symbol if any
+      const known = BSE_TOP_EQUITIES.find(e => e.scripCode === code);
+      const liveDoc = await fetchResilientLivePrice(code, known?.symbol);
       if (liveDoc) {
         docs.push(liveDoc as any);
         foundCodes.add(code);
@@ -124,6 +213,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     });
     await Promise.allSettled(fetchPromises);
+  }
+
+  // Also resolve any symbols requested that weren't found by scripCode
+  for (const sym of syms) {
+    const existing = docs.find(d => (d.shortName || '').toUpperCase() === sym);
+    if (!existing) {
+      const known = BSE_TOP_EQUITIES.find(e => e.symbol.toUpperCase() === sym);
+      const scrip = known?.scripCode || sym;
+      const liveDoc = await fetchResilientLivePrice(scrip, sym);
+      if (liveDoc) {
+        docs.push(liveDoc as any);
+      }
+    }
   }
 
   // Build fast lookup dictionary indexed by both scripCode and shortName
@@ -154,7 +256,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     success: true,
     count: docs.length,
     data: dict,
-    list: docs,
-    ...(docs.length === 0 ? { debug: { mongoErrInfo, lastBseDebug, codes, missingCodes } } : {})
+    list: docs
   });
 }
