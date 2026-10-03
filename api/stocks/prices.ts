@@ -10,6 +10,8 @@ const BSE_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
 };
 
+let lastBseDebug = '';
+
 async function fetchLiveBseHeader(scripCode: string): Promise<StockPriceDocument | null> {
   try {
     const url = `https://api.bseindia.com/BseIndiaAPI/api/getScripHeaderData/w?Debtflag=&scripcode=${scripCode}&seriesid=`;
@@ -17,7 +19,11 @@ async function fetchLiveBseHeader(scripCode: string): Promise<StockPriceDocument
       headers: BSE_HEADERS,
       signal: AbortSignal.timeout(3500)
     });
-    if (!res.ok) return null;
+    lastBseDebug = `BSE status: ${res.status}`;
+    if (!res.ok) {
+      lastBseDebug += ` (text: ${(await res.text()).slice(0, 100)})`;
+      return null;
+    }
     const data: any = await res.json();
 
     const currRate = data?.CurrRate || {};
@@ -83,6 +89,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let collection: any = null;
 
   // Layer 1: Query MongoDB Cache safely (gracefully bypasses if DB is unreachable)
+  let mongoErrInfo = '';
   try {
     collection = await getStockPricesCollection();
     let filter: any = {};
@@ -94,7 +101,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     docs = await collection.find(filter).toArray();
     docs.forEach(d => foundCodes.add(d.scripCode));
-  } catch (dbErr) {
+  } catch (dbErr: any) {
+    mongoErrInfo = dbErr?.message || String(dbErr);
     console.warn('[MongoDB Cache Access Warning - Proceeding with Direct BSE Fetch]', dbErr);
   }
 
@@ -146,6 +154,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     success: true,
     count: docs.length,
     data: dict,
-    list: docs
+    list: docs,
+    ...(docs.length === 0 ? { debug: { mongoErrInfo, lastBseDebug, codes, missingCodes } } : {})
   });
 }
