@@ -206,6 +206,30 @@ export default function InvestmentEntryPage() {
     }
   }, [stocks, fetchLivePrices]);
 
+  // Auto-sync live price into buyPrice for any row with empty or 0 buyPrice
+  useEffect(() => {
+    setStocks(prev => {
+      let changed = false;
+      const next = prev.map(stock => {
+        if (!stock.symbol) return stock;
+        const currentPriceNum = parseFloat(stock.buyPrice) || 0;
+        if (currentPriceNum <= 0) {
+          const quote = (stock.scripCode ? livePrices[stock.scripCode] : undefined) ||
+                        (stock.symbol ? livePrices[stock.symbol.toUpperCase()] : undefined);
+          if (quote && quote.ltp > 0) {
+            changed = true;
+            return {
+              ...stock,
+              buyPrice: quote.ltp.toString()
+            };
+          }
+        }
+        return stock;
+      });
+      return changed ? next : prev;
+    });
+  }, [livePrices]);
+
   const updateStock = (id: string, field: keyof StockEntry, value: any) => {
     setStocks(stocks.map(s => s.id === id ? { ...s, [field]: value } : s));
     setError(null);
@@ -304,6 +328,15 @@ export default function InvestmentEntryPage() {
       return;
     }
 
+    // Immediately query live price feed for the selected stock
+    if (bseStock.scripCode || bseStock.symbol) {
+      fetchLivePrices(bseStock.scripCode ? [bseStock.scripCode] : [], bseStock.symbol ? [bseStock.symbol] : []);
+    }
+
+    const existingQuote = (bseStock.scripCode ? livePrices[bseStock.scripCode] : undefined) || 
+                          (bseStock.symbol ? livePrices[bseStock.symbol.toUpperCase()] : undefined);
+    const initialBuyPrice = existingQuote && existingQuote.ltp > 0 ? existingQuote.ltp.toString() : '';
+
     setStocks(prev => {
       // If the only row is empty, replace it
       if (prev.length === 1 && !prev[0].symbol && !prev[0].quantity) {
@@ -314,7 +347,7 @@ export default function InvestmentEntryPage() {
           scripCode: bseStock.scripCode,
           isin: bseStock.isin,
           quantity: '',
-          buyPrice: ''
+          buyPrice: initialBuyPrice
         }];
       }
       return [
@@ -326,7 +359,7 @@ export default function InvestmentEntryPage() {
           scripCode: bseStock.scripCode,
           isin: bseStock.isin,
           quantity: '',
-          buyPrice: ''
+          buyPrice: initialBuyPrice
         }
       ];
     });
@@ -627,7 +660,8 @@ export default function InvestmentEntryPage() {
                       const targetBudgetRupees = (deploymentCapital * targetWeight) / 100;
                       const actualWeightPercent = totalInvMinor > 0 ? ((invMinor / totalInvMinor) * 100) : 0;
                       const weightDrift = Math.abs(actualWeightPercent - targetWeight);
-                      const liveQuote = stock.scripCode ? livePrices[stock.scripCode] : (stock.symbol ? livePrices[stock.symbol] : undefined);
+                      const liveQuote = (stock.scripCode ? livePrices[stock.scripCode] : undefined) ||
+                                        (stock.symbol ? livePrices[stock.symbol.toUpperCase()] : undefined);
 
                       return (
                         <tr key={stock.id} className="hover:bg-muted/30 transition-colors">
@@ -638,12 +672,19 @@ export default function InvestmentEntryPage() {
                                 autoFocus={true}
                                 placeholder="Search company name or ticker..."
                                 onSelect={(bseStock) => {
+                                  const existingQuote = (bseStock.scripCode ? livePrices[bseStock.scripCode] : undefined) || 
+                                                        (bseStock.symbol ? livePrices[bseStock.symbol.toUpperCase()] : undefined);
+                                  const initialBuyPrice = existingQuote && existingQuote.ltp > 0 ? existingQuote.ltp.toString() : '';
+                                  if (bseStock.scripCode || bseStock.symbol) {
+                                    fetchLivePrices(bseStock.scripCode ? [bseStock.scripCode] : [], bseStock.symbol ? [bseStock.symbol] : []);
+                                  }
                                   setStocks(stocks.map(s => s.id === stock.id ? {
                                     ...s,
                                     symbol: bseStock.symbol,
                                     companyName: bseStock.companyName,
                                     scripCode: bseStock.scripCode,
-                                    isin: bseStock.isin
+                                    isin: bseStock.isin,
+                                    buyPrice: s.buyPrice || initialBuyPrice
                                   } : s));
                                 }}
                               />
@@ -718,22 +759,27 @@ export default function InvestmentEntryPage() {
                               placeholder="0.00"
                               className="w-22 glass-panel-data p-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary rounded"
                             />
-                            {liveQuote && liveQuote.ltp > 0 && (
+                            {liveQuote && liveQuote.ltp > 0 ? (
                               <div className="mt-1 flex items-center gap-1 text-[10px] font-mono text-muted-foreground whitespace-nowrap">
                                 <TrendingUp className="w-2.5 h-2.5 text-primary shrink-0" />
                                 <span>LTP: <strong className="text-foreground">{formatINR(liveQuote.ltpPaise)}</strong></span>
-                                {!stock.buyPrice && (
+                                {(!stock.buyPrice || stock.buyPrice === '0' || stock.buyPrice === '0.00') && (
                                   <button
                                     type="button"
                                     onClick={() => updateStock(stock.id, 'buyPrice', liveQuote.ltp.toString())}
                                     className="text-[9px] text-primary hover:underline ml-0.5 cursor-pointer"
                                     title="Auto-fill buy price with current BSE LTP"
                                   >
-                                    (Fill)
+                                    [Use LTP]
                                   </button>
                                 )}
                               </div>
-                            )}
+                            ) : stock.symbol ? (
+                              <div className="mt-1 flex items-center gap-1 text-[9px] font-mono text-muted-foreground">
+                                <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary/60 animate-pulse" />
+                                <span>Live LTP syncing...</span>
+                              </div>
+                            ) : null}
                           </td>
 
                           {/* Actual Executed Amount */}

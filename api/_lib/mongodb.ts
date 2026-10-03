@@ -19,8 +19,7 @@ export interface StockPriceDocument {
   updatedAt: Date;
 }
 
-const DEFAULT_URI = 'mongodb+srv://tatvarthcapital_db_user:[REDACTED]@cluster0.hbowhhv.mongodb.net/?appName=Cluster0';
-const uri = process.env.MONGODB_URI || DEFAULT_URI;
+const uri = process.env.MONGODB_URI || '';
 const dbName = process.env.MONGODB_DB_NAME || 'ArthResearch';
 
 let cachedClient: MongoClient | null = null;
@@ -29,6 +28,10 @@ let cachedDb: Db | null = null;
 export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db }> {
   if (cachedClient && cachedDb) {
     return { client: cachedClient, db: cachedDb };
+  }
+
+  if (!uri) {
+    throw new Error('MONGODB_URI is not configured in environment');
   }
 
   const client = new MongoClient(uri, {

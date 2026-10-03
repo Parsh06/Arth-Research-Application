@@ -594,32 +594,34 @@ function emailDispatcherPlugin(env: Record<string, string>): Plugin {
             }
           }
 
-          // Fallback to MongoDB cached stocks
-          try {
-            const mongoUri = env.MONGODB_URI || process.env.MONGODB_URI || 'mongodb+srv://tatvarthcapital_db_user:[REDACTED]@cluster0.hbowhhv.mongodb.net/?appName=Cluster0';
-            const { MongoClient } = await import('mongodb');
-            const c = new MongoClient(mongoUri);
-            await c.connect();
-            const col = c.db('ArthResearch').collection('StockPrices');
-            const regex = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-            const dbDocs = await col.find({
-              $or: [{ scripCode: { $regex: regex } }, { shortName: { $regex: regex } }, { scripName: { $regex: regex } }]
-            }).limit(10).toArray();
-            for (const doc of dbDocs) {
-              if (!seenCodes.has(doc.scripCode)) {
-                seenCodes.add(doc.scripCode);
-                results.push({
-                  scripCode: doc.scripCode,
-                  symbol: doc.shortName || doc.scripCode,
-                  companyName: doc.scripName || doc.shortName,
-                  isin: doc.isin || '',
-                  type: 'Equity',
-                  score: 60
-                });
+          // Fallback to MongoDB cached stocks if configured
+          const mongoUri = env.MONGODB_URI || process.env.MONGODB_URI;
+          if (mongoUri) {
+            try {
+              const { MongoClient } = await import('mongodb');
+              const c = new MongoClient(mongoUri);
+              await c.connect();
+              const col = c.db('ArthResearch').collection('StockPrices');
+              const regex = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+              const dbDocs = await col.find({
+                $or: [{ scripCode: { $regex: regex } }, { shortName: { $regex: regex } }, { scripName: { $regex: regex } }]
+              }).limit(10).toArray();
+              for (const doc of dbDocs) {
+                if (!seenCodes.has(doc.scripCode)) {
+                  seenCodes.add(doc.scripCode);
+                  results.push({
+                    scripCode: doc.scripCode,
+                    symbol: doc.shortName || doc.scripCode,
+                    companyName: doc.scripName || doc.shortName,
+                    isin: doc.isin || '',
+                    type: 'Equity',
+                    score: 60
+                  });
+                }
               }
-            }
-            await c.close();
-          } catch {}
+              await c.close();
+            } catch {}
+          }
 
           results.sort((a, b) => b.score - a.score);
           const finalData = results.slice(0, 25).map(({ score, ...item }) => item);
@@ -660,27 +662,29 @@ function emailDispatcherPlugin(env: Record<string, string>): Plugin {
           const dict: Record<string, any> = {};
           const list: any[] = [];
 
-          // 1. Check MongoDB cache first
-          try {
-            const mongoUri = env.MONGODB_URI || process.env.MONGODB_URI || 'mongodb+srv://tatvarthcapital_db_user:[REDACTED]@cluster0.hbowhhv.mongodb.net/?appName=Cluster0';
-            const { MongoClient } = await import('mongodb');
-            const client = new MongoClient(mongoUri);
-            await client.connect();
-            const col = client.db(env.MONGODB_DB_NAME || 'ArthResearch').collection('StockPrices');
+          // 1. Check MongoDB cache first if configured
+          const mongoUri = env.MONGODB_URI || process.env.MONGODB_URI;
+          if (mongoUri) {
+            try {
+              const { MongoClient } = await import('mongodb');
+              const client = new MongoClient(mongoUri);
+              await client.connect();
+              const col = client.db(env.MONGODB_DB_NAME || 'ArthResearch').collection('StockPrices');
 
-            let filter: any = {};
-            if (codes.length > 0) filter.scripCode = { $in: codes };
-            else if (symbols.length > 0) filter.shortName = { $in: symbols };
+              let filter: any = {};
+              if (codes.length > 0) filter.scripCode = { $in: codes };
+              else if (symbols.length > 0) filter.shortName = { $in: symbols };
 
-            const docs = await col.find(filter).toArray();
-            docs.forEach(doc => {
-              if (doc.scripCode) dict[doc.scripCode] = doc;
-              if (doc.shortName) dict[doc.shortName.toUpperCase()] = doc;
-              list.push(doc);
-            });
-            await client.close();
-          } catch (mErr) {
-            console.warn('[DEV MONGODB CACHE NOTICE]', mErr);
+              const docs = await col.find(filter).toArray();
+              docs.forEach(doc => {
+                if (doc.scripCode) dict[doc.scripCode] = doc;
+                if (doc.shortName) dict[doc.shortName.toUpperCase()] = doc;
+                list.push(doc);
+              });
+              await client.close();
+            } catch (mErr) {
+              console.warn('[DEV MONGODB CACHE NOTICE]', mErr);
+            }
           }
 
           // 2. For any scrip code not found in MongoDB cache, fetch live directly from BSE Header API!
@@ -729,19 +733,20 @@ function emailDispatcherPlugin(env: Record<string, string>): Plugin {
                   if (quoteDoc.shortName) dict[quoteDoc.shortName] = quoteDoc;
                   list.push(quoteDoc);
 
-                  // Async write-back to MongoDB
-                  try {
-                    const mongoUri = env.MONGODB_URI || process.env.MONGODB_URI || 'mongodb+srv://tatvarthcapital_db_user:[REDACTED]@cluster0.hbowhhv.mongodb.net/?appName=Cluster0';
-                    const { MongoClient } = await import('mongodb');
-                    const c = new MongoClient(mongoUri);
-                    await c.connect();
-                    await c.db('ArthResearch').collection('StockPrices').updateOne(
-                      { scripCode: code },
-                      { $set: quoteDoc },
-                      { upsert: true }
-                    );
-                    await c.close();
-                  } catch {}
+                  // Async write-back to MongoDB if configured
+                  if (mongoUri) {
+                    try {
+                      const { MongoClient } = await import('mongodb');
+                      const c = new MongoClient(mongoUri);
+                      await c.connect();
+                      await c.db('ArthResearch').collection('StockPrices').updateOne(
+                        { scripCode: code },
+                        { $set: quoteDoc },
+                        { upsert: true }
+                      );
+                      await c.close();
+                    } catch {}
+                  }
                 }
               } catch (bseErr) {
                 console.error(`[DEV BSE HEADER ERROR for ${code}]`, bseErr);

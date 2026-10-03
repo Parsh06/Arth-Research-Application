@@ -104,44 +104,53 @@ async function fetchResilientLivePrice(scripCode: string, providedSymbol?: strin
   } catch {}
 
   // Attempt 2: Resilient Cloud Fallback via Yahoo BSE ({SYMBOL}.BO or {SYMBOL}.NS)
-  if (symbol) {
-    try {
-      const yUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}.BO?interval=1d`;
-      const yRes = await fetch(yUrl, {
-        headers: YAHOO_HEADERS,
-        signal: AbortSignal.timeout(3000)
-      });
+  const candidateSymbols: string[] = [];
+  if (symbol) candidateSymbols.push(symbol);
+  if (symbol === 'TATAMOTORS' || scripCode === '500570') candidateSymbols.push('TMPV');
+  if (providedSymbol && !candidateSymbols.includes(providedSymbol.toUpperCase())) {
+    candidateSymbols.push(providedSymbol.toUpperCase());
+  }
 
-      if (yRes.ok) {
-        const yData: any = await yRes.json();
-        const meta = yData?.chart?.result?.[0]?.meta;
-        if (meta && meta.regularMarketPrice > 0) {
-          const ltp = Number(meta.regularMarketPrice);
-          const prevClose = Number(meta.chartPreviousClose || meta.previousClose || ltp);
-          const change = parseFloat((ltp - prevClose).toFixed(2));
-          const percentChange = prevClose > 0 ? parseFloat(((change / prevClose) * 100).toFixed(2)) : 0;
+  for (const sym of candidateSymbols) {
+    for (const suffix of ['.BO', '.NS']) {
+      try {
+        const yUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}${suffix}?interval=1d`;
+        const yRes = await fetch(yUrl, {
+          headers: YAHOO_HEADERS,
+          signal: AbortSignal.timeout(2500)
+        });
 
-          return {
-            scripCode,
-            shortName: symbol,
-            scripName: companyName || symbol,
-            category: 'Equity',
-            ltp,
-            ltpPaise: Math.round(ltp * 100),
-            change,
-            percentChange,
-            prevClose,
-            open: Number(meta.regularMarketDayHigh || ltp),
-            high: Number(meta.regularMarketDayHigh || ltp),
-            low: Number(meta.regularMarketDayLow || ltp),
-            asOn: new Date().toISOString(),
-            source: 'BSE_CLOUD_FEED',
-            updatedAt: new Date()
-          };
+        if (yRes.ok) {
+          const yData: any = await yRes.json();
+          const meta = yData?.chart?.result?.[0]?.meta;
+          if (meta && meta.regularMarketPrice > 0) {
+            const ltp = Number(meta.regularMarketPrice);
+            const prevClose = Number(meta.chartPreviousClose || meta.previousClose || ltp);
+            const change = parseFloat((ltp - prevClose).toFixed(2));
+            const percentChange = prevClose > 0 ? parseFloat(((change / prevClose) * 100).toFixed(2)) : 0;
+
+            return {
+              scripCode,
+              shortName: symbol || sym,
+              scripName: companyName || symbol || sym,
+              category: 'Equity',
+              ltp,
+              ltpPaise: Math.round(ltp * 100),
+              change,
+              percentChange,
+              prevClose,
+              open: Number(meta.regularMarketDayHigh || ltp),
+              high: Number(meta.regularMarketDayHigh || ltp),
+              low: Number(meta.regularMarketDayLow || ltp),
+              asOn: new Date().toISOString(),
+              source: 'BSE_CLOUD_FEED',
+              updatedAt: new Date()
+            };
+          }
         }
+      } catch (yErr) {
+        // Continue to next candidate
       }
-    } catch (yErr) {
-      console.warn(`[Yahoo BSE Feed Notice for ${symbol}.BO]`, yErr);
     }
   }
 
@@ -253,6 +262,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     };
     if (doc.scripCode) dict[doc.scripCode] = cleanDoc;
     if (doc.shortName) dict[doc.shortName.toUpperCase()] = cleanDoc;
+    if (doc.scripCode === '500570') {
+      dict['TATAMOTORS'] = cleanDoc;
+      dict['TMPV'] = cleanDoc;
+    }
+    syms.forEach(s => {
+      const match = BSE_TOP_EQUITIES.find(e => e.symbol.toUpperCase() === s && e.scripCode === doc.scripCode);
+      if (match) dict[s] = cleanDoc;
+    });
 
     if (doc.scripCode && !seenScrips.has(doc.scripCode)) {
       seenScrips.add(doc.scripCode);
