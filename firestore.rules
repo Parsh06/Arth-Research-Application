@@ -16,10 +16,6 @@ service cloud.firestore {
         : {};
     }
 
-    function isSuperAdmin() {
-      return isAuthenticated() &&
-             getUserData().get('role', 'user') == 'super_admin';
-    }
 
     function isAdmin() {
       return isAuthenticated() &&
@@ -53,17 +49,18 @@ service cloud.firestore {
       // Anyone authenticated can read their own profile; admins can read all
       allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
 
-      // Self-create on first login only
+      // Self-create on first login
       allow create: if isAuthenticated() && request.auth.uid == userId
-                    && request.resource.data.role == 'user'
-                    && request.resource.data.status == 'active';
+                    && request.resource.data.get('role', 'user') == 'user'
+                    && request.resource.data.get('status', 'active') == 'active';
 
-      // ZERO-TRUST LOCKDOWN: Users can ONLY update safe aesthetic fields.
-      // Subscription status, activePlanId, and expiresAt can ONLY be updated by privileged backend or admin!
-      allow update: if (isUserActive() && request.auth.uid == userId
-                    && request.resource.data.diff(resource.data).affectedKeys()
-                       .hasOnly(['displayName', 'phone', 'photoURL', 'theme', 'updatedAt']))
-                    || isAdmin();
+      // ZERO-TRUST LOCKDOWN: Users can update their profile, but CANNOT escalate privileges
+      // (cannot self-assign role, activePlanId, subscriptionStatus, expiresAt, status)
+      allow update: if isAdmin() || (
+        isAuthenticated() && request.auth.uid == userId
+        && !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['role', 'subscriptionStatus', 'activePlanId', 'expiresAt', 'status'])
+      );
 
       // Only admins can delete user documents
       allow delete: if isAdmin();
@@ -71,16 +68,16 @@ service cloud.firestore {
 
     // Private PII: phone, address, bank details — user can read/write own; admin read-only
     match /userPrivate/{userId} {
-      allow read: if isUserActive() && (request.auth.uid == userId || isAdmin());
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
       // Users update their own private data; admins cannot write (prevents admin from spoofing PII)
-      allow write: if isUserActive() && request.auth.uid == userId;
+      allow write: if isAuthenticated() && request.auth.uid == userId;
     }
 
     // Regulatory Compliance & Risk Profiling — user can read/write own; admin read-only
     match /userCompliance/{userId} {
-      allow read: if isUserActive() && (request.auth.uid == userId || isAdmin());
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
       // Users submit their own KYC/compliance data; admins cannot write from client
-      allow create, update: if isUserActive() && request.auth.uid == userId;
+      allow create, update: if isAuthenticated() && request.auth.uid == userId;
       allow delete: if false; // Compliance records are never deleted
     }
 

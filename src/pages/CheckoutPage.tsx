@@ -278,6 +278,8 @@ export default function CheckoutPage() {
           email: user.email || '',
           displayName: user.displayName || 'Investor',
           ...(user.photoURL ? { photoURL: user.photoURL } : {})
+        }).catch(err => {
+          console.warn('[CheckoutPage] Non-fatal user ensure notice:', err);
         });
       }
 

@@ -36,17 +36,74 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return sendSafeError(res, 500, 'Razorpay API credentials not configured on backend server');
     }
 
+async function fetchPlanDetailsServer(planId: string): Promise<any | null> {
+  // 1. Try Firebase Admin SDK
+  try {
+    const planDoc = await adminDb.collection('plans').doc(planId).get();
+    if (planDoc.exists) {
+      return { id: planDoc.id, ...planDoc.data() };
+    }
+  } catch (adminErr) {
+    console.warn('[CreateOrder] adminDb plan read notice, using REST fallback:', adminErr);
+  }
+
+  // 2. Fallback to Firestore REST API (publicly allowed for /plans)
+  try {
+    const projectId = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID || 'researchapplication-3085c';
+    const apiKey = process.env.VITE_FIREBASE_API_KEY || 'AIzaSyCi3tGd4zsfU_LpVZssmwHrVYG4g2ADzBQ';
+    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/plans/${encodeURIComponent(planId)}?key=${apiKey}`;
+    const res = await fetch(url);
+    if (res.ok) {
+      const data: any = await res.json();
+      const f = data.fields || {};
+      const priceVal = f.price?.doubleValue ?? f.price?.integerValue ?? 0;
+      const priceMinorVal = f.priceMinor?.integerValue ? Number(f.priceMinor.integerValue) : Number(priceVal) * 100;
+      return {
+        id: planId,
+        name: f.name?.stringValue || planId,
+        isActive: f.isActive?.booleanValue ?? true,
+        priceMinor: priceMinorVal,
+        quarterlyPriceMinor: f.quarterlyPriceMinor?.integerValue ? Number(f.quarterlyPriceMinor.integerValue) : undefined,
+        halfYearlyPriceMinor: f.halfYearlyPriceMinor?.integerValue ? Number(f.halfYearlyPriceMinor.integerValue) : undefined,
+        yearlyPriceMinor: f.yearlyPriceMinor?.integerValue ? Number(f.yearlyPriceMinor.integerValue) : undefined,
+        validityDays: f.validityDays?.integerValue ? Number(f.validityDays.integerValue) : 365
+      };
+    }
+  } catch (restErr) {
+    console.error('[CreateOrder] Firestore REST plan fallback error:', restErr);
+  }
+
+  return null;
+}
+
+async function fetchCouponDetailsServer(couponCode: string): Promise<any | null> {
+  const cleanCode = couponCode.trim().toUpperCase();
+  try {
+    const couponQuery = await adminDb.collection('coupons')
+      .where('code', '==', cleanCode)
+      .limit(1)
+      .get();
+
+    if (!couponQuery.empty) {
+      return couponQuery.docs[0].data();
+    }
+  } catch (cErr) {
+    console.warn('[CreateOrder] adminDb coupon query notice:', cErr);
+  }
+
+  return null;
+}
+
     let calculatedAmountMinor: number;
     let planName = notes?.planName || 'Advisory Plan';
 
     // SERVER-SIDE CANONICAL PRICE RESOLUTION
     if (planId) {
-      const planDoc = await adminDb.collection('plans').doc(planId).get();
-      if (!planDoc.exists) {
+      const planData = await fetchPlanDetailsServer(planId);
+      if (!planData) {
         return sendSafeError(res, 404, `Selected plan "${planId}" not found in system.`);
       }
 
-      const planData = planDoc.data() || {};
       if (planData.isActive === false) {
         return sendSafeError(res, 400, 'This advisory strategy plan is currently deactivated.');
       }
@@ -67,14 +124,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // SERVER-SIDE COUPON VALIDATION
       if (couponCode) {
-        const cleanCode = couponCode.trim().toUpperCase();
-        const couponQuery = await adminDb.collection('coupons')
-          .where('code', '==', cleanCode)
-          .limit(1)
-          .get();
-
-        if (!couponQuery.empty) {
-          const couponData = couponQuery.docs[0].data();
+        const couponData = await fetchCouponDetailsServer(couponCode);
+        if (couponData) {
           const couponActive = couponData.isActive !== false;
           const notExpired = !couponData.expiresAt || new Date(couponData.expiresAt).getTime() > Date.now();
           const hasUsesRemaining = !couponData.maxUses || (couponData.timesUsed || 0) < couponData.maxUses;

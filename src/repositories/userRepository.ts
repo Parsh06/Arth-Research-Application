@@ -27,8 +27,23 @@ export const userRepository = {
   },
 
   async createUser(uid: string, data: Partial<User>): Promise<void> {
-    const now = new Date().toISOString();
     const docRef = doc(db, COLLECTION_USERS, uid);
+    try {
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        const safeUpdates: any = { updatedAt: new Date().toISOString() };
+        if (data.displayName) safeUpdates.displayName = data.displayName;
+        if (data.photoURL) safeUpdates.photoURL = data.photoURL;
+        if (data.phone) safeUpdates.phone = data.phone;
+        if (data.theme) safeUpdates.theme = data.theme;
+        await updateDoc(docRef, safeUpdates).catch(() => {});
+        return;
+      }
+    } catch {
+      // Non-fatal, proceed with create
+    }
+
+    const now = new Date().toISOString();
     const payload = sanitizeForFirestore({
       uid,
       createdAt: now,
